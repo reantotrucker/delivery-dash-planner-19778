@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Shield, User, ArrowLeft } from "lucide-react";
+import { Loader2, Shield, User, ArrowLeft, Settings } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -112,16 +112,22 @@ export default function UserManagement() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => navigate("/")}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
-          <p className="text-muted-foreground">
-            Gerencie permissões e acessos dos usuários do sistema
-          </p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={() => navigate("/")}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Gerenciamento de Usuários</h1>
+            <p className="text-muted-foreground">
+              Gerencie permissões e acessos dos usuários do sistema
+            </p>
+          </div>
         </div>
+        <Button onClick={() => navigate("/settings")}>
+          <Settings className="w-4 h-4 mr-2" />
+          Configurações
+        </Button>
       </div>
 
       <Card>
