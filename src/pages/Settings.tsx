@@ -9,8 +9,7 @@ import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { Navigate } from "react-router-dom";
-import { 
+import {
   driverSchema, 
   vehicleSchema, 
   consultantSchema, 
@@ -21,9 +20,6 @@ import { z } from "zod";
 const Settings = () => {
   const { isAdmin } = useAuth();
 
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
