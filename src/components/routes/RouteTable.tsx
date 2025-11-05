@@ -1,0 +1,361 @@
+import { Route } from "./types";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { Trash2, Pencil, FileText, Plus, Edit, X } from "lucide-react";
+import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+interface RouteTableProps {
+  routes: Route[];
+  onUpdate: () => void;
+  onEdit: (route: Route) => void;
+  isAdmin: boolean;
+}
+
+export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin }: RouteTableProps) => {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [occurrenceRoute, setOccurrenceRoute] = useState<Route | null>(null);
+  const [editingOccurrence, setEditingOccurrence] = useState<Occurrence | null>(null);
+  const [occurrenceDialogOpen, setOccurrenceDialogOpen] = useState(false);
+  const [deleteOccurrenceId, setDeleteOccurrenceId] = useState<string | null>(null);
+
+  // Fetch all occurrences for the displayed routes
+  const { data: occurrences = [], refetch: refetchOccurrences } = useQuery({
+    queryKey: ["route-occurrences", routes.map(r => r.id)],
+    queryFn: async () => {
+      if (routes.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from("route_occurrences")
+        .select("*")
+        .in("route_id", routes.map(r => r.id));
+
+      if (error) throw error;
+      return data as Occurrence[];
+    },
+    enabled: routes.length > 0,
+  });
+
+  const toggleStatus = async (routeId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "ENTREGUE" ? "NAO_ENTREGUE" : "ENTREGUE";
+
+    const { error } = await supabase
+      .from("routes")
+      .update({ status: newStatus })
+      .eq("id", routeId);
+
+    if (error) {
+      toast({
+        title: "Erro ao atualizar status",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Status atualizado",
+      });
+      onUpdate();
+    }
+  };
+
+  const deleteRoute = async (routeId: string) => {
+    try {
+      setDeletingId(routeId);
+      const { error } = await supabase.from("routes").delete().eq("id", routeId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Rota excluída com sucesso!",
+      });
+
+      onUpdate();
+    } catch (error) {
+      console.error("Error deleting route:", error);
+      toast({
+        title: "Erro ao excluir rota",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const deleteOccurrence = async (occurrenceId: string) => {
+    try {
+      const { error } = await supabase
+        .from("route_occurrences")
+        .delete()
+        .eq("id", occurrenceId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Ocorrência excluída com sucesso!",
+      });
+
+      refetchOccurrences();
+      onUpdate();
+      setDeleteOccurrenceId(null);
+    } catch (error) {
+      console.error("Error deleting occurrence:", error);
+      toast({
+        title: "Erro ao excluir ocorrência",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-border overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-card hover:bg-card">
+            <TableHead className="text-primary font-semibold text-xs w-12">#</TableHead>
+            <TableHead className="text-primary font-semibold text-xs">CLIENTE</TableHead>
+            <TableHead className="text-primary font-semibold text-xs">BAIRRO</TableHead>
+            <TableHead className="text-primary font-semibold text-xs">CONSULTOR</TableHead>
+            <TableHead className="text-primary font-semibold text-xs">MOTORISTA</TableHead>
+            <TableHead className="text-primary font-semibold text-xs">VEÍCULOS</TableHead>
+            <TableHead className="text-primary font-semibold text-xs">PGTO</TableHead>
+            <TableHead className="text-primary font-semibold text-xs">OBS</TableHead>
+            <TableHead className="text-primary font-semibold text-xs">STATUS</TableHead>
+            <TableHead className="text-primary font-semibold text-xs w-24">ACÕES</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {routes.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                Nenhuma rota cadastrada para este período
+              </TableCell>
+            </TableRow>
+          ) : (
+            routes.map((route, index) => (
+              <TableRow
+                key={route.id}
+                className={index % 2 === 0 ? "bg-muted/30" : "bg-background"}
+                style={{
+                  backgroundColor: route.driver?.color
+                    ? index % 2 === 0
+                      ? `${route.driver.color}30`
+                      : `${route.driver.color}15`
+                    : undefined,
+                }}
+              >
+                <TableCell className="text-sm py-2 text-muted-foreground font-semibold">{index + 1}</TableCell>
+                <TableCell className="font-medium text-sm py-2">{route.client}</TableCell>
+                <TableCell className="text-sm py-2">{route.neighborhood}</TableCell>
+                <TableCell className="text-sm py-2">{route.consultant?.name || "-"}</TableCell>
+                <TableCell className="text-sm py-2">{route.driver?.name || "-"}</TableCell>
+                <TableCell className="text-sm py-2">{route.vehicle?.plate || "-"}</TableCell>
+                <TableCell className="text-sm py-2">{route.payment_method?.name || "-"}</TableCell>
+                <TableCell className="text-sm py-2">
+                  {route.observation || "-"}
+                </TableCell>
+                <TableCell className="py-2">
+                  <Button
+                    onClick={() => toggleStatus(route.id, route.status)}
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs px-2"
+                    disabled={!isAdmin}
+                  >
+                    <span
+                      className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                        route.status === "ENTREGUE"
+                          ? "bg-green-500"
+                          : "bg-red-500"
+                      }`}
+                    />
+                    {route.status === "ENTREGUE" ? "OK" : "PEND"}
+                  </Button>
+                </TableCell>
+                <TableCell className="py-2">
+                  {isAdmin ? (
+                    <div className="flex gap-1">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 hover:bg-accent relative"
+                            title="Ocorrências"
+                          >
+                            <FileText className="w-3 h-3" />
+                            {occurrences.filter(o => o.route_id === route.id).length > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                                {occurrences.filter(o => o.route_id === route.id).length}
+                              </span>
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setOccurrenceRoute(route);
+                              setEditingOccurrence(null);
+                              setOccurrenceDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Nova Ocorrência
+                          </DropdownMenuItem>
+                          {occurrences.filter(o => o.route_id === route.id).length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              {occurrences
+                                .filter(o => o.route_id === route.id)
+                                .map((occ, idx) => (
+                                  <div key={occ.id}>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setOccurrenceRoute(route);
+                                        setEditingOccurrence(occ);
+                                        setOccurrenceDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="w-4 h-4 mr-2" />
+                                      Editar Ocorrência {idx + 1}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => setDeleteOccurrenceId(occ.id)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <X className="w-4 h-4 mr-2" />
+                                      Excluir Ocorrência {idx + 1}
+                                    </DropdownMenuItem>
+                                  </div>
+                                ))}
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(route)}
+                        className="h-7 w-7 hover:bg-primary/10"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            disabled={deletingId === route.id}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir a rota de {route.client}? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteRoute(route.id)} className="bg-destructive hover:bg-destructive/90">
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 relative"
+                        title="Ocorrências (somente leitura)"
+                        disabled
+                      >
+                        <FileText className="w-3 h-3" />
+                        {occurrences.filter(o => o.route_id === route.id).length > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                            {occurrences.filter(o => o.route_id === route.id).length}
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+
+      {occurrenceRoute && (
+        <RouteOccurrenceDialog
+          route={occurrenceRoute}
+          occurrence={editingOccurrence}
+          open={occurrenceDialogOpen}
+          onOpenChange={(open) => {
+            setOccurrenceDialogOpen(open);
+            if (!open) {
+              setOccurrenceRoute(null);
+              setEditingOccurrence(null);
+            }
+          }}
+          onSaved={() => {
+            refetchOccurrences();
+            onUpdate();
+          }}
+        />
+      )}
+
+      <AlertDialog open={!!deleteOccurrenceId} onOpenChange={(open) => !open && setDeleteOccurrenceId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta ocorrência? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteOccurrenceId && deleteOccurrence(deleteOccurrenceId)} 
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
