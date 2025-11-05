@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Printer, Search } from "lucide-react";
+import { Calendar, Printer, Search, Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Route } from "@/components/routes/types";
@@ -14,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 const Dashboard = () => {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedPeriod, setSelectedPeriod] = useState<"MANHA" | "TARDE">("MANHA");
   const [searchTerm, setSearchTerm] = useState("");
@@ -204,6 +206,16 @@ const Dashboard = () => {
                   className="bg-secondary text-foreground px-2 py-1 text-sm rounded border border-border"
                 />
               </div>
+              {isAdmin && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate('/settings')}
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Configurações
+                </Button>
+              )}
             </div>
           </div>
         </div>
