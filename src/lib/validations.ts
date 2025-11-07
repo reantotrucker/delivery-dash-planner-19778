@@ -72,4 +72,5 @@ export const occurrenceSchema = z.object({
     .max(500, "Descrição deve ter no máximo 500 caracteres"),
   motorista: z.boolean(),
   vendedor: z.boolean(),
+  cliente: z.boolean(),
 });

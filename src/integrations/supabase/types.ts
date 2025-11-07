@@ -144,6 +144,7 @@ export type Database = {
       }
       route_occurrences: {
         Row: {
+          cliente: boolean
           created_at: string
           created_by: string | null
           description: string
@@ -154,6 +155,7 @@ export type Database = {
           vendedor: boolean
         }
         Insert: {
+          cliente?: boolean
           created_at?: string
           created_by?: string | null
           description: string
@@ -164,6 +166,7 @@ export type Database = {
           vendedor?: boolean
         }
         Update: {
+          cliente?: boolean
           created_at?: string
           created_by?: string | null
           description?: string

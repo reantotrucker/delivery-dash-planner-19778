@@ -23,6 +23,7 @@ export interface Occurrence {
   route_id: string;
   motorista: boolean;
   vendedor: boolean;
+  cliente: boolean;
   description: string;
   created_at: string;
   updated_at: string;
@@ -54,6 +55,7 @@ export const RouteOccurrenceDialog = ({
 }: RouteOccurrenceDialogProps) => {
   const [motorista, setMotorista] = useState(false);
   const [vendedor, setVendedor] = useState(false);
+  const [cliente, setCliente] = useState(false);
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [photos, setPhotos] = useState<OccurrencePhoto[]>([]);
@@ -67,12 +69,14 @@ export const RouteOccurrenceDialog = ({
     if (occurrence) {
       setMotorista(occurrence.motorista);
       setVendedor(occurrence.vendedor);
+      setCliente(occurrence.cliente);
       setDescription(occurrence.description);
       loadPhotos(occurrence.id);
     } else {
       // Reset form when creating new
       setMotorista(false);
       setVendedor(false);
+      setCliente(false);
       setDescription("");
       setPhotos([]);
       setSelectedFiles([]);
@@ -217,6 +221,7 @@ export const RouteOccurrenceDialog = ({
         description,
         motorista,
         vendedor,
+        cliente,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -242,6 +247,7 @@ export const RouteOccurrenceDialog = ({
           .update({
             motorista,
             vendedor,
+            cliente,
             description: description.trim(),
           })
           .eq("id", occurrence.id);
@@ -262,6 +268,7 @@ export const RouteOccurrenceDialog = ({
             route_id: route.id,
             motorista,
             vendedor,
+            cliente,
             description: description.trim(),
             created_by: user?.id,
           })
@@ -283,6 +290,7 @@ export const RouteOccurrenceDialog = ({
       // Reset form
       setMotorista(false);
       setVendedor(false);
+      setCliente(false);
       setDescription("");
       setPhotos([]);
       setSelectedFiles([]);
@@ -322,7 +330,7 @@ export const RouteOccurrenceDialog = ({
 
           <div className="space-y-4">
             <Label className="text-base font-semibold">Responsável</Label>
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-6 flex-wrap gap-2">
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="motorista"
@@ -347,6 +355,19 @@ export const RouteOccurrenceDialog = ({
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
                   Vendedor
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="cliente"
+                  checked={cliente}
+                  onCheckedChange={(checked) => setCliente(checked === true)}
+                />
+                <label
+                  htmlFor="cliente"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Cliente
                 </label>
               </div>
             </div>

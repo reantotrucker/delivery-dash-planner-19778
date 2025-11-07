@@ -95,11 +95,13 @@ const Reports = () => {
           existing.total++;
           if (occurrence.motorista) existing.motorista++;
           if (occurrence.vendedor) existing.vendedor++;
+          if (occurrence.cliente) existing.cliente++;
           existing.occurrences.push({
             id: occurrence.id,
             description: occurrence.description,
             motorista: occurrence.motorista,
             vendedor: occurrence.vendedor,
+            cliente: occurrence.cliente,
             order_number: occurrence.route.order_number,
             created_at: occurrence.created_at,
           });
@@ -111,11 +113,13 @@ const Reports = () => {
             total: 1,
             motorista: occurrence.motorista ? 1 : 0,
             vendedor: occurrence.vendedor ? 1 : 0,
+            cliente: occurrence.cliente ? 1 : 0,
             occurrences: [{
               id: occurrence.id,
               description: occurrence.description,
               motorista: occurrence.motorista,
               vendedor: occurrence.vendedor,
+              cliente: occurrence.cliente,
               order_number: occurrence.route.order_number,
               created_at: occurrence.created_at,
             }],
@@ -393,6 +397,9 @@ const Reports = () => {
                           <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-700 rounded-full font-medium">
                             {driver.vendedor} Vendedor
                           </span>
+                          <span className="text-xs px-2 py-1 bg-purple-500/10 text-purple-700 rounded-full font-medium">
+                            {driver.cliente} Cliente
+                          </span>
                         </div>
                       </div>
                       <div className="text-right">
@@ -438,6 +445,9 @@ const Reports = () => {
                         <div className="px-3 py-1 bg-blue-500/10 text-blue-700 rounded text-sm">
                           <span className="font-semibold">{driver.vendedor}</span> Vendedor
                         </div>
+                        <div className="px-3 py-1 bg-purple-500/10 text-purple-700 rounded text-sm">
+                          <span className="font-semibold">{driver.cliente}</span> Cliente
+                        </div>
                       </div>
                     </div>
                     
@@ -446,21 +456,26 @@ const Reports = () => {
                         <div key={occ.id} className="px-4 py-3 hover:bg-muted/20 transition-colors">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-semibold text-foreground">Rota #{occ.order_number}</span>
-                                <div className="flex gap-1">
-                                  {occ.motorista && (
-                                    <span className="text-xs px-2 py-0.5 bg-amber-500 text-white rounded-full font-medium">
-                                      Motorista
-                                    </span>
-                                  )}
-                                  {occ.vendedor && (
-                                    <span className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded-full font-medium">
-                                      Vendedor
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
+                                <div className="flex items-center gap-2 mb-1">
+                                 <span className="font-semibold text-foreground">Rota #{occ.order_number}</span>
+                                 <div className="flex gap-1">
+                                   {occ.motorista && (
+                                     <span className="text-xs px-2 py-0.5 bg-amber-500 text-white rounded-full font-medium">
+                                       Motorista
+                                     </span>
+                                   )}
+                                   {occ.vendedor && (
+                                     <span className="text-xs px-2 py-0.5 bg-blue-500 text-white rounded-full font-medium">
+                                       Vendedor
+                                     </span>
+                                   )}
+                                   {occ.cliente && (
+                                     <span className="text-xs px-2 py-0.5 bg-purple-500 text-white rounded-full font-medium">
+                                       Cliente
+                                     </span>
+                                   )}
+                                 </div>
+                               </div>
                               <p className="text-sm text-muted-foreground leading-relaxed">
                                 {occ.description}
                               </p>
