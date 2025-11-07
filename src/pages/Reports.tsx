@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Trophy, BarChart3, PieChart, AlertTriangle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 const Reports = () => {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
@@ -335,29 +335,80 @@ const Reports = () => {
             <>
               <div className="mb-8">
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={occurrencesByDriver}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <LineChart data={occurrencesByDriver}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis 
                       dataKey="driver_name" 
                       angle={-45} 
                       textAnchor="end" 
                       height={100}
-                      tick={{ fill: '#6b7280' }}
+                      stroke="hsl(var(--muted-foreground))"
                     />
-                    <YAxis tick={{ fill: '#6b7280' }} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
                     <Tooltip 
                       contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px'
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px',
+                        color: 'hsl(var(--foreground))'
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="total" fill="#ef4444" name="Total de Ocorrências" radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                    <Line 
+                      type="monotone" 
+                      dataKey="total" 
+                      stroke="#ef4444" 
+                      strokeWidth={3}
+                      name="Total de Ocorrências"
+                      dot={{ fill: '#ef4444', r: 6 }}
+                      activeDot={{ r: 8 }}
+                    />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
 
+              <div className="mb-8">
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                  <Trophy className="w-5 h-5" />
+                  Ranking de Ocorrências
+                </h3>
+                <div className="space-y-3">
+                  {occurrencesByDriver.map((driver: any, index: number) => (
+                    <div
+                      key={driver.driver_id}
+                      className="flex items-center gap-4 p-4 rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors"
+                    >
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-muted font-bold text-lg">
+                        {index === 0 && <Trophy className="w-6 h-6 text-primary" />}
+                        {index > 0 && `${index + 1}º`}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-lg" style={{ color: driver.driver_color }}>
+                          {driver.driver_name}
+                        </div>
+                        <div className="flex gap-2 mt-1">
+                          <span className="text-xs px-2 py-1 bg-amber-500/10 text-amber-700 rounded-full font-medium">
+                            {driver.motorista} Motorista
+                          </span>
+                          <span className="text-xs px-2 py-1 bg-blue-500/10 text-blue-700 rounded-full font-medium">
+                            {driver.vendedor} Vendedor
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-3xl font-bold text-destructive">
+                          {driver.total}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {driver.total === 1 ? 'ocorrência' : 'ocorrências'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <h3 className="text-lg font-bold text-foreground mb-4">Detalhes das Ocorrências</h3>
               <div className="grid gap-4">
                 {occurrencesByDriver.map((driver: any) => (
                   <div
