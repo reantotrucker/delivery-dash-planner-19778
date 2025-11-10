@@ -131,6 +131,7 @@ const Reports = () => {
   });
 
   const COLORS = ['#16a34a', '#dc2626'];
+  const OCCURRENCE_COLORS = ['#f59e0b', '#3b82f6', '#a855f7'];
   
   const totalDelivered = deliveryRanking.reduce((sum, driver) => sum + driver.delivered, 0);
   const totalPending = deliveryRanking.reduce((sum, driver) => sum + driver.pending, 0);
@@ -138,6 +139,16 @@ const Reports = () => {
   const pieData = [
     { name: 'Entregues', value: totalDelivered },
     { name: 'Pendentes', value: totalPending }
+  ];
+
+  const totalMotorista = occurrencesByDriver.reduce((sum, driver) => sum + driver.motorista, 0);
+  const totalVendedor = occurrencesByDriver.reduce((sum, driver) => sum + driver.vendedor, 0);
+  const totalCliente = occurrencesByDriver.reduce((sum, driver) => sum + driver.cliente, 0);
+  
+  const occurrencePieData = [
+    { name: 'Motorista', value: totalMotorista },
+    { name: 'Vendedor', value: totalVendedor },
+    { name: 'Cliente', value: totalCliente }
   ];
 
   return (
@@ -301,6 +312,55 @@ const Reports = () => {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </Card>
+
+        <Card className="p-6 bg-card border-border mt-6">
+          <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+            <PieChart className="w-6 h-6" />
+            Distribuição de Ocorrências por Tipo
+          </h2>
+          
+          {occurrencesByDriver.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Nenhuma ocorrência encontrada no período selecionado
+            </p>
+          ) : (
+            <div className="flex flex-col items-center">
+              <ResponsiveContainer width="100%" height={300}>
+                <RechartsPieChart>
+                  <Pie
+                    data={occurrencePieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {occurrencePieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={OCCURRENCE_COLORS[index % OCCURRENCE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-3 gap-6 mt-4">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-amber-600">{totalMotorista}</div>
+                  <div className="text-sm text-muted-foreground">Motorista</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600">{totalVendedor}</div>
+                  <div className="text-sm text-muted-foreground">Vendedor</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-purple-600">{totalCliente}</div>
+                  <div className="text-sm text-muted-foreground">Cliente</div>
+                </div>
+              </div>
             </div>
           )}
         </Card>
