@@ -126,7 +126,12 @@ const Reports = () => {
         return acc;
       }, []);
 
-      return byDriver.sort((a: any, b: any) => b.total - a.total);
+      return byDriver.sort((a: any, b: any) => {
+        if (b.motorista !== a.motorista) {
+          return b.motorista - a.motorista;
+        }
+        return a.driver_name.localeCompare(b.driver_name);
+      });
     },
   });
 
@@ -443,11 +448,11 @@ const Reports = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-destructive">
-                          {driver.total}
+                        <div className="text-3xl font-bold text-amber-600">
+                          {driver.motorista}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {driver.total === 1 ? 'ocorrência' : 'ocorrências'}
+                          {driver.motorista === 1 ? 'ocorrência' : 'ocorrências'}
                         </div>
                       </div>
                     </div>
