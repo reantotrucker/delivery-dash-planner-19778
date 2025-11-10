@@ -15,25 +15,21 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Shield, User, ArrowLeft, Settings } from "lucide-react";
+import { Loader2, Shield, User, ArrowLeft, Settings, Truck } from "lucide-react";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Profile = {
   id: string;
   email: string;
   full_name: string;
   created_at: string;
-  user_roles: Array<{ role: 'admin' | 'user' }>;
+  user_roles: Array<{ role: 'admin' | 'user' | 'motorista' }>;
 };
 
 export default function UserManagement() {
@@ -63,9 +59,7 @@ export default function UserManagement() {
   });
 
   const toggleRoleMutation = useMutation({
-    mutationFn: async ({ userId, currentRole }: { userId: string; currentRole: 'admin' | 'user' }) => {
-      const newRole = currentRole === 'admin' ? 'user' : 'admin';
-      
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'admin' | 'user' | 'motorista' }) => {
       // Delete current role
       const { error: deleteError } = await supabase
         .from('user_roles')
@@ -157,15 +151,18 @@ export default function UserManagement() {
                 {profiles?.map((profile) => {
                   const role = profile.user_roles[0]?.role || 'user';
                   const isCurrentAdmin = role === 'admin';
+                  const isCurrentMotorista = role === 'motorista';
 
                   return (
                     <TableRow key={profile.id}>
                       <TableCell className="font-medium">{profile.full_name}</TableCell>
                       <TableCell>{profile.email}</TableCell>
                       <TableCell>
-                        <Badge variant={isCurrentAdmin ? "default" : "secondary"}>
+                        <Badge variant={isCurrentAdmin ? "default" : isCurrentMotorista ? "outline" : "secondary"}>
                           {isCurrentAdmin ? (
                             <><Shield className="mr-1 h-3 w-3" /> Administrador</>
+                          ) : isCurrentMotorista ? (
+                            <><Truck className="mr-1 h-3 w-3" /> Motorista</>
                           ) : (
                             <><User className="mr-1 h-3 w-3" /> Usuário</>
                           )}
@@ -175,39 +172,39 @@ export default function UserManagement() {
                         {new Date(profile.created_at).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              Alterar Permissão
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Alterar nível de acesso</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Você está prestes a alterar o nível de acesso de{" "}
-                                <strong>{profile.full_name}</strong> de{" "}
-                                <strong>{isCurrentAdmin ? "Administrador" : "Usuário"}</strong> para{" "}
-                                <strong>{isCurrentAdmin ? "Usuário" : "Administrador"}</strong>.
-                                <br /><br />
-                                Tem certeza que deseja continuar?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() =>
-                                  toggleRoleMutation.mutate({
-                                    userId: profile.id,
-                                    currentRole: role,
-                                  })
-                                }
-                              >
-                                Confirmar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Select
+                          value={role}
+                          onValueChange={(newRole) => {
+                            toggleRoleMutation.mutate({
+                              userId: profile.id,
+                              newRole: newRole as 'admin' | 'user' | 'motorista',
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">
+                              <div className="flex items-center">
+                                <Shield className="mr-2 h-4 w-4" />
+                                Administrador
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="motorista">
+                              <div className="flex items-center">
+                                <Truck className="mr-2 h-4 w-4" />
+                                Motorista
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="user">
+                              <div className="flex items-center">
+                                <User className="mr-2 h-4 w-4" />
+                                Usuário
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                     </TableRow>
                   );

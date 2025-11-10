@@ -14,7 +14,9 @@ import { Route } from "@/components/routes/types";
 import { useAuth } from "@/hooks/useAuth";
 
 const Dashboard = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isMotorista } = useAuth();
+  const canManageRoutes = isAdmin;
+  const canManageOccurrences = isAdmin || isMotorista;
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedPeriod, setSelectedPeriod] = useState<"MANHA" | "TARDE">("MANHA");
@@ -290,7 +292,7 @@ const Dashboard = () => {
 
           <TabsContent value="MANHA" className="mt-0">
             <div className="space-y-4">
-              {isAdmin && (
+              {canManageRoutes && (
                 <RouteForm 
                   period="MANHA" 
                   date={selectedDate} 
@@ -304,13 +306,14 @@ const Dashboard = () => {
                 onUpdate={refetch}
                 onEdit={(route) => setEditingRoute(route)}
                 isAdmin={isAdmin}
+                canManageOccurrences={canManageOccurrences}
               />
             </div>
           </TabsContent>
 
           <TabsContent value="TARDE" className="mt-0">
             <div className="space-y-4">
-              {isAdmin && (
+              {canManageRoutes && (
                 <RouteForm 
                   period="TARDE" 
                   date={selectedDate} 
@@ -324,6 +327,7 @@ const Dashboard = () => {
                 onUpdate={refetch}
                 onEdit={(route) => setEditingRoute(route)}
                 isAdmin={isAdmin}
+                canManageOccurrences={canManageOccurrences}
               />
             </div>
           </TabsContent>

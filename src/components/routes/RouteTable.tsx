@@ -38,9 +38,10 @@ interface RouteTableProps {
   onUpdate: () => void;
   onEdit: (route: Route) => void;
   isAdmin: boolean;
+  canManageOccurrences?: boolean;
 }
 
-export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin }: RouteTableProps) => {
+export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin, canManageOccurrences = false }: RouteTableProps) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [occurrenceRoute, setOccurrenceRoute] = useState<Route | null>(null);
   const [editingOccurrence, setEditingOccurrence] = useState<Occurrence | null>(null);
@@ -186,7 +187,7 @@ export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin }: RouteTableProp
                     variant="ghost"
                     size="sm"
                     className="h-7 text-xs px-2"
-                    disabled={!isAdmin}
+                    disabled={!isAdmin && !canManageOccurrences}
                   >
                     <span
                       className={`inline-block w-2 h-2 rounded-full mr-1 ${
@@ -199,7 +200,7 @@ export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin }: RouteTableProp
                   </Button>
                 </TableCell>
                 <TableCell className="py-2">
-                  {isAdmin ? (
+                  {(isAdmin || canManageOccurrences) ? (
                     <div className="flex gap-1">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -258,40 +259,44 @@ export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin }: RouteTableProp
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onEdit(route)}
-                        className="h-7 w-7 hover:bg-primary/10"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                      {isAdmin && (
+                        <>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            disabled={deletingId === route.id}
+                            onClick={() => onEdit(route)}
+                            className="h-7 w-7 hover:bg-primary/10"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Pencil className="w-3 h-3" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja excluir a rota de {route.client}? Esta ação não pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteRoute(route.id)} className="bg-destructive hover:bg-destructive/90">
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                disabled={deletingId === route.id}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir a rota de {route.client}? Esta ação não pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deleteRoute(route.id)} className="bg-destructive hover:bg-destructive/90">
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <div className="flex gap-1">
