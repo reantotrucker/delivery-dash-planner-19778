@@ -35,7 +35,6 @@ const Reports = () => {
         if (existing) {
           existing.total++;
           if (route.status === "ENTREGUE") existing.delivered++;
-          existing.routes.push({ order_number: route.order_number, status: route.status });
         } else {
           acc.push({
             driver_id: route.driver_id,
@@ -43,7 +42,6 @@ const Reports = () => {
             driver_color: route.driver.color,
             total: 1,
             delivered: route.status === "ENTREGUE" ? 1 : 0,
-            routes: [{ order_number: route.order_number, status: route.status }],
           });
         }
         return acc;
@@ -261,7 +259,6 @@ const Reports = () => {
                   <TableRow className="border-b border-border">
                     <TableHead className="text-foreground">Posição</TableHead>
                     <TableHead className="text-foreground">Motorista</TableHead>
-                    <TableHead className="text-foreground">Rotas</TableHead>
                     <TableHead className="text-foreground">Total de Rotas</TableHead>
                     <TableHead className="text-foreground">Entregas Realizadas</TableHead>
                     <TableHead className="text-foreground">Taxa de Sucesso</TableHead>
@@ -284,23 +281,6 @@ const Reports = () => {
                         <span style={{ color: driver.driver_color }} className="font-semibold">
                           {driver.driver_name}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {driver.routes
-                            .sort((a: any, b: any) => a.order_number - b.order_number)
-                            .map((route: any, idx: number) => (
-                              <span
-                                key={idx}
-                                className="px-2 py-1 rounded text-xs font-semibold text-white"
-                                style={{
-                                  backgroundColor: route.status === "ENTREGUE" ? "#16a34a" : "#dc2626"
-                                }}
-                              >
-                                {route.order_number}
-                              </span>
-                            ))}
-                        </div>
                       </TableCell>
                       <TableCell>{driver.total}</TableCell>
                       <TableCell className="font-semibold text-success">
