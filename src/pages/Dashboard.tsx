@@ -14,9 +14,9 @@ import { Route } from "@/components/routes/types";
 import { useAuth } from "@/hooks/useAuth";
 
 const Dashboard = () => {
-  const { isAdmin, isMotorista } = useAuth();
+  const { isAdmin, isMotorista, isComercial } = useAuth();
   const canManageRoutes = isAdmin;
-  const canManageOccurrences = isAdmin || isMotorista;
+  const canManageOccurrences = isAdmin || isMotorista || isComercial;
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedPeriod, setSelectedPeriod] = useState<"MANHA" | "TARDE">("MANHA");

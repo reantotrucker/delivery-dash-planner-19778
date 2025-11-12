@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type UserRole = 'admin' | 'user' | 'motorista';
+export type UserRole = 'admin' | 'user' | 'motorista' | 'comercial';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -115,5 +115,6 @@ export function useAuth() {
     signOut,
     isAdmin: role === 'admin',
     isMotorista: role === 'motorista',
+    isComercial: role === 'comercial',
   };
 }

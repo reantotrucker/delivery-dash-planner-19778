@@ -29,7 +29,7 @@ type Profile = {
   email: string;
   full_name: string;
   created_at: string;
-  user_roles: Array<{ role: 'admin' | 'user' | 'motorista' }>;
+  user_roles: Array<{ role: 'admin' | 'user' | 'motorista' | 'comercial' }>;
 };
 
 export default function UserManagement() {
@@ -59,7 +59,7 @@ export default function UserManagement() {
   });
 
   const toggleRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'admin' | 'user' | 'motorista' }) => {
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'admin' | 'user' | 'motorista' | 'comercial' }) => {
       // Delete current role
       const { error: deleteError } = await supabase
         .from('user_roles')
@@ -152,17 +152,20 @@ export default function UserManagement() {
                   const role = profile.user_roles[0]?.role || 'user';
                   const isCurrentAdmin = role === 'admin';
                   const isCurrentMotorista = role === 'motorista';
+                  const isCurrentComercial = role === 'comercial';
 
                   return (
                     <TableRow key={profile.id}>
                       <TableCell className="font-medium">{profile.full_name}</TableCell>
                       <TableCell>{profile.email}</TableCell>
                       <TableCell>
-                        <Badge variant={isCurrentAdmin ? "default" : isCurrentMotorista ? "outline" : "secondary"}>
+                        <Badge variant={isCurrentAdmin ? "default" : (isCurrentMotorista || isCurrentComercial) ? "outline" : "secondary"}>
                           {isCurrentAdmin ? (
                             <><Shield className="mr-1 h-3 w-3" /> Administrador</>
                           ) : isCurrentMotorista ? (
                             <><Truck className="mr-1 h-3 w-3" /> Motorista</>
+                          ) : isCurrentComercial ? (
+                            <><User className="mr-1 h-3 w-3" /> Comercial</>
                           ) : (
                             <><User className="mr-1 h-3 w-3" /> Usuário</>
                           )}
@@ -177,7 +180,7 @@ export default function UserManagement() {
                           onValueChange={(newRole) => {
                             toggleRoleMutation.mutate({
                               userId: profile.id,
-                              newRole: newRole as 'admin' | 'user' | 'motorista',
+                              newRole: newRole as 'admin' | 'user' | 'motorista' | 'comercial',
                             });
                           }}
                         >
@@ -195,6 +198,12 @@ export default function UserManagement() {
                               <div className="flex items-center">
                                 <Truck className="mr-2 h-4 w-4" />
                                 Motorista
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="comercial">
+                              <div className="flex items-center">
+                                <User className="mr-2 h-4 w-4" />
+                                Comercial
                               </div>
                             </SelectItem>
                             <SelectItem value="user">

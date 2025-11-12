@@ -18,7 +18,7 @@ import { Settings as SettingsIcon, BarChart3, Home, LogOut, Shield, ShieldCheck 
 const queryClient = new QueryClient();
 
 const Navigation = () => {
-  const { user, role, isAdmin, signOut } = useAuth();
+  const { user, role, isAdmin, isComercial, signOut } = useAuth();
 
   const handleLogout = async () => {
     await signOut();
@@ -67,7 +67,7 @@ const Navigation = () => {
             </div>
             
             <Badge 
-              variant={isAdmin ? "default" : role === 'motorista' ? "outline" : "secondary"}
+              variant={isAdmin ? "default" : (role === 'motorista' || isComercial) ? "outline" : "secondary"}
               className="flex items-center gap-1.5 px-3 py-1"
             >
               {isAdmin ? (
@@ -79,6 +79,11 @@ const Navigation = () => {
                 <>
                   <Shield className="w-3.5 h-3.5" />
                   <span className="font-semibold">Motorista</span>
+                </>
+              ) : isComercial ? (
+                <>
+                  <Shield className="w-3.5 h-3.5" />
+                  <span className="font-semibold">Comercial</span>
                 </>
               ) : (
                 <>
