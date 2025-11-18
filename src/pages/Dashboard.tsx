@@ -192,12 +192,12 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <h1 className="text-xl font-bold text-primary">Sistema de Rotas Logísticas</h1>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-primary" />
+        <div className="w-full px-2 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h1 className="text-base sm:text-xl font-bold text-primary">Sistema de Rotas</h1>
+            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
                 <input
                   type="date"
                   value={format(selectedDate, "yyyy-MM-dd")}
@@ -205,7 +205,7 @@ const Dashboard = () => {
                     const [year, month, day] = e.target.value.split('-').map(Number);
                     setSelectedDate(new Date(year, month - 1, day));
                   }}
-                  className="bg-secondary text-foreground px-2 py-1 text-sm rounded border border-border"
+                  className="bg-secondary text-foreground px-1.5 sm:px-2 py-1 text-xs sm:text-sm rounded border border-border"
                 />
               </div>
               {isAdmin && (
@@ -213,9 +213,10 @@ const Dashboard = () => {
                   variant="outline" 
                   size="sm"
                   onClick={() => navigate('/settings')}
+                  className="px-2 sm:px-3 text-xs sm:text-sm"
                 >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Configurações
+                  <Settings className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Config</span>
                 </Button>
               )}
             </div>
@@ -223,69 +224,71 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-4">
+      <div className="w-full px-2 sm:px-4 py-2 sm:py-4">
         <Tabs value={selectedPeriod} onValueChange={(v) => setSelectedPeriod(v as "MANHA" | "TARDE")}>
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <div className="flex items-center gap-4">
-              <TabsList>
-                <TabsTrigger value="MANHA">MANHÃ</TabsTrigger>
-                <TabsTrigger value="TARDE">TARDE</TabsTrigger>
+          <div className="flex flex-col gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <TabsList className="grid grid-cols-2 w-full sm:w-auto">
+                <TabsTrigger value="MANHA" className="text-xs sm:text-sm">MANHÃ</TabsTrigger>
+                <TabsTrigger value="TARDE" className="text-xs sm:text-sm">TARDE</TabsTrigger>
               </TabsList>
               
-              <div className="flex items-center gap-3 text-sm px-4 py-1.5 bg-muted rounded-md">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-1.5 bg-muted rounded-md w-full sm:w-auto justify-center">
                 <span className="text-muted-foreground">
                   Total: <span className="font-semibold text-foreground">{filteredRoutes.length}</span>
                 </span>
                 <span className="text-muted-foreground">|</span>
                 <span className="text-muted-foreground">
-                  Concluídas: <span className="font-semibold text-green-600">{filteredRoutes.filter(r => r.status === "ENTREGUE").length}</span>
+                  OK: <span className="font-semibold text-green-600">{filteredRoutes.filter(r => r.status === "ENTREGUE").length}</span>
                 </span>
                 <span className="text-muted-foreground">|</span>
                 <span className="text-muted-foreground">
-                  Pendentes: <span className="font-semibold text-orange-600">{filteredRoutes.filter(r => r.status === "NAO_ENTREGUE").length}</span>
+                  Pend: <span className="font-semibold text-orange-600">{filteredRoutes.filter(r => r.status === "NAO_ENTREGUE").length}</span>
                 </span>
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:flex-initial">
+                <Search className="absolute left-2 top-2.5 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Pesquisar rotas..."
+                  placeholder="Pesquisar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 w-64"
+                  className="pl-7 sm:pl-8 text-xs sm:text-sm w-full sm:w-48"
                 />
               </div>
               
-              <Select value={printPeriod} onValueChange={(v) => setPrintPeriod(v as "MANHA" | "TARDE" | "COMPLETO")}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Período" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MANHA">Manhã</SelectItem>
-                  <SelectItem value="TARDE">Tarde</SelectItem>
-                  <SelectItem value="COMPLETO">Completo</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-2 sm:flex gap-2">
+                <Select value={printPeriod} onValueChange={(v) => setPrintPeriod(v as "MANHA" | "TARDE" | "COMPLETO")}>
+                  <SelectTrigger className="text-xs sm:text-sm h-9">
+                    <SelectValue placeholder="Período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MANHA">Manhã</SelectItem>
+                    <SelectItem value="TARDE">Tarde</SelectItem>
+                    <SelectItem value="COMPLETO">Completo</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={selectedDriverForPrint} onValueChange={setSelectedDriverForPrint}>
+                  <SelectTrigger className="text-xs sm:text-sm h-9">
+                    <SelectValue placeholder="Motorista" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {drivers.map((driver) => (
+                      <SelectItem key={driver.id} value={driver.name}>
+                        {driver.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               
-              <Select value={selectedDriverForPrint} onValueChange={setSelectedDriverForPrint}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Motorista" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Motoristas</SelectItem>
-                  {drivers.map((driver) => (
-                    <SelectItem key={driver.id} value={driver.name}>
-                      {driver.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <Button onClick={handlePrint} size="sm" variant="outline">
-                <Printer className="w-4 h-4 mr-2" />
-                Imprimir
+              <Button onClick={handlePrint} size="sm" variant="outline" className="px-2 sm:px-3 text-xs sm:text-sm">
+                <Printer className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                <span className="sm:inline">Imprimir</span>
               </Button>
             </div>
           </div>
