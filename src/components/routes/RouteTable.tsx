@@ -135,27 +135,27 @@ export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin, canManageOccurre
   };
 
   return (
-    <div className="rounded-md border border-border overflow-x-auto">
+    <div className="rounded-md border border-border overflow-x-auto -mx-2 sm:mx-0">
       <Table>
         <TableHeader>
           <TableRow className="bg-card hover:bg-card">
-            <TableHead className="text-primary font-semibold text-xs w-12">#</TableHead>
-            <TableHead className="text-primary font-semibold text-xs">CLIENTE</TableHead>
-            <TableHead className="text-primary font-semibold text-xs">BAIRRO</TableHead>
-            <TableHead className="text-primary font-semibold text-xs">CONSULTOR</TableHead>
-            <TableHead className="text-primary font-semibold text-xs">MOTORISTA</TableHead>
-            <TableHead className="text-primary font-semibold text-xs">VEÍCULOS</TableHead>
-            <TableHead className="text-primary font-semibold text-xs">PGTO</TableHead>
-            <TableHead className="text-primary font-semibold text-xs">OBS</TableHead>
-            <TableHead className="text-primary font-semibold text-xs">STATUS</TableHead>
-            <TableHead className="text-primary font-semibold text-xs w-24">ACÕES</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs w-8 sm:w-12 px-1 sm:px-4">#</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4">CLIENTE</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden sm:table-cell">BAIRRO</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden md:table-cell">CONSULTOR</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4">MOTOR.</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden lg:table-cell">VEÍC.</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden lg:table-cell">PGTO</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden xl:table-cell">OBS</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4">STATUS</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs w-16 sm:w-24 px-1 sm:px-4">AÇÕES</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {routes.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
-                Nenhuma rota cadastrada para este período
+              <TableCell colSpan={10} className="text-center text-muted-foreground py-4 sm:py-8 text-xs sm:text-sm">
+                Nenhuma rota cadastrada
               </TableCell>
             </TableRow>
           ) : (
@@ -171,26 +171,26 @@ export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin, canManageOccurre
                     : undefined,
                 }}
               >
-                <TableCell className="text-sm py-2 text-muted-foreground font-semibold">{index + 1}</TableCell>
-                <TableCell className="font-medium text-sm py-2">{route.client}</TableCell>
-                <TableCell className="text-sm py-2">{route.neighborhood}</TableCell>
-                <TableCell className="text-sm py-2">{route.consultant?.name || "-"}</TableCell>
-                <TableCell className="text-sm py-2">{route.driver?.name || "-"}</TableCell>
-                <TableCell className="text-sm py-2">{route.vehicle?.plate || "-"}</TableCell>
-                <TableCell className="text-sm py-2">{route.payment_method?.name || "-"}</TableCell>
-                <TableCell className="text-sm py-2">
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 text-muted-foreground font-semibold px-1 sm:px-4">{index + 1}</TableCell>
+                <TableCell className="font-medium text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 max-w-[80px] sm:max-w-none truncate">{route.client}</TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden sm:table-cell">{route.neighborhood}</TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden md:table-cell">{route.consultant?.name || "-"}</TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4">{route.driver?.name || "-"}</TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden lg:table-cell">{route.vehicle?.plate || "-"}</TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden lg:table-cell">{route.payment_method?.name || "-"}</TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden xl:table-cell max-w-[100px] truncate">
                   {route.observation || "-"}
                 </TableCell>
-                <TableCell className="py-2">
+                <TableCell className="py-1 sm:py-2 px-1 sm:px-4">
                   <Button
                     onClick={() => toggleStatus(route.id, route.status)}
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs px-2"
+                    className="h-5 sm:h-7 text-[10px] sm:text-xs px-1 sm:px-2"
                     disabled={!isAdmin && !canManageOccurrences}
                   >
                     <span
-                      className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                      className={`inline-block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full mr-0.5 sm:mr-1 ${
                         route.status === "ENTREGUE"
                           ? "bg-green-500"
                           : "bg-red-500"
@@ -199,20 +199,20 @@ export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin, canManageOccurre
                     {route.status === "ENTREGUE" ? "OK" : "PEND"}
                   </Button>
                 </TableCell>
-                <TableCell className="py-2">
+                <TableCell className="py-1 sm:py-2 px-1 sm:px-4">
                   {(isAdmin || canManageOccurrences) ? (
-                    <div className="flex gap-1">
+                    <div className="flex gap-0.5 sm:gap-1">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 hover:bg-accent relative"
+                            className="h-5 w-5 sm:h-7 sm:w-7 hover:bg-accent relative p-0"
                             title="Ocorrências"
                           >
-                            <FileText className="w-3 h-3" />
+                            <FileText className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                             {occurrences.filter(o => o.route_id === route.id).length > 0 && (
-                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                              <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-red-500 text-white text-[8px] sm:text-[10px] rounded-full w-2.5 h-2.5 sm:w-4 sm:h-4 flex items-center justify-center">
                                 {occurrences.filter(o => o.route_id === route.id).length}
                               </span>
                             )}
@@ -265,19 +265,19 @@ export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin, canManageOccurre
                             variant="ghost"
                             size="icon"
                             onClick={() => onEdit(route)}
-                            className="h-7 w-7 hover:bg-primary/10"
+                            className="h-5 w-5 sm:h-7 sm:w-7 hover:bg-primary/10 p-0"
                           >
-                            <Pencil className="w-3 h-3" />
+                            <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                className="h-5 w-5 sm:h-7 sm:w-7 text-destructive hover:text-destructive hover:bg-destructive/10 p-0"
                                 disabled={deletingId === route.id}
                               >
-                                <Trash2 className="w-3 h-3" />
+                                <Trash2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
