@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Trash2, Pencil, FileText, Plus, Edit, X } from "lucide-react";
 import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
+import { RouteEditDialog } from "./RouteEditDialog";
 import {
   Table,
   TableBody,
@@ -30,23 +31,24 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 interface RouteTableProps {
   routes: Route[];
   onUpdate: () => void;
-  onEdit: (route: Route) => void;
   isAdmin: boolean;
   canManageOccurrences?: boolean;
 }
 
-export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin, canManageOccurrences = false }: RouteTableProps) => {
+export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = false }: RouteTableProps) => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [occurrenceRoute, setOccurrenceRoute] = useState<Route | null>(null);
   const [editingOccurrence, setEditingOccurrence] = useState<Occurrence | null>(null);
   const [occurrenceDialogOpen, setOccurrenceDialogOpen] = useState(false);
   const [deleteOccurrenceId, setDeleteOccurrenceId] = useState<string | null>(null);
+  const [editingRoute, setEditingRoute] = useState<Route | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   // Fetch all occurrences for the displayed routes
   const { data: occurrences = [], refetch: refetchOccurrences } = useQuery({
@@ -264,7 +266,10 @@ export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin, canManageOccurre
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => onEdit(route)}
+                            onClick={() => {
+                              setEditingRoute(route);
+                              setEditDialogOpen(true);
+                            }}
                             className="h-5 w-5 sm:h-7 sm:w-7 hover:bg-primary/10 p-0"
                           >
                             <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
@@ -361,6 +366,16 @@ export const RouteTable = ({ routes, onUpdate, onEdit, isAdmin, canManageOccurre
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <RouteEditDialog
+        route={editingRoute}
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) setEditingRoute(null);
+        }}
+        onSuccess={onUpdate}
+      />
     </div>
   );
 };
