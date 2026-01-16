@@ -21,7 +21,6 @@ const Dashboard = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedPeriod, setSelectedPeriod] = useState<"MANHA" | "TARDE">("MANHA");
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [selectedDriverForPrint, setSelectedDriverForPrint] = useState<string>("all");
   const [printPeriod, setPrintPeriod] = useState<"MANHA" | "TARDE" | "COMPLETO">("MANHA");
 
@@ -300,14 +299,11 @@ const Dashboard = () => {
                   period="MANHA" 
                   date={selectedDate} 
                   onSuccess={refetch}
-                  editingRoute={editingRoute}
-                  onCancelEdit={() => setEditingRoute(null)}
                 />
               )}
               <RouteTable 
                 routes={filteredRoutes} 
                 onUpdate={refetch}
-                onEdit={(route) => setEditingRoute(route)}
                 isAdmin={isAdmin}
                 canManageOccurrences={canManageOccurrences}
               />
@@ -321,14 +317,11 @@ const Dashboard = () => {
                   period="TARDE" 
                   date={selectedDate} 
                   onSuccess={refetch}
-                  editingRoute={editingRoute}
-                  onCancelEdit={() => setEditingRoute(null)}
                 />
               )}
               <RouteTable 
                 routes={filteredRoutes} 
                 onUpdate={refetch}
-                onEdit={(route) => setEditingRoute(route)}
                 isAdmin={isAdmin}
                 canManageOccurrences={canManageOccurrences}
               />
