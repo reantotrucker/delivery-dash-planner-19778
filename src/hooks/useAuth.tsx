@@ -104,6 +104,15 @@ export function useAuth() {
     return { error };
   };
 
+  const resetPassword = async (email: string) => {
+    const redirectUrl = `${window.location.origin}/reset-password`;
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+    return { error };
+  };
+
   return {
     user,
     session,
@@ -113,6 +122,7 @@ export function useAuth() {
     signUp,
     signInWithGoogle,
     signOut,
+    resetPassword,
     isAdmin: role === 'admin',
     isMotorista: role === 'motorista',
     isComercial: role === 'comercial',
