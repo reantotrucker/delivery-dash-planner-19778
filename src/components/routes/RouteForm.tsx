@@ -43,8 +43,8 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
       if (result) {
         setFormData(prev => ({
           ...prev,
-          address: prev.address || result.address,
-          neighborhood: prev.neighborhood || result.neighborhood,
+          address: result.address,
+          neighborhood: result.neighborhood,
         }));
       }
     }

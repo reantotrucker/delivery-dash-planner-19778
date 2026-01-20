@@ -45,8 +45,8 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
       if (result) {
         setFormData(prev => ({
           ...prev,
-          address: prev.address || result.address,
-          neighborhood: prev.neighborhood || result.neighborhood,
+          address: result.address,
+          neighborhood: result.neighborhood,
         }));
       }
     }
