@@ -249,7 +249,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {/* Links de navegação - visíveis apenas em mobile (md:hidden) */}
+                          {/* Links de navegação GPS */}
                           {(generateGoogleMapsLink(route.address, route.cep, route.neighborhood) || generateWazeLink(route.address, route.cep, route.neighborhood)) && (
                             <>
                               {generateGoogleMapsLink(route.address, route.cep, route.neighborhood) && (
@@ -258,7 +258,6 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                                     href={generateGoogleMapsLink(route.address, route.cep, route.neighborhood)!}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="md:hidden"
                                   >
                                     <MapPin className="w-4 h-4 mr-2" />
                                     Google Maps
@@ -271,14 +270,13 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                                     href={generateWazeLink(route.address, route.cep, route.neighborhood)!}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="md:hidden"
                                   >
                                     <Navigation className="w-4 h-4 mr-2" />
                                     Waze
                                   </a>
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuSeparator className="md:hidden" />
+                              <DropdownMenuSeparator />
                             </>
                           )}
                           <DropdownMenuItem
