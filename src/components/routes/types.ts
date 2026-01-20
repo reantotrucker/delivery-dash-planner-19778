@@ -20,6 +20,18 @@ export interface Route {
 }
 
 export const generateGoogleMapsLink = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {
+  const query = buildAddressQuery(address, cep, neighborhood);
+  if (!query) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+};
+
+export const generateWazeLink = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {
+  const query = buildAddressQuery(address, cep, neighborhood);
+  if (!query) return null;
+  return `https://waze.com/ul?q=${query}&navigate=yes`;
+};
+
+const buildAddressQuery = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {
   const parts: string[] = [];
   
   // Prioriza endereço completo + bairro
@@ -37,6 +49,5 @@ export const generateGoogleMapsLink = (address?: string | null, cep?: string | n
   // Sempre adiciona Manaus, AM, Brasil para maior precisão na geolocalização
   parts.push("Manaus, AM, Brasil");
   
-  const query = encodeURIComponent(parts.join(", "));
-  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+  return encodeURIComponent(parts.join(", "));
 };
