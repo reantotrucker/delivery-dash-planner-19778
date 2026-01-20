@@ -185,6 +185,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                           href={generateGoogleMapsLink(route.address, route.cep, route.neighborhood)!}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
                           className="text-primary hover:text-primary/80 flex-shrink-0"
                           title="Ver no Google Maps"
                         >
