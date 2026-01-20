@@ -188,6 +188,8 @@ export type Database = {
       }
       routes: {
         Row: {
+          address: string | null
+          cep: string | null
           client: string
           consultant_id: string | null
           created_at: string | null
@@ -204,6 +206,8 @@ export type Database = {
           vehicle_id: string | null
         }
         Insert: {
+          address?: string | null
+          cep?: string | null
           client: string
           consultant_id?: string | null
           created_at?: string | null
@@ -220,6 +224,8 @@ export type Database = {
           vehicle_id?: string | null
         }
         Update: {
+          address?: string | null
+          cep?: string | null
           client?: string
           consultant_id?: string | null
           created_at?: string | null

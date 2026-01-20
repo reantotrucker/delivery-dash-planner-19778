@@ -3,6 +3,8 @@ export interface Route {
   client: string;
   neighborhood: string;
   observation: string | null;
+  address: string | null;
+  cep: string | null;
   status: string;
   consultant_id: string | null;
   driver_id: string | null;
@@ -16,3 +18,16 @@ export interface Route {
   period: "MANHA" | "TARDE";
   order_number: number;
 }
+
+export const generateGoogleMapsLink = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {
+  const parts: string[] = [];
+  
+  if (address) parts.push(address);
+  if (cep) parts.push(cep);
+  if (neighborhood) parts.push(neighborhood);
+  
+  if (parts.length === 0) return null;
+  
+  const query = encodeURIComponent(parts.join(", "));
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+};

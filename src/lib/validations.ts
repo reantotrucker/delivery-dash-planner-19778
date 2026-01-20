@@ -12,6 +12,17 @@ export const routeSchema = z.object({
     .trim()
     .min(1, "Bairro é obrigatório")
     .max(100, "Bairro deve ter no máximo 100 caracteres"),
+  address: z
+    .string()
+    .max(300, "Endereço deve ter no máximo 300 caracteres")
+    .optional()
+    .or(z.literal("")),
+  cep: z
+    .string()
+    .max(10, "CEP deve ter no máximo 10 caracteres")
+    .regex(/^$|^\d{5}-?\d{3}$/, "CEP deve estar no formato 00000-000")
+    .optional()
+    .or(z.literal("")),
   observation: z
     .string()
     .max(1000, "Observação deve ter no máximo 1000 caracteres")

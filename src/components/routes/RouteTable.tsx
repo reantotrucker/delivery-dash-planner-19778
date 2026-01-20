@@ -1,8 +1,8 @@
-import { Route } from "./types";
+import { Route, generateGoogleMapsLink } from "./types";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Pencil, FileText, Plus, Edit, X } from "lucide-react";
+import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin } from "lucide-react";
 import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
 import { RouteEditDialog } from "./RouteEditDialog";
 import {
@@ -144,11 +144,11 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
             <TableHead className="text-primary font-semibold text-[10px] sm:text-xs w-8 sm:w-12 px-1 sm:px-4">#</TableHead>
             <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4">CLIENTE</TableHead>
             <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden sm:table-cell">BAIRRO</TableHead>
-            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden md:table-cell">CONSULTOR</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden md:table-cell">ENDEREÇO</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden lg:table-cell">CONSULTOR</TableHead>
             <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4">MOTOR.</TableHead>
-            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden lg:table-cell">VEÍC.</TableHead>
-            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden lg:table-cell">PGTO</TableHead>
-            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden xl:table-cell">OBS</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden xl:table-cell">VEÍC.</TableHead>
+            <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4 hidden xl:table-cell">PGTO</TableHead>
             <TableHead className="text-primary font-semibold text-[10px] sm:text-xs px-1 sm:px-4">STATUS</TableHead>
             <TableHead className="text-primary font-semibold text-[10px] sm:text-xs w-16 sm:w-24 px-1 sm:px-4">AÇÕES</TableHead>
           </TableRow>
@@ -156,7 +156,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
         <TableBody>
           {routes.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center text-muted-foreground py-4 sm:py-8 text-xs sm:text-sm">
+              <TableCell colSpan={11} className="text-center text-muted-foreground py-4 sm:py-8 text-xs sm:text-sm">
                 Nenhuma rota cadastrada
               </TableCell>
             </TableRow>
@@ -176,13 +176,30 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                 <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 text-muted-foreground font-semibold px-1 sm:px-4">{index + 1}</TableCell>
                 <TableCell className="font-medium text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 max-w-[80px] sm:max-w-none truncate">{route.client}</TableCell>
                 <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden sm:table-cell">{route.neighborhood}</TableCell>
-                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden md:table-cell">{route.consultant?.name || "-"}</TableCell>
-                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4">{route.driver?.name || "-"}</TableCell>
-                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden lg:table-cell">{route.vehicle?.plate || "-"}</TableCell>
-                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden lg:table-cell">{route.payment_method?.name || "-"}</TableCell>
-                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden xl:table-cell max-w-[100px] truncate">
-                  {route.observation || "-"}
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden md:table-cell">
+                  {route.address ? (
+                    <div className="flex items-center gap-1">
+                      <span className="truncate max-w-[120px]">{route.address}</span>
+                      {generateGoogleMapsLink(route.address, route.cep, route.neighborhood) && (
+                        <a
+                          href={generateGoogleMapsLink(route.address, route.cep, route.neighborhood)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary/80 flex-shrink-0"
+                          title="Ver no Google Maps"
+                        >
+                          <MapPin className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    "-"
+                  )}
                 </TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden lg:table-cell">{route.consultant?.name || "-"}</TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4">{route.driver?.name || "-"}</TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden xl:table-cell">{route.vehicle?.plate || "-"}</TableCell>
+                <TableCell className="text-[10px] sm:text-sm py-1 sm:py-2 px-1 sm:px-4 hidden xl:table-cell">{route.payment_method?.name || "-"}</TableCell>
                 <TableCell className="py-1 sm:py-2 px-1 sm:px-4">
                   <Button
                     onClick={() => toggleStatus(route.id, route.status)}

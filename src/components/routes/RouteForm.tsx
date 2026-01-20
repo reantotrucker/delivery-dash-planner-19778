@@ -21,6 +21,8 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
   const [formData, setFormData] = useState({
     client: "",
     neighborhood: "",
+    address: "",
+    cep: "",
     consultant_id: "",
     driver_id: "",
     vehicle_id: "",
@@ -85,6 +87,8 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
         ...formData,
         date: format(date, "yyyy-MM-dd"),
         period,
+        address: formData.address || null,
+        cep: formData.cep || null,
         consultant_id: formData.consultant_id || null,
         driver_id: formData.driver_id || null,
         vehicle_id: formData.vehicle_id || null,
@@ -100,6 +104,8 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
       setFormData({
         client: "",
         neighborhood: "",
+        address: "",
+        cep: "",
         consultant_id: "",
         driver_id: "",
         vehicle_id: "",
@@ -144,6 +150,28 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
             onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
             placeholder="Bairro"
             required
+            className="h-9 text-sm"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="address" className="text-xs">ENDEREÇO</Label>
+          <Input
+            id="address"
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            placeholder="Rua, número..."
+            className="h-9 text-sm"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="cep" className="text-xs">CEP</Label>
+          <Input
+            id="cep"
+            value={formData.cep}
+            onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+            placeholder="00000-000"
             className="h-9 text-sm"
           />
         </div>
