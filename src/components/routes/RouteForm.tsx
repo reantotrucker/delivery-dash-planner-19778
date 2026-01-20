@@ -10,6 +10,8 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { routeSchema } from "@/lib/validations";
 import { z } from "zod";
+import { useCepLookup } from "@/hooks/useCepLookup";
+import { Loader2 } from "lucide-react";
 
 interface RouteFormProps {
   period: "MANHA" | "TARDE";
@@ -18,6 +20,8 @@ interface RouteFormProps {
 }
 
 export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
+  const { lookupCep, formatCep, isLoading: isCepLoading } = useCepLookup();
+  
   const [formData, setFormData] = useState({
     client: "",
     neighborhood: "",
@@ -29,6 +33,22 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
     payment_method_id: "",
     observation: "",
   });
+
+  const handleCepChange = async (value: string) => {
+    const formattedCep = formatCep(value);
+    setFormData(prev => ({ ...prev, cep: formattedCep }));
+
+    if (formattedCep.replace(/\D/g, "").length === 8) {
+      const result = await lookupCep(formattedCep);
+      if (result) {
+        setFormData(prev => ({
+          ...prev,
+          address: prev.address || result.address,
+          neighborhood: prev.neighborhood || result.neighborhood,
+        }));
+      }
+    }
+  };
 
   const { data: drivers = [] } = useQuery({
     queryKey: ["drivers"],
@@ -167,13 +187,19 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
 
         <div className="space-y-1">
           <Label htmlFor="cep" className="text-xs">CEP</Label>
-          <Input
-            id="cep"
-            value={formData.cep}
-            onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
-            placeholder="00000-000"
-            className="h-9 text-sm"
-          />
+          <div className="relative">
+            <Input
+              id="cep"
+              value={formData.cep}
+              onChange={(e) => handleCepChange(e.target.value)}
+              placeholder="00000-000"
+              maxLength={9}
+              className="h-9 text-sm pr-8"
+            />
+            {isCepLoading && (
+              <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </div>
         </div>
 
         <div className="space-y-1">
