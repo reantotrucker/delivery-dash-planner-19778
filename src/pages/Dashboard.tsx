@@ -69,6 +69,7 @@ const Dashboard = () => {
     return (
       route.client.toLowerCase().includes(searchLower) ||
       route.neighborhood.toLowerCase().includes(searchLower) ||
+      (route.address?.toLowerCase() || "").includes(searchLower) ||
       route.driver?.name.toLowerCase().includes(searchLower) ||
       route.consultant?.name.toLowerCase().includes(searchLower) ||
       route.vehicle?.plate.toLowerCase().includes(searchLower)
@@ -153,6 +154,7 @@ const Dashboard = () => {
                 ${printPeriod === "COMPLETO" ? "<th>Período</th>" : ""}
                 <th>Cliente</th>
                 <th>Bairro</th>
+                <th>Endereço</th>
                 <th>Consultor</th>
                 <th>Motorista</th>
                 <th>Veículo</th>
@@ -168,6 +170,7 @@ const Dashboard = () => {
                   ${printPeriod === "COMPLETO" ? `<td>${route.period}</td>` : ""}
                   <td>${route.client}</td>
                   <td>${route.neighborhood}</td>
+                  <td>${route.address || "-"}${route.cep ? ` - ${route.cep}` : ""}</td>
                   <td>${route.consultant?.name || "-"}</td>
                   <td>${route.driver?.name || "-"}</td>
                   <td>${route.vehicle?.plate || "-"}</td>

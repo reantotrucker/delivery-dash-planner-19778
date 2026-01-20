@@ -23,6 +23,8 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
   const [formData, setFormData] = useState({
     client: "",
     neighborhood: "",
+    address: "",
+    cep: "",
     consultant_id: "",
     driver_id: "",
     vehicle_id: "",
@@ -35,6 +37,8 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
       setFormData({
         client: route.client,
         neighborhood: route.neighborhood,
+        address: route.address || "",
+        cep: route.cep || "",
         consultant_id: route.consultant_id || "",
         driver_id: route.driver_id || "",
         vehicle_id: route.vehicle_id || "",
@@ -103,6 +107,8 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
         .from("routes")
         .update({
           ...formData,
+          address: formData.address || null,
+          cep: formData.cep || null,
           consultant_id: formData.consultant_id || null,
           driver_id: formData.driver_id || null,
           vehicle_id: formData.vehicle_id || null,
@@ -158,6 +164,28 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
                 onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
                 placeholder="Bairro"
                 required
+                className="h-9 text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-address" className="text-xs">ENDEREÇO</Label>
+              <Input
+                id="edit-address"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                placeholder="Rua, número..."
+                className="h-9 text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-cep" className="text-xs">CEP</Label>
+              <Input
+                id="edit-cep"
+                value={formData.cep}
+                onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                placeholder="00000-000"
                 className="h-9 text-sm"
               />
             </div>
