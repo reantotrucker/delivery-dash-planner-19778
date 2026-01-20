@@ -22,9 +22,9 @@ export interface Route {
 export const generateGoogleMapsLink = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {
   const parts: string[] = [];
   
-  // Prioriza endereço completo + bairro (sem CEP, pois CEP pode confundir o Google Maps)
+  // Prioriza endereço completo + bairro
   if (address) parts.push(address);
-  if (neighborhood) parts.push(`Bairro ${neighborhood}`);
+  if (neighborhood) parts.push(neighborhood);
   
   // Só usa CEP se não tiver endereço
   if (parts.length === 0 && cep) {
@@ -33,6 +33,9 @@ export const generateGoogleMapsLink = (address?: string | null, cep?: string | n
   }
   
   if (parts.length === 0) return null;
+  
+  // Sempre adiciona Manaus, AM, Brasil para maior precisão na geolocalização
+  parts.push("Manaus, AM, Brasil");
   
   const query = encodeURIComponent(parts.join(", "));
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
