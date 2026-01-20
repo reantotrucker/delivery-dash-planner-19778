@@ -1,8 +1,8 @@
-import { Route, generateGoogleMapsLink } from "./types";
+import { Route, generateGoogleMapsLink, generateWazeLink } from "./types";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin } from "lucide-react";
+import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation } from "lucide-react";
 import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
 import { RouteEditDialog } from "./RouteEditDialog";
 import {
@@ -189,6 +189,17 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                           title="Ver no Google Maps"
                         >
                           <MapPin className="w-3 h-3" />
+                        </a>
+                      )}
+                      {generateWazeLink(route.address, route.cep, route.neighborhood) && (
+                        <a
+                          href={generateWazeLink(route.address, route.cep, route.neighborhood)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:text-blue-400 flex-shrink-0"
+                          title="Navegar pelo Waze"
+                        >
+                          <Navigation className="w-3 h-3" />
                         </a>
                       )}
                     </div>
