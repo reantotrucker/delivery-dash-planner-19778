@@ -32,22 +32,41 @@ export const generateWazeLink = (address?: string | null, cep?: string | null, n
 };
 
 const buildAddressQuery = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {
+  // Formato otimizado: "Endereço - Bairro, Manaus - AM, CEP"
+  // Este formato é mais reconhecido pelo Google Maps e Waze
+  
   const parts: string[] = [];
   
-  // Prioriza endereço completo + bairro
-  if (address) parts.push(address);
-  if (neighborhood) parts.push(neighborhood);
-  
-  // Só usa CEP se não tiver endereço
-  if (parts.length === 0 && cep) {
-    parts.push(cep);
-    if (neighborhood) parts.push(neighborhood);
+  // Endereço completo é a prioridade principal
+  if (address && address.trim()) {
+    // Remove espaços extras e formata
+    const cleanAddress = address.trim().replace(/\s+/g, ' ');
+    parts.push(cleanAddress);
   }
   
-  if (parts.length === 0) return null;
+  // Adiciona bairro se disponível
+  if (neighborhood && neighborhood.trim()) {
+    parts.push(neighborhood.trim());
+  }
   
-  // Sempre adiciona Manaus, AM, Brasil para maior precisão na geolocalização
-  parts.push("Manaus, AM, Brasil");
+  // Sempre adiciona cidade e estado para contexto
+  parts.push("Manaus");
+  parts.push("AM");
   
+  // Adiciona CEP no final para precisão extra (formato brasileiro)
+  if (cep && cep.trim()) {
+    // Remove caracteres não numéricos do CEP
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length === 8) {
+      parts.push(cleanCep);
+    }
+  }
+  
+  // Se não tem nem endereço nem bairro, não gera link
+  if (!address?.trim() && !neighborhood?.trim()) {
+    return null;
+  }
+  
+  // Junta com vírgula e espaço, formato padrão para geocoding
   return encodeURIComponent(parts.join(", "));
 };
