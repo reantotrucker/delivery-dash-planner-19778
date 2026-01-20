@@ -22,9 +22,15 @@ export interface Route {
 export const generateGoogleMapsLink = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {
   const parts: string[] = [];
   
+  // Prioriza endereço completo + bairro (sem CEP, pois CEP pode confundir o Google Maps)
   if (address) parts.push(address);
-  if (cep) parts.push(cep);
-  if (neighborhood) parts.push(neighborhood);
+  if (neighborhood) parts.push(`Bairro ${neighborhood}`);
+  
+  // Só usa CEP se não tiver endereço
+  if (parts.length === 0 && cep) {
+    parts.push(cep);
+    if (neighborhood) parts.push(neighborhood);
+  }
   
   if (parts.length === 0) return null;
   
