@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
+import Occurrences from "./pages/Occurrences";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -60,6 +61,14 @@ const App = () => (
             element={
               <ProtectedWithLayout>
                 <Reports />
+              </ProtectedWithLayout>
+            }
+          />
+          <Route
+            path="/occurrences"
+            element={
+              <ProtectedWithLayout>
+                <Occurrences />
               </ProtectedWithLayout>
             }
           />
