@@ -6,18 +6,17 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Printer, Search, Settings } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Calendar, Printer, Search, Sun, Sunset } from "lucide-react";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Route } from "@/components/routes/types";
 import { useAuth } from "@/hooks/useAuth";
+import { StatsCards } from "@/components/dashboard/StatsCards";
 
 const Dashboard = () => {
   const { isAdmin, isMotorista, isComercial } = useAuth();
   const canManageRoutes = isAdmin;
   const canManageOccurrences = isAdmin || isMotorista || isComercial;
-  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedPeriod, setSelectedPeriod] = useState<"MANHA" | "TARDE">("MANHA");
   const [searchTerm, setSearchTerm] = useState("");
@@ -76,10 +75,12 @@ const Dashboard = () => {
     );
   });
 
+  const deliveredCount = filteredRoutes.filter(r => r.status === "ENTREGUE").length;
+  const pendingCount = filteredRoutes.filter(r => r.status === "NAO_ENTREGUE").length;
+
   const handlePrint = async () => {
     let routesToPrint = filteredRoutes;
 
-    // Se período completo, buscar manhã e tarde
     if (printPeriod === "COMPLETO") {
       const { data: allRoutes, error } = await supabase
         .from("routes")
@@ -193,109 +194,107 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card">
-        <div className="w-full px-2 sm:px-4 py-2 sm:py-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <h1 className="text-base sm:text-xl font-bold text-primary">Sistema de Rotas</h1>
-            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-primary" />
-                <input
-                  type="date"
-                  value={format(selectedDate, "yyyy-MM-dd")}
-                  onChange={(e) => {
-                    const [year, month, day] = e.target.value.split('-').map(Number);
-                    setSelectedDate(new Date(year, month - 1, day));
-                  }}
-                  className="bg-secondary text-foreground px-1.5 sm:px-2 py-1 text-xs sm:text-sm rounded border border-border"
-                />
-              </div>
-              {isAdmin && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => navigate('/settings')}
-                  className="px-2 sm:px-3 text-xs sm:text-sm"
-                >
-                  <Settings className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Config</span>
-                </Button>
-              )}
+      {/* Header */}
+      <header className="bg-card/50 backdrop-blur-sm border-b border-border sticky top-0 z-40">
+        <div className="px-4 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+                Painel de Rotas
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <input
+                type="date"
+                value={format(selectedDate, "yyyy-MM-dd")}
+                onChange={(e) => {
+                  const [year, month, day] = e.target.value.split('-').map(Number);
+                  setSelectedDate(new Date(year, month - 1, day));
+                }}
+                className="bg-secondary text-foreground px-3 py-2 text-sm rounded-lg border border-border focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
             </div>
           </div>
         </div>
       </header>
 
-      <div className="w-full px-2 sm:px-4 py-2 sm:py-4">
+      <div className="px-4 py-4 space-y-4">
+        {/* Stats Cards */}
+        <StatsCards 
+          total={filteredRoutes.length} 
+          delivered={deliveredCount} 
+          pending={pendingCount} 
+        />
+
+        {/* Period Tabs */}
         <Tabs value={selectedPeriod} onValueChange={(v) => setSelectedPeriod(v as "MANHA" | "TARDE")}>
-          <div className="flex flex-col gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <TabsList className="grid grid-cols-2 w-full sm:w-auto">
-                <TabsTrigger value="MANHA" className="text-xs sm:text-sm">MANHÃ</TabsTrigger>
-                <TabsTrigger value="TARDE" className="text-xs sm:text-sm">TARDE</TabsTrigger>
+          <div className="flex flex-col gap-4">
+            {/* Controls Row */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+              <TabsList className="grid grid-cols-2 w-full sm:w-auto bg-secondary">
+                <TabsTrigger value="MANHA" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  <Sun className="w-4 h-4" />
+                  Manhã
+                </TabsTrigger>
+                <TabsTrigger value="TARDE" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  <Sunset className="w-4 h-4" />
+                  Tarde
+                </TabsTrigger>
               </TabsList>
               
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-1.5 bg-muted rounded-md w-full sm:w-auto justify-center">
-                <span className="text-muted-foreground">
-                  Total: <span className="font-semibold text-foreground">{filteredRoutes.length}</span>
-                </span>
-                <span className="text-muted-foreground">|</span>
-                <span className="text-muted-foreground">
-                  OK: <span className="font-semibold text-green-600">{filteredRoutes.filter(r => r.status === "ENTREGUE").length}</span>
-                </span>
-                <span className="text-muted-foreground">|</span>
-                <span className="text-muted-foreground">
-                  Pend: <span className="font-semibold text-orange-600">{filteredRoutes.filter(r => r.status === "NAO_ENTREGUE").length}</span>
-                </span>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-initial">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Pesquisar rotas..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 bg-secondary border-border w-full sm:w-64"
+                  />
+                </div>
               </div>
             </div>
-            
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:flex-initial">
-                <Search className="absolute left-2 top-2.5 h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Pesquisar..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-7 sm:pl-8 text-xs sm:text-sm w-full sm:w-48"
-                />
-              </div>
+
+            {/* Print Controls */}
+            <div className="flex flex-wrap items-center gap-2 p-3 bg-card rounded-lg border border-border">
+              <span className="text-sm text-muted-foreground font-medium">Imprimir:</span>
+              <Select value={printPeriod} onValueChange={(v) => setPrintPeriod(v as "MANHA" | "TARDE" | "COMPLETO")}>
+                <SelectTrigger className="w-32 h-9 text-sm bg-secondary">
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MANHA">Manhã</SelectItem>
+                  <SelectItem value="TARDE">Tarde</SelectItem>
+                  <SelectItem value="COMPLETO">Completo</SelectItem>
+                </SelectContent>
+              </Select>
               
-              <div className="grid grid-cols-2 sm:flex gap-2">
-                <Select value={printPeriod} onValueChange={(v) => setPrintPeriod(v as "MANHA" | "TARDE" | "COMPLETO")}>
-                  <SelectTrigger className="text-xs sm:text-sm h-9">
-                    <SelectValue placeholder="Período" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MANHA">Manhã</SelectItem>
-                    <SelectItem value="TARDE">Tarde</SelectItem>
-                    <SelectItem value="COMPLETO">Completo</SelectItem>
-                  </SelectContent>
-                </Select>
-                
-                <Select value={selectedDriverForPrint} onValueChange={setSelectedDriverForPrint}>
-                  <SelectTrigger className="text-xs sm:text-sm h-9">
-                    <SelectValue placeholder="Motorista" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {drivers.map((driver) => (
-                      <SelectItem key={driver.id} value={driver.name}>
-                        {driver.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={selectedDriverForPrint} onValueChange={setSelectedDriverForPrint}>
+                <SelectTrigger className="w-40 h-9 text-sm bg-secondary">
+                  <SelectValue placeholder="Motorista" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Motoristas</SelectItem>
+                  {drivers.map((driver) => (
+                    <SelectItem key={driver.id} value={driver.name}>
+                      {driver.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               
-              <Button onClick={handlePrint} size="sm" variant="outline" className="px-2 sm:px-3 text-xs sm:text-sm">
-                <Printer className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
-                <span className="sm:inline">Imprimir</span>
+              <Button onClick={handlePrint} size="sm" className="gap-2">
+                <Printer className="w-4 h-4" />
+                Imprimir
               </Button>
             </div>
           </div>
 
-          <TabsContent value="MANHA" className="mt-0">
+          <TabsContent value="MANHA" className="mt-4">
             <div className="space-y-4">
               {canManageRoutes && (
                 <RouteForm 
@@ -313,7 +312,7 @@ const Dashboard = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="TARDE" className="mt-0">
+          <TabsContent value="TARDE" className="mt-4">
             <div className="space-y-4">
               {canManageRoutes && (
                 <RouteForm 
