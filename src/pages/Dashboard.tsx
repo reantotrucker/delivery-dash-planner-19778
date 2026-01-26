@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Printer, Search, Sun, Sunset } from "lucide-react";
+import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import { StatsCards } from "@/components/dashboard/StatsCards";
+import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const Dashboard = () => {
   const { isAdmin, isMotorista, isComercial } = useAuth();
@@ -22,6 +24,7 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDriverForPrint, setSelectedDriverForPrint] = useState<string>("all");
   const [printPeriod, setPrintPeriod] = useState<"MANHA" | "TARDE" | "COMPLETO">("MANHA");
+  const [chartsOpen, setChartsOpen] = useState(true);
 
   const { data: routes = [], refetch } = useQuery({
     queryKey: ["routes", selectedDate, selectedPeriod],
@@ -229,6 +232,19 @@ const Dashboard = () => {
           delivered={deliveredCount} 
           pending={pendingCount} 
         />
+
+        {/* Performance Charts - Collapsible */}
+        <Collapsible open={chartsOpen} onOpenChange={setChartsOpen}>
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full justify-between p-3 bg-card border border-border rounded-lg">
+              <span>📊 Gráficos de Performance</span>
+              {chartsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <PerformanceCharts date={selectedDate} period={selectedPeriod} />
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Period Tabs */}
         <Tabs value={selectedPeriod} onValueChange={(v) => setSelectedPeriod(v as "MANHA" | "TARDE")}>
