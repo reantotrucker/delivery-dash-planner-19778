@@ -1,10 +1,11 @@
-import { Home, BarChart3, Settings, Shield, LogOut } from "lucide-react";
+import { Home, BarChart3, Settings, Shield, LogOut, AlertTriangle } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { title: "Rotas", url: "/", icon: Home, adminOnly: false },
+  { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },
   { title: "Config", url: "/settings", icon: Settings, adminOnly: true },
   { title: "Usuários", url: "/admin/users", icon: Shield, adminOnly: true },
