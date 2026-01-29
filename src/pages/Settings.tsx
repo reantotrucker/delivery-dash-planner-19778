@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -60,6 +60,8 @@ const Settings = () => {
 
 const DriversSettings = () => {
   const [newDriver, setNewDriver] = useState({ name: "", color: "#FF6B00" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState({ name: "", color: "" });
 
   const { data: drivers = [], refetch } = useQuery({
     queryKey: ["drivers"],
@@ -71,7 +73,6 @@ const DriversSettings = () => {
   });
 
   const addDriver = async () => {
-    // Validate input using zod schema
     try {
       driverSchema.parse(newDriver);
     } catch (error) {
@@ -89,6 +90,44 @@ const DriversSettings = () => {
 
     toast.success("Motorista adicionado");
     setNewDriver({ name: "", color: "#FF6B00" });
+    refetch();
+  };
+
+  const startEdit = (driver: { id: string; name: string; color: string }) => {
+    setEditingId(driver.id);
+    setEditData({ name: driver.name, color: driver.color });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditData({ name: "", color: "" });
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+
+    try {
+      driverSchema.parse(editData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+      return;
+    }
+
+    const { error } = await supabase
+      .from("drivers")
+      .update(editData)
+      .eq("id", editingId);
+
+    if (error) {
+      toast.error("Erro ao atualizar motorista");
+      return;
+    }
+
+    toast.success("Motorista atualizado");
+    setEditingId(null);
+    setEditData({ name: "", color: "" });
     refetch();
   };
 
@@ -137,20 +176,54 @@ const DriversSettings = () => {
         <div className="space-y-2">
           {drivers.map((driver) => (
             <div key={driver.id} className="flex items-center justify-between p-3 border border-border rounded">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-6 h-6 rounded"
-                  style={{ backgroundColor: driver.color }}
-                />
-                <span className="font-medium">{driver.name}</span>
+              {editingId === driver.id ? (
+                <div className="flex items-center gap-3 flex-1 mr-4">
+                  <Input
+                    type="color"
+                    value={editData.color}
+                    onChange={(e) => setEditData({ ...editData, color: e.target.value })}
+                    className="w-12 h-8 p-1"
+                  />
+                  <Input
+                    value={editData.name}
+                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                    className="flex-1"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-6 h-6 rounded"
+                    style={{ backgroundColor: driver.color }}
+                  />
+                  <span className="font-medium">{driver.name}</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                {editingId === driver.id ? (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={saveEdit}>
+                      <Check className="w-4 h-4 text-green-500" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(driver)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteDriver(driver.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
               </div>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => deleteDriver(driver.id)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
             </div>
           ))}
         </div>
@@ -161,6 +234,8 @@ const DriversSettings = () => {
 
 const VehiclesSettings = () => {
   const [newVehicle, setNewVehicle] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState("");
 
   const { data: vehicles = [], refetch } = useQuery({
     queryKey: ["vehicles"],
@@ -172,7 +247,6 @@ const VehiclesSettings = () => {
   });
 
   const addVehicle = async () => {
-    // Validate input using zod schema
     try {
       vehicleSchema.parse({ plate: newVehicle });
     } catch (error) {
@@ -190,6 +264,44 @@ const VehiclesSettings = () => {
 
     toast.success("Veículo adicionado");
     setNewVehicle("");
+    refetch();
+  };
+
+  const startEdit = (vehicle: { id: string; plate: string }) => {
+    setEditingId(vehicle.id);
+    setEditData(vehicle.plate);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditData("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+
+    try {
+      vehicleSchema.parse({ plate: editData });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+      return;
+    }
+
+    const { error } = await supabase
+      .from("vehicles")
+      .update({ plate: editData })
+      .eq("id", editingId);
+
+    if (error) {
+      toast.error("Erro ao atualizar veículo");
+      return;
+    }
+
+    toast.success("Veículo atualizado");
+    setEditingId(null);
+    setEditData("");
     refetch();
   };
 
@@ -230,14 +342,40 @@ const VehiclesSettings = () => {
         <div className="space-y-2">
           {vehicles.map((vehicle) => (
             <div key={vehicle.id} className="flex items-center justify-between p-3 border border-border rounded">
-              <span className="font-medium">{vehicle.plate}</span>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => deleteVehicle(vehicle.id)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              {editingId === vehicle.id ? (
+                <Input
+                  value={editData}
+                  onChange={(e) => setEditData(e.target.value)}
+                  className="flex-1 mr-4"
+                />
+              ) : (
+                <span className="font-medium">{vehicle.plate}</span>
+              )}
+              <div className="flex gap-2">
+                {editingId === vehicle.id ? (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={saveEdit}>
+                      <Check className="w-4 h-4 text-green-500" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(vehicle)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteVehicle(vehicle.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -248,6 +386,8 @@ const VehiclesSettings = () => {
 
 const ConsultantsSettings = () => {
   const [newConsultant, setNewConsultant] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState("");
 
   const { data: consultants = [], refetch } = useQuery({
     queryKey: ["consultants"],
@@ -259,7 +399,6 @@ const ConsultantsSettings = () => {
   });
 
   const addConsultant = async () => {
-    // Validate input using zod schema
     try {
       consultantSchema.parse({ name: newConsultant });
     } catch (error) {
@@ -277,6 +416,44 @@ const ConsultantsSettings = () => {
 
     toast.success("Consultor adicionado");
     setNewConsultant("");
+    refetch();
+  };
+
+  const startEdit = (consultant: { id: string; name: string }) => {
+    setEditingId(consultant.id);
+    setEditData(consultant.name);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditData("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+
+    try {
+      consultantSchema.parse({ name: editData });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+      return;
+    }
+
+    const { error } = await supabase
+      .from("consultants")
+      .update({ name: editData })
+      .eq("id", editingId);
+
+    if (error) {
+      toast.error("Erro ao atualizar consultor");
+      return;
+    }
+
+    toast.success("Consultor atualizado");
+    setEditingId(null);
+    setEditData("");
     refetch();
   };
 
@@ -317,14 +494,40 @@ const ConsultantsSettings = () => {
         <div className="space-y-2">
           {consultants.map((consultant) => (
             <div key={consultant.id} className="flex items-center justify-between p-3 border border-border rounded">
-              <span className="font-medium">{consultant.name}</span>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => deleteConsultant(consultant.id)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              {editingId === consultant.id ? (
+                <Input
+                  value={editData}
+                  onChange={(e) => setEditData(e.target.value)}
+                  className="flex-1 mr-4"
+                />
+              ) : (
+                <span className="font-medium">{consultant.name}</span>
+              )}
+              <div className="flex gap-2">
+                {editingId === consultant.id ? (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={saveEdit}>
+                      <Check className="w-4 h-4 text-green-500" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(consultant)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deleteConsultant(consultant.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -335,6 +538,8 @@ const ConsultantsSettings = () => {
 
 const PaymentMethodsSettings = () => {
   const [newPayment, setNewPayment] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState("");
 
   const { data: payments = [], refetch } = useQuery({
     queryKey: ["payment_methods"],
@@ -346,7 +551,6 @@ const PaymentMethodsSettings = () => {
   });
 
   const addPayment = async () => {
-    // Validate input using zod schema
     try {
       paymentMethodSchema.parse({ name: newPayment });
     } catch (error) {
@@ -364,6 +568,44 @@ const PaymentMethodsSettings = () => {
 
     toast.success("Forma de pagamento adicionada");
     setNewPayment("");
+    refetch();
+  };
+
+  const startEdit = (payment: { id: string; name: string }) => {
+    setEditingId(payment.id);
+    setEditData(payment.name);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditData("");
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+
+    try {
+      paymentMethodSchema.parse({ name: editData });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      }
+      return;
+    }
+
+    const { error } = await supabase
+      .from("payment_methods")
+      .update({ name: editData })
+      .eq("id", editingId);
+
+    if (error) {
+      toast.error("Erro ao atualizar forma de pagamento");
+      return;
+    }
+
+    toast.success("Forma de pagamento atualizada");
+    setEditingId(null);
+    setEditData("");
     refetch();
   };
 
@@ -404,14 +646,40 @@ const PaymentMethodsSettings = () => {
         <div className="space-y-2">
           {payments.map((payment) => (
             <div key={payment.id} className="flex items-center justify-between p-3 border border-border rounded">
-              <span className="font-medium">{payment.name}</span>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => deletePayment(payment.id)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              {editingId === payment.id ? (
+                <Input
+                  value={editData}
+                  onChange={(e) => setEditData(e.target.value)}
+                  className="flex-1 mr-4"
+                />
+              ) : (
+                <span className="font-medium">{payment.name}</span>
+              )}
+              <div className="flex gap-2">
+                {editingId === payment.id ? (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={saveEdit}>
+                      <Check className="w-4 h-4 text-green-500" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}>
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={() => startEdit(payment)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => deletePayment(payment.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
