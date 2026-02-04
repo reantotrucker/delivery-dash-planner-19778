@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import UserManagement from "./pages/UserManagement";
+import OmieImport from "./pages/OmieImport";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
 import { useAuth } from "./hooks/useAuth";
@@ -77,6 +78,14 @@ const App = () => (
             element={
               <ProtectedWithLayout requireAdmin>
                 <UserManagement />
+              </ProtectedWithLayout>
+            }
+          />
+          <Route
+            path="/omie-import"
+            element={
+              <ProtectedWithLayout requireAdmin>
+                <OmieImport />
               </ProtectedWithLayout>
             }
           />
