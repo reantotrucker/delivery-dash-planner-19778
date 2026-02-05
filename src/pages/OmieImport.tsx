@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, subDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,19 +48,17 @@ interface OmieResponse {
 export default function OmieImport() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'nfe' | 'nfce'>('nfe');
-  const [startDate, setStartDate] = useState(format(subDays(new Date(), 7), 'dd/MM/yyyy'));
-  const [endDate, setEndDate] = useState(format(new Date(), 'dd/MM/yyyy'));
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string | number>>(new Set());
   const [period, setPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data, isLoading, error, refetch } = useQuery<OmieResponse>({
-    queryKey: ['omie-invoices', activeTab, startDate, endDate],
+    queryKey: ['omie-invoices', activeTab, currentPage],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('omie-invoices', {
         body: {
           type: activeTab,
-          startDate,
-          endDate,
+          page: currentPage,
         },
       });
 
@@ -164,7 +161,7 @@ export default function OmieImport() {
           <CardTitle className="text-lg">Filtros de Busca</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tipo de Documento</Label>
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'nfe' | 'nfce')}>
@@ -173,26 +170,6 @@ export default function OmieImport() {
                   <TabsTrigger value="nfce">NFC-e</TabsTrigger>
                 </TabsList>
               </Tabs>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Data Inicial</Label>
-              <Input
-                type="text"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                placeholder="dd/mm/aaaa"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Data Final</Label>
-              <Input
-                type="text"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                placeholder="dd/mm/aaaa"
-              />
             </div>
 
             <div className="flex items-end">
