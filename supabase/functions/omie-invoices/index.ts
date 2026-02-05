@@ -7,6 +7,25 @@ const corsHeaders = {
 
 const OMIE_API_URL = 'https://app.omie.com.br/api/v1';
 
+// Helper function to fetch with retry
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      console.log(`Tentativa ${attempt + 1} falhou, aguardando...`);
+      // Wait with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
+  
+  throw lastError || new Error('Falha após múltiplas tentativas');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -32,24 +51,29 @@ serve(async (req) => {
     let result;
 
     if (type === 'nfe') {
-      // Listar NF-e usando API ListarNF - estrutura simplificada
-      const response = await fetch(`${OMIE_API_URL}/produtos/nfconsultar/`, {
+      // Listar NF-e usando API ListarNF
+      const requestBody = {
+        call: 'ListarNF',
+        app_key: OMIE_APP_KEY,
+        app_secret: OMIE_APP_SECRET,
+        param: [{
+          pagina: page,
+          registros_por_pagina: 50,
+          apenas_importado_api: 'N',
+        }],
+      };
+
+      console.log('Chamando API Omie NFe, página:', page);
+
+      const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          call: 'ListarNF',
-          app_key: OMIE_APP_KEY,
-          app_secret: OMIE_APP_SECRET,
-          param: [{
-            pagina: page,
-            registros_por_pagina: 50,
-            apenas_importado_api: 'N',
-          }],
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const responseText = await response.text();
-      console.log('Resposta Omie NFe:', responseText.substring(0, 500));
+      console.log('Status HTTP:', response.status);
+      console.log('Resposta Omie NFe (primeiros 300 chars):', responseText.substring(0, 300));
 
       let data;
       try {
@@ -58,7 +82,11 @@ serve(async (req) => {
         throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
       }
       
+      // Handle SOAP errors with more context
       if (data.faultstring) {
+        if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
+          throw new Error(`API Omie temporariamente indisponível. Tente novamente em alguns segundos.`);
+        }
         throw new Error(`Omie NFe: ${data.faultstring}`);
       }
 
@@ -93,22 +121,27 @@ serve(async (req) => {
       };
     } else {
       // Listar NFC-e usando API CuponsFiscais
-      const response = await fetch(`${OMIE_API_URL}/produtos/cupomfiscalconsultar/`, {
+      const requestBody = {
+        call: 'ListarCupom',
+        app_key: OMIE_APP_KEY,
+        app_secret: OMIE_APP_SECRET,
+        param: [{
+          nPagina: page,
+          nRegPorPagina: 50,
+        }],
+      };
+
+      console.log('Chamando API Omie NFCe, página:', page);
+
+      const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/cupomfiscalconsultar/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          call: 'ListarCupom',
-          app_key: OMIE_APP_KEY,
-          app_secret: OMIE_APP_SECRET,
-          param: [{
-            nPagina: page,
-            nRegPorPagina: 50,
-          }],
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const responseText = await response.text();
-      console.log('Resposta Omie NFCe:', responseText.substring(0, 500));
+      console.log('Status HTTP:', response.status);
+      console.log('Resposta Omie NFCe (primeiros 300 chars):', responseText.substring(0, 300));
 
       let data;
       try {
@@ -117,7 +150,11 @@ serve(async (req) => {
         throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
       }
       
+      // Handle SOAP errors with more context
       if (data.faultstring) {
+        if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
+          throw new Error(`API Omie temporariamente indisponível. Tente novamente em alguns segundos.`);
+        }
         throw new Error(`Omie NFCe: ${data.faultstring}`);
       }
 
@@ -158,12 +195,17 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Erro na edge function omie-invoices:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    const isTemporary = errorMessage.includes('temporariamente') || errorMessage.includes('SOAP-ERROR');
+    
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Erro desconhecido',
+        error: errorMessage,
+        isTemporary,
       }),
       { 
-        status: 500, 
+        status: isTemporary ? 503 : 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
