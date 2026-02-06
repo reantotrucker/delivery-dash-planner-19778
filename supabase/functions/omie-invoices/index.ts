@@ -59,7 +59,7 @@ serve(async (req) => {
           call: 'ListarNF',
           app_key: OMIE_APP_KEY,
           app_secret: OMIE_APP_SECRET,
-          param: [{ pagina: 1, registros_por_pagina: 1, apenas_importado_api: 'N' }],
+          param: [{ pagina: 1, registros_por_pagina: 50, apenas_importado_api: 'N' }],
         };
         const discoverRes = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
           method: 'POST',

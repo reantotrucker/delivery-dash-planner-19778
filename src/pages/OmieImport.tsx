@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parse, isWithinInterval, startOfDay, endOfDay, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -54,12 +54,13 @@ export default function OmieImport() {
   const [activeTab, setActiveTab] = useState<'nfe' | 'nfce'>('nfe');
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string | number>>(new Set());
   const [period, setPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
-  const [currentPage, setCurrentPage] = useState<number | null>(null); // null = fetch last page
+  const [currentPage, setCurrentPage] = useState<number | null>(null);
   const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 1));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+  const [fetchCounter, setFetchCounter] = useState(0);
 
-  const { data, isLoading, error, refetch } = useQuery<OmieResponse>({
-    queryKey: ['omie-invoices', activeTab, currentPage],
+  const { data, isLoading, error } = useQuery<OmieResponse>({
+    queryKey: ['omie-invoices', activeTab, currentPage, fetchCounter],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('omie-invoices', {
         body: {
@@ -73,7 +74,7 @@ export default function OmieImport() {
       if (data.error) throw new Error(data.error);
       return data;
     },
-    enabled: false,
+    enabled: fetchCounter > 0,
   });
 
   // Filter invoices by date range client-side
@@ -141,17 +142,18 @@ export default function OmieImport() {
     },
   });
 
-  const handleSearch = () => {
-    setCurrentPage(null); // null triggers fetchLastPage
+  const handleSearch = useCallback(() => {
+    setCurrentPage(null);
     setSelectedInvoices(new Set());
-    refetch();
-  };
+    // Use setTimeout to ensure state updates are batched before query runs
+    setTimeout(() => setFetchCounter(c => c + 1), 0);
+  }, []);
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
     setSelectedInvoices(new Set());
-    refetch();
-  };
+    setTimeout(() => setFetchCounter(c => c + 1), 0);
+  }, []);
 
   const handleSelectAll = () => {
     if (selectedInvoices.size === filteredInvoices.length) {
