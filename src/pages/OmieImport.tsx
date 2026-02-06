@@ -46,6 +46,7 @@ interface OmieResponse {
   totalPages: number;
   totalRecords: number;
   invoices: OmieInvoice[];
+  requestedPage?: 'last'; // when we requested the last page
 }
 
 export default function OmieImport() {
@@ -53,8 +54,8 @@ export default function OmieImport() {
   const [activeTab, setActiveTab] = useState<'nfe' | 'nfce'>('nfe');
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string | number>>(new Set());
   const [period, setPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 7));
+  const [currentPage, setCurrentPage] = useState<number | null>(null); // null = fetch last page
+  const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 1));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
 
   const { data, isLoading, error, refetch } = useQuery<OmieResponse>({
@@ -63,7 +64,8 @@ export default function OmieImport() {
       const { data, error } = await supabase.functions.invoke('omie-invoices', {
         body: {
           type: activeTab,
-          page: currentPage,
+          page: currentPage ?? 1,
+          fetchLastPage: currentPage === null,
         },
       });
 
@@ -140,12 +142,14 @@ export default function OmieImport() {
   });
 
   const handleSearch = () => {
-    setCurrentPage(1);
+    setCurrentPage(null); // null triggers fetchLastPage
+    setSelectedInvoices(new Set());
     refetch();
   };
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
+    setSelectedInvoices(new Set());
     refetch();
   };
 
@@ -302,7 +306,7 @@ export default function OmieImport() {
                   Notas Fiscais Encontradas
                 </CardTitle>
                 <CardDescription>
-                  {filteredInvoices.length} de {data.totalRecords} registros no período • Página {data.page} de {data.totalPages}
+                  {filteredInvoices.length} de {data.invoices.length} nesta página ({data.totalRecords} total) • Página {data.page} de {data.totalPages}
                 </CardDescription>
               </div>
 
@@ -438,22 +442,22 @@ export default function OmieImport() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage <= 1 || isLoading}
+                  onClick={() => handlePageChange(data.page - 1)}
+                  disabled={data.page <= 1 || isLoading}
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  Anterior
+                  Mais antigas
                 </Button>
                 <span className="text-sm text-muted-foreground px-4">
-                  Página {currentPage} de {data.totalPages}
+                  Página {data.page} de {data.totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= data.totalPages || isLoading}
+                  onClick={() => handlePageChange(data.page + 1)}
+                  disabled={data.page >= data.totalPages || isLoading}
                 >
-                  Próxima
+                  Mais recentes
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
