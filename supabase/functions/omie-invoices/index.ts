@@ -42,7 +42,7 @@ serve(async (req) => {
       throw new Error('OMIE_APP_SECRET não configurada');
     }
 
-    const { type, page = 1 } = await req.json();
+    const { type, page = 1, fetchLastPage = false } = await req.json();
 
     if (!type || !['nfe', 'nfce'].includes(type)) {
       throw new Error('Tipo inválido. Use "nfe" ou "nfce".');
@@ -51,19 +51,40 @@ serve(async (req) => {
     let result;
 
     if (type === 'nfe') {
+      let actualPage = page;
+
+      // If fetchLastPage is true and page is 1, first discover total pages
+      if (fetchLastPage && page === 1) {
+        const discoverBody = {
+          call: 'ListarNF',
+          app_key: OMIE_APP_KEY,
+          app_secret: OMIE_APP_SECRET,
+          param: [{ pagina: 1, registros_por_pagina: 1, apenas_importado_api: 'N' }],
+        };
+        const discoverRes = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(discoverBody),
+        });
+        const discoverData = await discoverRes.json();
+        if (discoverData.total_de_paginas) {
+          actualPage = discoverData.total_de_paginas;
+        }
+      }
+
       // Listar NF-e usando API ListarNF
       const requestBody = {
         call: 'ListarNF',
         app_key: OMIE_APP_KEY,
         app_secret: OMIE_APP_SECRET,
         param: [{
-          pagina: page,
+          pagina: actualPage,
           registros_por_pagina: 50,
           apenas_importado_api: 'N',
         }],
       };
 
-      console.log('Chamando API Omie NFe, página:', page);
+      console.log('Chamando API Omie NFe, página:', actualPage);
 
       const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
         method: 'POST',
@@ -117,7 +138,7 @@ serve(async (req) => {
           paymentMethod: nf.pag?.[0]?.tPag,
           accessKey: nf.compl?.cChaveNFe,
           orderId: nf.compl?.nIdPedido,
-        })),
+        })).reverse(),
       };
     } else {
       // Listar NFC-e usando API CuponsFiscais
