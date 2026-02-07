@@ -56,6 +56,30 @@ export default function OmieImport() {
   const [period, setPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
   const [currentPage, setCurrentPage] = useState<number | null>(null);
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
+
+  // Query existing routes to find already-imported NF numbers
+  const { data: existingRoutes } = useQuery({
+    queryKey: ['existing-route-nf-numbers'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('routes')
+        .select('observation')
+        .like('observation', 'NF %');
+      return data || [];
+    },
+  });
+
+  // Extract NF numbers from existing routes
+  const importedNfNumbers = useMemo(() => {
+    const set = new Set<string>();
+    existingRoutes?.forEach((r) => {
+      const match = r.observation?.match(/^NF\s+(\S+)/);
+      if (match) set.add(match[1]);
+    });
+    // Also include locally created ones
+    createdInvoices.forEach(id => set.add(String(id)));
+    return set;
+  }, [existingRoutes, createdInvoices]);
   const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 1));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [fetchCounter, setFetchCounter] = useState(0);
@@ -137,11 +161,12 @@ export default function OmieImport() {
       toast.success(`${data.length} rotas criadas com sucesso!`);
       setCreatedInvoices(prev => {
         const next = new Set(prev);
-        variables.forEach(inv => next.add(inv.id));
+        variables.forEach(inv => next.add(String(inv.number)));
         return next;
       });
       setSelectedInvoices(new Set());
       queryClient.invalidateQueries({ queryKey: ['routes'] });
+      queryClient.invalidateQueries({ queryKey: ['existing-route-nf-numbers'] });
     },
     onError: (error) => {
       toast.error(`Erro ao criar rotas: ${error.message}`);
@@ -373,13 +398,13 @@ export default function OmieImport() {
                   <div
                     key={invoice.id}
                     className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                      createdInvoices.has(invoice.id)
+                      importedNfNumbers.has(String(invoice.number))
                         ? 'border-green-500 bg-green-500/10'
                         : selectedInvoices.has(invoice.id)
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-muted-foreground/50'
                     }`}
-                    onClick={() => !createdInvoices.has(invoice.id) && handleSelectInvoice(invoice.id)}
+                    onClick={() => !importedNfNumbers.has(String(invoice.number)) && handleSelectInvoice(invoice.id)}
                   >
                     <div className="flex items-start gap-4">
                       <Checkbox
@@ -396,7 +421,7 @@ export default function OmieImport() {
                             <span className="font-medium">
                               {activeTab === 'nfe' ? 'NF-e' : 'NFC-e'} #{invoice.number}
                             </span>
-                            {createdInvoices.has(invoice.id) && (
+                            {importedNfNumbers.has(String(invoice.number)) && (
                               <Badge className="text-xs bg-green-500 text-white">
                                 ✓ Rota criada
                               </Badge>
