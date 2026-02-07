@@ -55,6 +55,7 @@ export default function OmieImport() {
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string | number>>(new Set());
   const [period, setPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
   const [currentPage, setCurrentPage] = useState<number | null>(null);
+  const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
   const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 1));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [fetchCounter, setFetchCounter] = useState(0);
@@ -132,8 +133,13 @@ export default function OmieImport() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       toast.success(`${data.length} rotas criadas com sucesso!`);
+      setCreatedInvoices(prev => {
+        const next = new Set(prev);
+        variables.forEach(inv => next.add(inv.id));
+        return next;
+      });
       setSelectedInvoices(new Set());
       queryClient.invalidateQueries({ queryKey: ['routes'] });
     },
@@ -367,11 +373,13 @@ export default function OmieImport() {
                   <div
                     key={invoice.id}
                     className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                      selectedInvoices.has(invoice.id)
+                      createdInvoices.has(invoice.id)
+                        ? 'border-green-500 bg-green-500/10'
+                        : selectedInvoices.has(invoice.id)
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:border-muted-foreground/50'
                     }`}
-                    onClick={() => handleSelectInvoice(invoice.id)}
+                    onClick={() => !createdInvoices.has(invoice.id) && handleSelectInvoice(invoice.id)}
                   >
                     <div className="flex items-start gap-4">
                       <Checkbox
@@ -388,6 +396,11 @@ export default function OmieImport() {
                             <span className="font-medium">
                               {activeTab === 'nfe' ? 'NF-e' : 'NFC-e'} #{invoice.number}
                             </span>
+                            {createdInvoices.has(invoice.id) && (
+                              <Badge className="text-xs bg-green-500 text-white">
+                                ✓ Rota criada
+                              </Badge>
+                            )}
                             {invoice.series && (
                               <Badge variant="outline" className="text-xs">
                                 Série {invoice.series}
