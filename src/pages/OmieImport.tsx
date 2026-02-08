@@ -5,8 +5,9 @@ import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -65,12 +66,12 @@ interface OmieResponse {
 export default function OmieImport() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'nfe' | 'nfce'>('nfe');
-  const [selectedInvoices, setSelectedInvoices] = useState<Set<string | number>>(new Set());
   const [period, setPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
   const [currentPage, setCurrentPage] = useState<number | null>(null);
-  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
-  const [selectedConsultantId, setSelectedConsultantId] = useState<string>('');
+  const [dialogInvoice, setDialogInvoice] = useState<OmieInvoice | null>(null);
+  const [dialogDriverId, setDialogDriverId] = useState<string>('');
+  const [dialogVehicleId, setDialogVehicleId] = useState<string>('');
+  const [dialogConsultantId, setDialogConsultantId] = useState<string>('');
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
 
   // Query existing routes to find already-imported NF numbers
@@ -187,10 +188,12 @@ export default function OmieImport() {
   }, [data?.invoices, startDate, endDate]);
 
   const createRoutesMutation = useMutation({
-    mutationFn: async (invoices: OmieInvoice[]) => {
+    mutationFn: async ({ invoice, driverId, vehicleId, consultantId }: { 
+      invoice: OmieInvoice; driverId: string; vehicleId: string; consultantId: string 
+    }) => {
       const today = format(new Date(), 'yyyy-MM-dd');
       
-      const routesToCreate = invoices.map((invoice, index) => ({
+      const routeToCreate = {
         client: invoice.clientName || `Cliente ${invoice.clientId}`,
         neighborhood: invoice.address?.neighborhood || 'N/A',
         address: invoice.address 
@@ -200,77 +203,64 @@ export default function OmieImport() {
         observation: `NF ${invoice.number} - Valor: R$ ${invoice.totalValue?.toFixed(2) || '0,00'}`,
         date: today,
         period: period,
-        order_number: index + 1,
+        order_number: 1,
         status: 'NAO_ENTREGUE' as const,
-        driver_id: (selectedDriverId && selectedDriverId !== 'none') ? selectedDriverId : null,
-        vehicle_id: (selectedVehicleId && selectedVehicleId !== 'none') ? selectedVehicleId : null,
-        consultant_id: (selectedConsultantId && selectedConsultantId !== 'none') ? selectedConsultantId : null,
+        driver_id: (driverId && driverId !== 'none') ? driverId : null,
+        vehicle_id: (vehicleId && vehicleId !== 'none') ? vehicleId : null,
+        consultant_id: (consultantId && consultantId !== 'none') ? consultantId : null,
         payment_method_id: resolvePaymentMethodId(invoice.paymentMethod) || null,
-      }));
+      };
 
       const { data, error } = await supabase
         .from('routes')
-        .insert(routesToCreate)
+        .insert([routeToCreate])
         .select();
 
       if (error) throw error;
-      return data;
+      return { data, invoice };
     },
-    onSuccess: (data, variables) => {
-      toast.success(`${data.length} rotas criadas com sucesso!`);
+    onSuccess: ({ data, invoice }) => {
+      toast.success(`Rota criada com sucesso!`);
       setCreatedInvoices(prev => {
         const next = new Set(prev);
-        variables.forEach(inv => next.add(String(inv.number)));
+        next.add(String(invoice.number));
         return next;
       });
-      setSelectedInvoices(new Set());
+      setDialogInvoice(null);
       queryClient.invalidateQueries({ queryKey: ['routes'] });
       queryClient.invalidateQueries({ queryKey: ['existing-route-nf-numbers'] });
     },
     onError: (error) => {
-      toast.error(`Erro ao criar rotas: ${error.message}`);
+      toast.error(`Erro ao criar rota: ${error.message}`);
     },
   });
 
   const handleSearch = useCallback(() => {
     setCurrentPage(null);
-    setSelectedInvoices(new Set());
-    // Use setTimeout to ensure state updates are batched before query runs
     setTimeout(() => setFetchCounter(c => c + 1), 0);
   }, []);
 
   const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
-    setSelectedInvoices(new Set());
     setTimeout(() => setFetchCounter(c => c + 1), 0);
   }, []);
 
-  const handleSelectAll = () => {
-    if (selectedInvoices.size === filteredInvoices.length) {
-      setSelectedInvoices(new Set());
-    } else {
-      setSelectedInvoices(new Set(filteredInvoices.map(inv => inv.id)));
-    }
+  const handleOpenInvoiceDialog = (invoice: OmieInvoice) => {
+    if (importedNfNumbers.has(String(invoice.number))) return;
+    setDialogDriverId('');
+    setDialogVehicleId('');
+    setDialogConsultantId('');
+    setDialogInvoice(invoice);
   };
 
-  const handleSelectInvoice = (id: string | number) => {
-    const newSelected = new Set(selectedInvoices);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedInvoices(newSelected);
-  };
-
-  const handleCreateRoutes = () => {
-    const selectedList = filteredInvoices.filter(inv => selectedInvoices.has(inv.id));
-    if (selectedList.length === 0) {
-      toast.error('Selecione pelo menos uma nota fiscal');
-      return;
-    }
-    
-    createRoutesMutation.mutate(selectedList);
+  const handleCreateRoute = () => {
+    if (!dialogInvoice) return;
+    createRoutesMutation.mutate({
+      invoice: dialogInvoice,
+      driverId: dialogDriverId,
+      vehicleId: dialogVehicleId,
+      consultantId: dialogConsultantId,
+    });
   };
 
   const formatAddress = (address: OmieInvoice['address']) => {
@@ -402,12 +392,11 @@ export default function OmieImport() {
                 </CardDescription>
               </div>
 
-              {/* Selectors for route creation */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Período</Label>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs">Período:</Label>
                   <Select value={period} onValueChange={(v) => setPeriod(v as 'MANHA' | 'TARDE')}>
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="w-28 h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -416,83 +405,7 @@ export default function OmieImport() {
                     </SelectContent>
                   </Select>
                 </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Motorista</Label>
-                  <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {drivers?.map(d => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Veículo</Label>
-                  <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {vehicles?.map(v => (
-                        <SelectItem key={v.id} value={v.id}>{v.plate}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Consultor</Label>
-                  <Select value={selectedConsultantId} onValueChange={setSelectedConsultantId}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {consultants?.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-end gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSelectAll}
-                    className="h-9"
-                  >
-                    {selectedInvoices.size === filteredInvoices.length && filteredInvoices.length > 0 
-                      ? 'Desmarcar' 
-                      : 'Selecionar Todos'}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-3">
-                <Button
-                  onClick={handleCreateRoutes}
-                  disabled={selectedInvoices.size === 0 || createRoutesMutation.isPending}
-                >
-                  {createRoutesMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Criando...
-                    </>
-                  ) : (
-                    <>
-                      <Package className="w-4 h-4 mr-2" />
-                      Criar {selectedInvoices.size} Rotas
-                    </>
-                  )}
-                </Button>
+                <p className="text-xs text-muted-foreground">Clique em uma NF para criar rota</p>
               </div>
             </div>
           </CardHeader>
@@ -509,19 +422,12 @@ export default function OmieImport() {
                     key={invoice.id}
                     className={`p-4 rounded-lg border transition-colors cursor-pointer ${
                       importedNfNumbers.has(String(invoice.number))
-                        ? 'border-green-500 bg-green-500/10'
-                        : selectedInvoices.has(invoice.id)
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-muted-foreground/50'
+                        ? 'border-green-500 bg-green-500/10 cursor-default'
+                        : 'border-border hover:border-primary/50 hover:bg-primary/5'
                     }`}
-                    onClick={() => !importedNfNumbers.has(String(invoice.number)) && handleSelectInvoice(invoice.id)}
+                    onClick={() => handleOpenInvoiceDialog(invoice)}
                   >
                     <div className="flex items-start gap-4">
-                      <Checkbox
-                        checked={selectedInvoices.has(invoice.id)}
-                        onCheckedChange={() => handleSelectInvoice(invoice.id)}
-                        className="mt-1"
-                      />
                       
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Info da NF */}
@@ -621,6 +527,94 @@ export default function OmieImport() {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog para criar rota */}
+      <Dialog open={!!dialogInvoice} onOpenChange={(open) => !open && setDialogInvoice(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Criar Rota - NF #{dialogInvoice?.number}</DialogTitle>
+          </DialogHeader>
+          {dialogInvoice && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/50 space-y-1 text-sm">
+                <p><span className="font-medium">Cliente:</span> {dialogInvoice.clientName || `Cliente ${dialogInvoice.clientId}`}</p>
+                <p><span className="font-medium">Valor:</span> R$ {dialogInvoice.totalValue?.toFixed(2)}</p>
+                {dialogInvoice.address && (
+                  <p><span className="font-medium">Endereço:</span> {formatAddress(dialogInvoice.address)}</p>
+                )}
+                {dialogInvoice.paymentMethod && OMIE_PAYMENT_MAP[dialogInvoice.paymentMethod] && (
+                  <p><span className="font-medium">Pagamento:</span> {OMIE_PAYMENT_MAP[dialogInvoice.paymentMethod]}</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label>Motorista</Label>
+                  <Select value={dialogDriverId} onValueChange={setDialogDriverId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o motorista" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {drivers?.map(d => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Veículo</Label>
+                  <Select value={dialogVehicleId} onValueChange={setDialogVehicleId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o veículo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {vehicles?.map(v => (
+                        <SelectItem key={v.id} value={v.id}>{v.plate}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Consultor</Label>
+                  <Select value={dialogConsultantId} onValueChange={setDialogConsultantId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o consultor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {consultants?.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogInvoice(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateRoute} disabled={createRoutesMutation.isPending}>
+              {createRoutesMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Criando...
+                </>
+              ) : (
+                <>
+                  <Package className="w-4 h-4 mr-2" />
+                  Criar Rota
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
