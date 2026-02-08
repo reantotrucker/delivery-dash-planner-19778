@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parse, isWithinInterval, startOfDay, endOfDay, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -13,8 +13,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// Omie tPag fiscal codes mapped to local payment method names
+const OMIE_PAYMENT_MAP: Record<string, string> = {
+  '01': 'DINHEIRO',
+  '02': 'COLETA', // Cheque -> closest match
+  '03': 'CARTAO CREDITO',
+  '04': 'CARTAO CREDITO', // Débito -> same category
+  '05': 'COLETA', // Crédito Loja
+  '14': 'BOLETO', // Duplicata -> Boleto
+  '15': 'BOLETO',
+  '17': 'PIX',
+  '99': 'DINHEIRO',
+};
 
 interface OmieInvoice {
   id: string | number;
@@ -55,6 +68,9 @@ export default function OmieImport() {
   const [selectedInvoices, setSelectedInvoices] = useState<Set<string | number>>(new Set());
   const [period, setPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
   const [currentPage, setCurrentPage] = useState<number | null>(null);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+  const [selectedConsultantId, setSelectedConsultantId] = useState<string>('');
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
 
   // Query existing routes to find already-imported NF numbers
@@ -69,6 +85,36 @@ export default function OmieImport() {
     },
   });
 
+  // Query master data for selectors
+  const { data: drivers } = useQuery({
+    queryKey: ['drivers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('drivers').select('id, name').order('name');
+      return data || [];
+    },
+  });
+  const { data: vehicles } = useQuery({
+    queryKey: ['vehicles'],
+    queryFn: async () => {
+      const { data } = await supabase.from('vehicles').select('id, plate').order('plate');
+      return data || [];
+    },
+  });
+  const { data: consultants } = useQuery({
+    queryKey: ['consultants'],
+    queryFn: async () => {
+      const { data } = await supabase.from('consultants').select('id, name').order('name');
+      return data || [];
+    },
+  });
+  const { data: paymentMethods } = useQuery({
+    queryKey: ['payment-methods'],
+    queryFn: async () => {
+      const { data } = await supabase.from('payment_methods').select('id, name').order('name');
+      return data || [];
+    },
+  });
+
   // Extract NF numbers from existing routes
   const importedNfNumbers = useMemo(() => {
     const set = new Set<string>();
@@ -76,10 +122,19 @@ export default function OmieImport() {
       const match = r.observation?.match(/^NF\s+(\S+)/);
       if (match) set.add(match[1]);
     });
-    // Also include locally created ones
     createdInvoices.forEach(id => set.add(String(id)));
     return set;
   }, [existingRoutes, createdInvoices]);
+
+  // Resolve payment method ID from Omie tPag code
+  const resolvePaymentMethodId = useCallback((tPag?: string): string | null => {
+    if (!tPag || !paymentMethods) return null;
+    const mappedName = OMIE_PAYMENT_MAP[tPag];
+    if (!mappedName) return null;
+    const found = paymentMethods.find(pm => pm.name === mappedName);
+    return found?.id || null;
+  }, [paymentMethods]);
+
   const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 1));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [fetchCounter, setFetchCounter] = useState(0);
@@ -147,6 +202,10 @@ export default function OmieImport() {
         period: period,
         order_number: index + 1,
         status: 'NAO_ENTREGUE' as const,
+        driver_id: (selectedDriverId && selectedDriverId !== 'none') ? selectedDriverId : null,
+        vehicle_id: (selectedVehicleId && selectedVehicleId !== 'none') ? selectedVehicleId : null,
+        consultant_id: (selectedConsultantId && selectedConsultantId !== 'none') ? selectedConsultantId : null,
+        payment_method_id: resolvePaymentMethodId(invoice.paymentMethod) || null,
       }));
 
       const { data, error } = await supabase
@@ -343,11 +402,12 @@ export default function OmieImport() {
                 </CardDescription>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Label>Período:</Label>
+              {/* Selectors for route creation */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Período</Label>
                   <Select value={period} onValueChange={(v) => setPeriod(v as 'MANHA' | 'TARDE')}>
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="h-9">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -357,16 +417,66 @@ export default function OmieImport() {
                   </Select>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSelectAll}
-                >
-                  {selectedInvoices.size === filteredInvoices.length && filteredInvoices.length > 0 
-                    ? 'Desmarcar Todos' 
-                    : 'Selecionar Todos'}
-                </Button>
+                <div className="space-y-1">
+                  <Label className="text-xs">Motorista</Label>
+                  <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {drivers?.map(d => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
+                <div className="space-y-1">
+                  <Label className="text-xs">Veículo</Label>
+                  <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {vehicles?.map(v => (
+                        <SelectItem key={v.id} value={v.id}>{v.plate}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Consultor</Label>
+                  <Select value={selectedConsultantId} onValueChange={setSelectedConsultantId}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {consultants?.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAll}
+                    className="h-9"
+                  >
+                    {selectedInvoices.size === filteredInvoices.length && filteredInvoices.length > 0 
+                      ? 'Desmarcar' 
+                      : 'Selecionar Todos'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex justify-end mt-3">
                 <Button
                   onClick={handleCreateRoutes}
                   disabled={selectedInvoices.size === 0 || createRoutesMutation.isPending}
@@ -438,6 +548,12 @@ export default function OmieImport() {
                           <p className="text-lg font-semibold text-primary">
                             R$ {invoice.totalValue?.toFixed(2) || '0,00'}
                           </p>
+                          {invoice.paymentMethod && OMIE_PAYMENT_MAP[invoice.paymentMethod] && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <CreditCard className="w-3 h-3" />
+                              {OMIE_PAYMENT_MAP[invoice.paymentMethod]}
+                            </div>
+                          )}
                         </div>
 
                         {/* Cliente */}
