@@ -177,15 +177,36 @@ serve(async (req) => {
         invoices,
       };
     } else {
-      // NFC-e logic stays the same
+      // NFC-e using ListarCupomFiscal on cupomfiscalconsultar endpoint
+      let actualPage = page;
+
+      if (fetchLastPage && page === 1) {
+        const discoverBody = {
+          call: 'ListarCupomFiscal',
+          app_key: OMIE_APP_KEY,
+          app_secret: OMIE_APP_SECRET,
+          param: [{ nPagina: 1, nRegPorPagina: 50 }],
+        };
+        const discoverRes = await fetchWithRetry(`${OMIE_API_URL}/produtos/cupomfiscalconsultar/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(discoverBody),
+        });
+        const discoverData = await discoverRes.json();
+        console.log('NFCe discover:', JSON.stringify(discoverData).substring(0, 300));
+        if (discoverData.nTotPaginas && discoverData.nTotPaginas > 1) {
+          actualPage = discoverData.nTotPaginas;
+        }
+      }
+
       const requestBody = {
-        call: 'ListarCupom',
+        call: 'ListarCupomFiscal',
         app_key: OMIE_APP_KEY,
         app_secret: OMIE_APP_SECRET,
-        param: [{ nPagina: page, nRegPorPagina: 50 }],
+        param: [{ nPagina: actualPage, nRegPorPagina: 50 }],
       };
 
-      console.log('Chamando API Omie NFCe, página:', page);
+      console.log('Chamando API Omie NFCe, página:', actualPage);
 
       const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/cupomfiscalconsultar/`, {
         method: 'POST',
@@ -204,26 +225,23 @@ serve(async (req) => {
       }
 
       if (data.faultstring) {
-        if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
-          throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
-        }
         throw new Error(`Omie NFCe: ${data.faultstring}`);
       }
-
+      const cupons = data.cupons || data.cupomFiscalCadastro || [];
+      
       result = {
         type: 'nfce',
-        page: data.nPagina || page,
+        page: data.nPagina || actualPage,
         totalPages: data.nTotPaginas || 1,
         totalRecords: data.nTotRegistros || 0,
-        invoices: (data.cupons || []).map((cupom: any) => ({
+        invoices: cupons.map((cupom: any) => ({
           id: cupom.cabecalhoCupom?.nIdCupom || String(Math.random()),
           number: cupom.cabecalhoCupom?.nNumCupom,
           series: cupom.cabecalhoCupom?.nSerieCupom,
           emissionDate: cupom.cabecalhoCupom?.dDtEmissaoCupom,
-          emissionTime: cupom.cabecalhoCupom?.cHrEmisaoCupom,
           clientId: cupom.cabecalhoCupom?.idCliente,
-          clientName: cupom.cliente?.razao_social || cupom.cliente?.nome_fantasia,
-          clientCpfCnpj: cupom.cliente?.cnpj_cpf,
+          clientName: cupom.cliente?.razao_social || cupom.cliente?.nome_fantasia || '',
+          clientCpfCnpj: cupom.cliente?.cnpj_cpf || '',
           address: cupom.cliente?.endereco ? {
             street: cupom.cliente.endereco,
             number: cupom.cliente.endereco_numero,
@@ -234,9 +252,7 @@ serve(async (req) => {
             cep: cupom.cliente.cep,
           } : null,
           totalValue: cupom.cabecalhoCupom?.nValorCupom || 0,
-          model: cupom.cabecalhoCupom?.cModeloCupom,
           accessKey: cupom.cabecalhoCupom?.cChaveCupom,
-          sellerId: cupom.cabecalhoCupom?.idVendedor,
         })),
       };
     }
