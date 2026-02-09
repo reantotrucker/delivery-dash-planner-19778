@@ -72,6 +72,7 @@ export default function OmieImport() {
   const [dialogDriverId, setDialogDriverId] = useState<string>('');
   const [dialogVehicleId, setDialogVehicleId] = useState<string>('');
   const [dialogConsultantId, setDialogConsultantId] = useState<string>('');
+  const [dialogPaymentMethodId, setDialogPaymentMethodId] = useState<string>('');
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
 
   // Query existing routes to find already-imported NF numbers
@@ -188,8 +189,8 @@ export default function OmieImport() {
   }, [data?.invoices, startDate, endDate]);
 
   const createRoutesMutation = useMutation({
-    mutationFn: async ({ invoice, driverId, vehicleId, consultantId }: { 
-      invoice: OmieInvoice; driverId: string; vehicleId: string; consultantId: string 
+    mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId }: { 
+      invoice: OmieInvoice; driverId: string; vehicleId: string; consultantId: string; paymentMethodId: string;
     }) => {
       const today = format(new Date(), 'yyyy-MM-dd');
       
@@ -208,7 +209,7 @@ export default function OmieImport() {
         driver_id: (driverId && driverId !== 'none') ? driverId : null,
         vehicle_id: (vehicleId && vehicleId !== 'none') ? vehicleId : null,
         consultant_id: (consultantId && consultantId !== 'none') ? consultantId : null,
-        payment_method_id: resolvePaymentMethodId(invoice.paymentMethod) || null,
+        payment_method_id: (paymentMethodId && paymentMethodId !== 'none') ? paymentMethodId : null,
       };
 
       const { data, error } = await supabase
@@ -250,6 +251,9 @@ export default function OmieImport() {
     setDialogDriverId('');
     setDialogVehicleId('');
     setDialogConsultantId('');
+    // Auto-fill payment method from Omie mapping
+    const autoPaymentId = resolvePaymentMethodId(invoice.paymentMethod);
+    setDialogPaymentMethodId(autoPaymentId || '');
     setDialogInvoice(invoice);
   };
 
@@ -260,6 +264,7 @@ export default function OmieImport() {
       driverId: dialogDriverId,
       vehicleId: dialogVehicleId,
       consultantId: dialogConsultantId,
+      paymentMethodId: dialogPaymentMethodId,
     });
   };
 
@@ -588,6 +593,21 @@ export default function OmieImport() {
                       <SelectItem value="none">Nenhum</SelectItem>
                       {consultants?.map(c => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Forma de Pagamento</Label>
+                  <Select value={dialogPaymentMethodId} onValueChange={setDialogPaymentMethodId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a forma de pagamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {paymentMethods?.map(pm => (
+                        <SelectItem key={pm.id} value={pm.id}>{pm.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
