@@ -144,6 +144,15 @@ serve(async (req) => {
         paymentMethod: nf.pag?.[0]?.tPag,
         accessKey: nf.compl?.cChaveNFe,
         orderId: nf.compl?.nIdPedido,
+        orderObservation: nf.infAdic?.infCpl || '',
+        products: (nf.det || []).map((item: any) => ({
+          name: item.prod?.xProd || '',
+          quantity: item.prod?.qCom || 0,
+          unit: item.prod?.uCom || '',
+          unitValue: item.prod?.vUnCom || 0,
+          totalValue: item.prod?.vProd || 0,
+          code: item.prod?.cProd || '',
+        })),
       })).reverse();
 
       // Fetch client addresses in parallel (deduplicate by clientId)

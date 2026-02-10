@@ -14,8 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard } from "lucide-react";
+import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Omie tPag fiscal codes mapped to local payment method names
 const OMIE_PAYMENT_MAP: Record<string, string> = {
@@ -29,6 +30,15 @@ const OMIE_PAYMENT_MAP: Record<string, string> = {
   '17': 'PIX',
   '99': 'DINHEIRO',
 };
+
+interface OmieProduct {
+  name: string;
+  quantity: number;
+  unit: string;
+  unitValue: number;
+  totalValue: number;
+  code: string;
+}
 
 interface OmieInvoice {
   id: string | number;
@@ -52,6 +62,8 @@ interface OmieInvoice {
   paymentMethod?: string;
   accessKey?: string;
   orderId?: number;
+  orderObservation?: string;
+  products?: OmieProduct[];
 }
 
 interface OmieResponse {
@@ -73,6 +85,7 @@ export default function OmieImport() {
   const [dialogVehicleId, setDialogVehicleId] = useState<string>('');
   const [dialogConsultantId, setDialogConsultantId] = useState<string>('');
   const [dialogPaymentMethodId, setDialogPaymentMethodId] = useState<string>('');
+  const [productsInvoice, setProductsInvoice] = useState<OmieInvoice | null>(null);
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
 
   // Query existing routes to find already-imported NF numbers
@@ -201,7 +214,7 @@ export default function OmieImport() {
           ? `${invoice.address.street}, ${invoice.address.number}${invoice.address.complement ? ` - ${invoice.address.complement}` : ''}`
           : null,
         cep: invoice.address?.cep || null,
-        observation: `NF ${invoice.number} - Valor: R$ ${invoice.totalValue?.toFixed(2) || '0,00'}`,
+        observation: `NF ${invoice.number}${invoice.orderObservation ? ' - ' + invoice.orderObservation : ''}`,
         date: today,
         period: period,
         order_number: 1,
@@ -537,7 +550,19 @@ export default function OmieImport() {
       <Dialog open={!!dialogInvoice} onOpenChange={(open) => !open && setDialogInvoice(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Criar Rota - NF #{dialogInvoice?.number}</DialogTitle>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle>Criar Rota - NF #{dialogInvoice?.number}</DialogTitle>
+              {dialogInvoice?.products && dialogInvoice.products.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setProductsInvoice(dialogInvoice)}
+                >
+                  <ShoppingCart className="w-4 h-4 mr-1" />
+                  Produtos
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           {dialogInvoice && (
             <div className="space-y-4">
@@ -631,6 +656,41 @@ export default function OmieImport() {
                   Criar Rota
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Produtos */}
+      <Dialog open={!!productsInvoice} onOpenChange={(open) => !open && setProductsInvoice(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Produtos - NF #{productsInvoice?.number}</DialogTitle>
+          </DialogHeader>
+          {productsInvoice?.products && (
+            <ScrollArea className="max-h-[400px]">
+              <div className="space-y-2">
+                {productsInvoice.products.map((product, idx) => (
+                  <div key={idx} className="flex items-start justify-between p-3 rounded-lg border bg-muted/30">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{product.name}</p>
+                      {product.code && (
+                        <p className="text-xs text-muted-foreground">Cód: {product.code}</p>
+                      )}
+                    </div>
+                    <div className="text-right ml-3 shrink-0">
+                      <p className="font-semibold text-sm">{product.quantity} {product.unit}</p>
+                      <p className="text-xs text-muted-foreground">R$ {product.unitValue?.toFixed(2)} un.</p>
+                      <p className="text-xs font-medium text-primary">R$ {product.totalValue?.toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProductsInvoice(null)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
