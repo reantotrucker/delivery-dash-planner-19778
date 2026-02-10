@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart } from "lucide-react";
+import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -86,6 +86,7 @@ export default function OmieImport() {
   const [dialogConsultantId, setDialogConsultantId] = useState<string>('');
   const [dialogPaymentMethodId, setDialogPaymentMethodId] = useState<string>('');
   const [productsInvoice, setProductsInvoice] = useState<OmieInvoice | null>(null);
+  const [dialogUrgent, setDialogUrgent] = useState(false);
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
 
   // Query existing routes to find already-imported NF numbers
@@ -202,8 +203,8 @@ export default function OmieImport() {
   }, [data?.invoices, startDate, endDate]);
 
   const createRoutesMutation = useMutation({
-    mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId }: { 
-      invoice: OmieInvoice; driverId: string; vehicleId: string; consultantId: string; paymentMethodId: string;
+    mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId, urgent }: { 
+      invoice: OmieInvoice; driverId: string; vehicleId: string; consultantId: string; paymentMethodId: string; urgent: boolean;
     }) => {
       const today = format(new Date(), 'yyyy-MM-dd');
       
@@ -223,6 +224,7 @@ export default function OmieImport() {
         vehicle_id: (vehicleId && vehicleId !== 'none') ? vehicleId : null,
         consultant_id: (consultantId && consultantId !== 'none') ? consultantId : null,
         payment_method_id: (paymentMethodId && paymentMethodId !== 'none') ? paymentMethodId : null,
+        urgent: urgent,
       };
 
       const { data, error } = await supabase
@@ -267,6 +269,7 @@ export default function OmieImport() {
     // Auto-fill payment method from Omie mapping
     const autoPaymentId = resolvePaymentMethodId(invoice.paymentMethod);
     setDialogPaymentMethodId(autoPaymentId || '');
+    setDialogUrgent(false);
     setDialogInvoice(invoice);
   };
 
@@ -278,6 +281,7 @@ export default function OmieImport() {
       vehicleId: dialogVehicleId,
       consultantId: dialogConsultantId,
       paymentMethodId: dialogPaymentMethodId,
+      urgent: dialogUrgent,
     });
   };
 
@@ -640,23 +644,33 @@ export default function OmieImport() {
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogInvoice(null)}>
-              Cancelar
+          <DialogFooter className="flex-row justify-between sm:justify-between">
+            <Button
+              variant={dialogUrgent ? "destructive" : "outline"}
+              onClick={() => setDialogUrgent(!dialogUrgent)}
+              type="button"
+            >
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              Urgente
             </Button>
-            <Button onClick={handleCreateRoute} disabled={createRoutesMutation.isPending}>
-              {createRoutesMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Criando...
-                </>
-              ) : (
-                <>
-                  <Package className="w-4 h-4 mr-2" />
-                  Criar Rota
-                </>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setDialogInvoice(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCreateRoute} disabled={createRoutesMutation.isPending}>
+                {createRoutesMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <Package className="w-4 h-4 mr-2" />
+                    Criar Rota
+                  </>
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

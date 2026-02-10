@@ -164,7 +164,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
             routes.map((route, index) => (
               <TableRow
                 key={route.id}
-                className={index % 2 === 0 ? "bg-muted/30" : "bg-background"}
+                className={`${index % 2 === 0 ? "bg-muted/30" : "bg-background"} ${route.urgent ? "text-red-500" : ""}`}
                 style={{
                   backgroundColor: route.driver?.color
                     ? index % 2 === 0

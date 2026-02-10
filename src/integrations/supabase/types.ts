@@ -203,6 +203,7 @@ export type Database = {
           period: Database["public"]["Enums"]["period_type"]
           status: Database["public"]["Enums"]["status_type"] | null
           updated_at: string | null
+          urgent: boolean
           vehicle_id: string | null
         }
         Insert: {
@@ -221,6 +222,7 @@ export type Database = {
           period: Database["public"]["Enums"]["period_type"]
           status?: Database["public"]["Enums"]["status_type"] | null
           updated_at?: string | null
+          urgent?: boolean
           vehicle_id?: string | null
         }
         Update: {
@@ -239,6 +241,7 @@ export type Database = {
           period?: Database["public"]["Enums"]["period_type"]
           status?: Database["public"]["Enums"]["status_type"] | null
           updated_at?: string | null
+          urgent?: boolean
           vehicle_id?: string | null
         }
         Relationships: [

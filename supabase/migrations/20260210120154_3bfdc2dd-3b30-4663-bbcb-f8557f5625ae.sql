@@ -1,0 +1,1 @@
+ALTER TABLE public.routes ADD COLUMN urgent boolean NOT NULL DEFAULT false;
