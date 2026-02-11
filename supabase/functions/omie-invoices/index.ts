@@ -186,12 +186,12 @@ serve(async (req) => {
         invoices,
       };
     } else {
-      // NFC-e using ListarCupomFiscal on cupomfiscalconsultar endpoint
+      // NFC-e using CuponsFiscais on cupomfiscalconsultar endpoint
       let actualPage = page;
 
       if (fetchLastPage && page === 1) {
         const discoverBody = {
-          call: 'ListarCupomFiscal',
+          call: 'CuponsFiscais',
           app_key: OMIE_APP_KEY,
           app_secret: OMIE_APP_SECRET,
           param: [{ nPagina: 1, nRegPorPagina: 50 }],
@@ -209,7 +209,7 @@ serve(async (req) => {
       }
 
       const requestBody = {
-        call: 'ListarCupomFiscal',
+        call: 'CuponsFiscais',
         app_key: OMIE_APP_KEY,
         app_secret: OMIE_APP_SECRET,
         param: [{ nPagina: actualPage, nRegPorPagina: 50 }],
