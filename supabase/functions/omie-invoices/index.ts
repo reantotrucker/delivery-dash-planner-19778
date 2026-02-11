@@ -187,26 +187,8 @@ serve(async (req) => {
       };
     } else {
       // NFC-e using CuponsFiscais on cupomfiscalconsultar endpoint
-      let actualPage = page;
-
-      if (fetchLastPage && page === 1) {
-        const discoverBody = {
-          call: 'CuponsFiscais',
-          app_key: OMIE_APP_KEY,
-          app_secret: OMIE_APP_SECRET,
-          param: [{ nPagina: 1, nRegPorPagina: 50 }],
-        };
-        const discoverRes = await fetchWithRetry(`${OMIE_API_URL}/produtos/cupomfiscalconsultar/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(discoverBody),
-        });
-        const discoverData = await discoverRes.json();
-        console.log('NFCe discover:', JSON.stringify(discoverData).substring(0, 300));
-        if (discoverData.nTotPaginas && discoverData.nTotPaginas > 1) {
-          actualPage = discoverData.nTotPaginas;
-        }
-      }
+      // NFCe API returns newest first (page 1 = most recent), opposite of NF-e
+      const actualPage = page;
 
       const requestBody = {
         call: 'CuponsFiscais',
