@@ -129,31 +129,84 @@ serve(async (req) => {
         throw new Error(`Omie NFe: ${data.faultstring}`);
       }
 
+      // Collect order IDs to fetch observations from pedidos de venda
+      const orderIdSet = new Set<number>();
+      (data.nfCadastro || []).forEach((nf: any) => {
+        if (nf.compl?.nIdPedido && nf.compl.nIdPedido > 0) orderIdSet.add(nf.compl.nIdPedido);
+      });
+
+      const orderObservations = new Map<number, string>();
+      const uniqueOrderIds = [...orderIdSet];
+      if (uniqueOrderIds.length > 0) {
+        console.log(`Buscando observações de ${uniqueOrderIds.length} pedidos...`);
+        for (let i = 0; i < uniqueOrderIds.length; i += 5) {
+          const batch = uniqueOrderIds.slice(i, i + 5);
+          const results = await Promise.all(
+            batch.map(async (orderId) => {
+              try {
+                const body = {
+                  call: 'ConsultarPedido',
+                  app_key: OMIE_APP_KEY,
+                  app_secret: OMIE_APP_SECRET,
+                  param: [{ codigo_pedido: orderId }],
+                };
+                const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/pedido/`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(body),
+                });
+                const orderData = await res.json();
+                if (orderData.faultstring) {
+                  console.log(`Pedido ${orderId} fault: ${orderData.faultstring}`);
+                  return { orderId, obs: '' };
+                }
+                const pvp = orderData.pedido_venda_produto;
+                const obs = pvp?.observacoes?.obs_venda
+                  || pvp?.obs_venda
+                  || pvp?.informacoes_adicionais?.obs_venda
+                  || '';
+                return { orderId, obs };
+              } catch (e) {
+                console.log(`Erro pedido ${orderId}:`, e);
+                return { orderId, obs: '' };
+              }
+            })
+          );
+          results.forEach(({ orderId, obs }) => {
+            if (obs) orderObservations.set(orderId, obs);
+          });
+        }
+      }
+
       // Map invoices with nfDestInt for client name/cpf
-      const invoices = (data.nfCadastro || []).map((nf: any) => ({
-        id: nf.compl?.nIdNF || nf.ide?.nNF || String(Math.random()),
-        number: nf.ide?.nNF,
-        series: nf.ide?.serie,
-        emissionDate: nf.ide?.dEmi,
-        clientId: nf.nfDestInt?.nCodCli,
-        clientName: nf.nfDestInt?.cRazao || '',
-        clientCpfCnpj: nf.nfDestInt?.cnpj_cpf || '',
-        address: null as any,
-        totalValue: nf.total?.ICMSTot?.vNF || 0,
-        status: nf.ide?.cSitNFe,
-        paymentMethod: nf.pag?.[0]?.tPag,
-        accessKey: nf.compl?.cChaveNFe,
-        orderId: nf.compl?.nIdPedido,
-        orderObservation: nf.infAdic?.infCpl || '',
-        products: (nf.det || []).map((item: any) => ({
-          name: item.prod?.xProd || '',
-          quantity: item.prod?.qCom || 0,
-          unit: item.prod?.uCom || '',
-          unitValue: item.prod?.vUnCom || 0,
-          totalValue: item.prod?.vProd || 0,
-          code: item.prod?.cProd || '',
-        })),
-      })).reverse();
+      const invoices = (data.nfCadastro || []).map((nf: any) => {
+        const orderId = nf.compl?.nIdPedido || 0;
+        const orderObs = orderObservations.get(orderId) || '';
+        return {
+          id: nf.compl?.nIdNF || nf.ide?.nNF || String(Math.random()),
+          number: nf.ide?.nNF,
+          series: nf.ide?.serie,
+          emissionDate: nf.ide?.dEmi,
+          clientId: nf.nfDestInt?.nCodCli,
+          clientName: nf.nfDestInt?.cRazao || '',
+          clientCpfCnpj: nf.nfDestInt?.cnpj_cpf || '',
+          address: null as any,
+          totalValue: nf.total?.ICMSTot?.vNF || 0,
+          status: nf.ide?.cSitNFe,
+          paymentMethod: nf.pag?.[0]?.tPag,
+          accessKey: nf.compl?.cChaveNFe,
+          orderId: orderId,
+          orderObservation: orderObs,
+          products: (nf.det || []).map((item: any) => ({
+            name: item.prod?.xProd || '',
+            quantity: item.prod?.qCom || 0,
+            unit: item.prod?.uCom || '',
+            unitValue: item.prod?.vUnCom || 0,
+            totalValue: item.prod?.vProd || 0,
+            code: item.prod?.cProd || '',
+          })),
+        };
+      }).reverse();
 
       // Fetch client addresses in parallel (deduplicate by clientId)
       const uniqueClientIds = [...new Set(invoices.map((inv: any) => inv.clientId).filter(Boolean))] as number[];
