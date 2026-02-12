@@ -26,7 +26,7 @@ async function fetchClientDetails(
   clientId: number,
   appKey: string,
   appSecret: string
-): Promise<{ street: string; number: string; complement: string; neighborhood: string; city: string; state: string; cep: string } | null> {
+): Promise<{ name: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string; cep: string } | null> {
   try {
     const body = {
       call: 'ConsultarCliente',
@@ -42,6 +42,7 @@ async function fetchClientDetails(
     const data = await res.json();
     if (data.faultstring) return null;
     return {
+      name: data.razao_social || data.nome_fantasia || '',
       street: data.endereco || '',
       number: data.endereco_numero || '',
       complement: data.complemento || '',
@@ -272,32 +273,97 @@ serve(async (req) => {
         throw new Error(`Omie NFCe: ${data.faultstring}`);
       }
       const cupons = data.cupons || data.cupomFiscalCadastro || [];
-      
+
+
+      // Map initial invoices
+      const nfceInvoices = cupons.map((cupom: any) => ({
+        id: cupom.cabecalhoCupom?.nIdCupom || String(Math.random()),
+        number: cupom.cabecalhoCupom?.nNumCupom,
+        series: cupom.cabecalhoCupom?.nSerieCupom,
+        emissionDate: cupom.cabecalhoCupom?.dDtEmissaoCupom,
+        clientId: cupom.cabecalhoCupom?.idCliente || cupom.cabecalhoCupom?.nCodCli,
+        clientName: cupom.cliente?.razao_social || cupom.cliente?.nome_fantasia || '',
+        clientCpfCnpj: cupom.cliente?.cnpj_cpf || '',
+        address: null as any,
+        totalValue: cupom.cabecalhoCupom?.nValorCupom || 0,
+        accessKey: cupom.cabecalhoCupom?.cChaveCupom,
+        orderId: cupom.cabecalhoCupom?.nIdPedido || 0,
+        orderObservation: '',
+      }));
+
+      // Fetch client addresses in parallel
+      const uniqueClientIds = [...new Set(nfceInvoices.map((inv: any) => inv.clientId).filter(Boolean))] as number[];
+      if (uniqueClientIds.length > 0) {
+        console.log(`NFCe: Buscando endereços de ${uniqueClientIds.length} clientes...`);
+        const clientAddresses = new Map<number, any>();
+        for (let i = 0; i < uniqueClientIds.length; i += 5) {
+          const batch = uniqueClientIds.slice(i, i + 5);
+          const results = await Promise.all(
+            batch.map(id => fetchClientDetails(id, OMIE_APP_KEY, OMIE_APP_SECRET))
+          );
+          batch.forEach((id, idx) => {
+            if (results[idx]) clientAddresses.set(id, results[idx]);
+          });
+        }
+        for (const inv of nfceInvoices) {
+          if (inv.clientId && clientAddresses.has(inv.clientId)) {
+            const clientData = clientAddresses.get(inv.clientId);
+            inv.address = clientData;
+            if (!inv.clientName && clientData?.name) {
+              inv.clientName = clientData.name;
+            }
+          }
+        }
+      }
+
+      // Fetch order observations for NFC-e
+      const nfceOrderIds = [...new Set(nfceInvoices.map((inv: any) => inv.orderId).filter((id: number) => id > 0))] as number[];
+      if (nfceOrderIds.length > 0) {
+        console.log(`NFCe: Buscando observações de ${nfceOrderIds.length} pedidos...`);
+        const orderObservations = new Map<number, string>();
+        for (let i = 0; i < nfceOrderIds.length; i += 5) {
+          const batch = nfceOrderIds.slice(i, i + 5);
+          const results = await Promise.all(
+            batch.map(async (orderId) => {
+              try {
+                const body = {
+                  call: 'ConsultarPedido',
+                  app_key: OMIE_APP_KEY,
+                  app_secret: OMIE_APP_SECRET,
+                  param: [{ codigo_pedido: orderId }],
+                };
+                const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/pedido/`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(body),
+                });
+                const orderData = await res.json();
+                if (orderData.faultstring) return { orderId, obs: '' };
+                const pvp = orderData.pedido_venda_produto;
+                const obs = pvp?.observacoes?.obs_venda || '';
+                return { orderId, obs };
+              } catch {
+                return { orderId, obs: '' };
+              }
+            })
+          );
+          results.forEach(({ orderId, obs }) => {
+            if (obs) orderObservations.set(orderId, obs);
+          });
+        }
+        for (const inv of nfceInvoices) {
+          if (inv.orderId > 0 && orderObservations.has(inv.orderId)) {
+            inv.orderObservation = orderObservations.get(inv.orderId) || '';
+          }
+        }
+      }
+
       result = {
         type: 'nfce',
         page: data.nPagina || actualPage,
         totalPages: data.nTotPaginas || 1,
         totalRecords: data.nTotRegistros || 0,
-        invoices: cupons.map((cupom: any) => ({
-          id: cupom.cabecalhoCupom?.nIdCupom || String(Math.random()),
-          number: cupom.cabecalhoCupom?.nNumCupom,
-          series: cupom.cabecalhoCupom?.nSerieCupom,
-          emissionDate: cupom.cabecalhoCupom?.dDtEmissaoCupom,
-          clientId: cupom.cabecalhoCupom?.idCliente,
-          clientName: cupom.cliente?.razao_social || cupom.cliente?.nome_fantasia || '',
-          clientCpfCnpj: cupom.cliente?.cnpj_cpf || '',
-          address: cupom.cliente?.endereco ? {
-            street: cupom.cliente.endereco,
-            number: cupom.cliente.endereco_numero,
-            complement: cupom.cliente.complemento,
-            neighborhood: cupom.cliente.bairro,
-            city: cupom.cliente.cidade,
-            state: cupom.cliente.estado,
-            cep: cupom.cliente.cep,
-          } : null,
-          totalValue: cupom.cabecalhoCupom?.nValorCupom || 0,
-          accessKey: cupom.cabecalhoCupom?.cChaveCupom,
-        })),
+        invoices: nfceInvoices,
       };
     }
 
