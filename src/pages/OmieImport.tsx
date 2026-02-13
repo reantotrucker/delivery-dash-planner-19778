@@ -685,17 +685,17 @@ export default function OmieImport() {
             <ScrollArea className="max-h-[400px]">
               <div className="space-y-2">
                 {productsInvoice.products.map((product, idx) => (
-                  <div key={idx} className="flex items-start justify-between p-3 rounded-lg border bg-muted/30">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{product.name}</p>
-                      {product.code && (
-                        <p className="text-xs text-muted-foreground">Cód: {product.code}</p>
-                      )}
-                    </div>
-                    <div className="text-right ml-3 shrink-0">
-                      <p className="font-semibold text-sm">{product.quantity} {product.unit}</p>
-                      <p className="text-xs text-muted-foreground">R$ {product.unitValue?.toFixed(2)} un.</p>
-                      <p className="text-xs font-medium text-primary">R$ {product.totalValue?.toFixed(2)}</p>
+                  <div key={idx} className="p-3 rounded-lg border bg-muted/30 space-y-1">
+                    <p className="font-medium text-sm break-words whitespace-normal">{product.name}</p>
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-muted-foreground">
+                        {product.code && <span>Cód: {product.code}</span>}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-semibold text-sm">{product.quantity} {product.unit}</span>
+                        <span className="text-xs text-muted-foreground ml-2">R$ {product.unitValue?.toFixed(2)} un.</span>
+                        <span className="text-xs font-medium text-primary ml-2">R$ {product.totalValue?.toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
