@@ -186,6 +186,59 @@ export type Database = {
           },
         ]
       }
+      route_products: {
+        Row: {
+          checked: boolean
+          checked_at: string | null
+          checked_by: string | null
+          code: string | null
+          created_at: string
+          id: string
+          name: string
+          quantity: number
+          route_id: string
+          total_value: number | null
+          unit: string | null
+          unit_value: number | null
+        }
+        Insert: {
+          checked?: boolean
+          checked_at?: string | null
+          checked_by?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          quantity?: number
+          route_id: string
+          total_value?: number | null
+          unit?: string | null
+          unit_value?: number | null
+        }
+        Update: {
+          checked?: boolean
+          checked_at?: string | null
+          checked_by?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          quantity?: number
+          route_id?: string
+          total_value?: number | null
+          unit?: string | null
+          unit_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_products_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       routes: {
         Row: {
           address: string | null
