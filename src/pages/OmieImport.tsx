@@ -233,6 +233,25 @@ export default function OmieImport() {
         .select();
 
       if (error) throw error;
+
+      // Save products if available
+      if (invoice.products && invoice.products.length > 0 && data && data.length > 0) {
+        const routeId = data[0].id;
+        const productRows = invoice.products.map((p) => ({
+          route_id: routeId,
+          name: p.name,
+          code: p.code || null,
+          quantity: p.quantity,
+          unit: p.unit || 'UN',
+          unit_value: p.unitValue || null,
+          total_value: p.totalValue || null,
+        }));
+        const { error: prodError } = await supabase
+          .from('route_products')
+          .insert(productRows);
+        if (prodError) console.error('Error saving products:', prodError);
+      }
+
       return { data, invoice };
     },
     onSuccess: ({ data, invoice }) => {

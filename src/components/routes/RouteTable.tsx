@@ -2,8 +2,9 @@ import { Route, generateGoogleMapsLink, generateWazeLink } from "./types";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation } from "lucide-react";
+import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package } from "lucide-react";
 import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
+import { ProductChecklistDialog } from "./ProductChecklistDialog";
 import { RouteEditDialog } from "./RouteEditDialog";
 import {
   Table,
@@ -49,6 +50,28 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
   const [deleteOccurrenceId, setDeleteOccurrenceId] = useState<string | null>(null);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [checklistRoute, setChecklistRoute] = useState<Route | null>(null);
+
+  // Fetch product counts for routes that have products
+  const { data: routeProductCounts = {} } = useQuery({
+    queryKey: ["route-product-counts", routes.map(r => r.id)],
+    queryFn: async () => {
+      if (routes.length === 0) return {};
+      const { data, error } = await supabase
+        .from("route_products")
+        .select("route_id, checked")
+        .in("route_id", routes.map(r => r.id));
+      if (error) throw error;
+      const counts: Record<string, { total: number; checked: number }> = {};
+      data?.forEach((p) => {
+        if (!counts[p.route_id]) counts[p.route_id] = { total: 0, checked: 0 };
+        counts[p.route_id].total++;
+        if (p.checked) counts[p.route_id].checked++;
+      });
+      return counts;
+    },
+    enabled: routes.length > 0,
+  });
 
   // Fetch all occurrences for the displayed routes
   const { data: occurrences = [], refetch: refetchOccurrences } = useQuery({
@@ -232,6 +255,27 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                 <TableCell className="py-1 sm:py-2 px-1 sm:px-4">
                   {(isAdmin || canManageOccurrences) ? (
                     <div className="flex gap-0.5 sm:gap-1">
+                      {/* Product checklist button */}
+                      {routeProductCounts[route.id]?.total > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 sm:h-7 sm:w-7 hover:bg-accent relative p-0"
+                          title="Conferir Produtos"
+                          onClick={() => setChecklistRoute(route)}
+                        >
+                          <Package className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                          {routeProductCounts[route.id] && (
+                            <span className={`absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 text-white text-[8px] sm:text-[10px] rounded-full w-2.5 h-2.5 sm:w-4 sm:h-4 flex items-center justify-center ${
+                              routeProductCounts[route.id].checked === routeProductCounts[route.id].total
+                                ? "bg-green-500"
+                                : "bg-orange-500"
+                            }`}>
+                              {routeProductCounts[route.id].checked}/{routeProductCounts[route.id].total}
+                            </span>
+                          )}
+                        </Button>
+                      )}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -434,6 +478,17 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
         }}
         onSuccess={onUpdate}
       />
+
+      {checklistRoute && (
+        <ProductChecklistDialog
+          routeId={checklistRoute.id}
+          clientName={checklistRoute.client}
+          open={!!checklistRoute}
+          onOpenChange={(open) => {
+            if (!open) setChecklistRoute(null);
+          }}
+        />
+      )}
     </div>
   );
 };
