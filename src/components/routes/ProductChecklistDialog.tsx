@@ -99,6 +99,7 @@ export const ProductChecklistDialog = ({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["route-products", routeId] });
       queryClient.invalidateQueries({ queryKey: ["profiles-for-checklist"] });
+      queryClient.invalidateQueries({ queryKey: ["route-product-counts"] });
     },
     onError: () => {
       toast({ title: "Erro ao atualizar conferência", variant: "destructive" });
