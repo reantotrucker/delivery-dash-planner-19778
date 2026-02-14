@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, X, Package, CheckCircle2, XCircle } from "lucide-react";
+import { Check, X, Package, CheckCircle2, XCircle, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface ProductChecklistDialogProps {
@@ -50,6 +50,37 @@ export const ProductChecklistDialog = ({
     enabled: open,
   });
 
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user;
+    },
+    staleTime: Infinity,
+  });
+
+  // Fetch profile names for checked_by user ids
+  const checkedByIds = [...new Set(products.filter(p => p.checked_by).map(p => p.checked_by!))];
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["profiles-for-checklist", checkedByIds],
+    queryFn: async () => {
+      if (checkedByIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", checkedByIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && checkedByIds.length > 0,
+  });
+
+  const getCheckedByName = (userId: string | null) => {
+    if (!userId) return null;
+    const profile = profiles.find(p => p.id === userId);
+    return profile?.full_name || profile?.email || "Usuário";
+  };
+
   const toggleMutation = useMutation({
     mutationFn: async ({ productId, checked }: { productId: string; checked: boolean }) => {
       const { error } = await supabase
@@ -57,6 +88,7 @@ export const ProductChecklistDialog = ({
         .update({
           checked,
           checked_at: checked ? new Date().toISOString() : null,
+          checked_by: checked ? currentUser?.id ?? null : null,
         })
         .eq("id", productId);
       if (error) throw error;
@@ -157,6 +189,12 @@ export const ProductChecklistDialog = ({
                           )}
                         </div>
                       </div>
+                      {product.checked && product.checked_by && (
+                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                          <User className="w-3 h-3" />
+                          <span>Conferido por: {getCheckedByName(product.checked_by)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </button>
@@ -164,6 +202,12 @@ export const ProductChecklistDialog = ({
             </div>
           </ScrollArea>
         )}
+
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} className="w-full">
+            OK
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
