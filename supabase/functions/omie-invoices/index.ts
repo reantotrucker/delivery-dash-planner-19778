@@ -180,7 +180,12 @@ serve(async (req) => {
       }
 
       // Map invoices with nfDestInt for client name/cpf
-      const invoices = (data.nfCadastro || []).map((nf: any) => {
+      const invoices = (data.nfCadastro || [])
+        .filter((nf: any) => {
+          const status = nf.ide?.cSitNFe;
+          return status !== 'C' && status !== 'CANCELADA';
+        })
+        .map((nf: any) => {
         const orderId = nf.compl?.nIdPedido || 0;
         const orderObs = orderObservations.get(orderId) || '';
         return {
