@@ -77,6 +77,9 @@ export const ProductChecklistDialog = ({
 
   const getCheckedByName = (userId: string | null) => {
     if (!userId) return null;
+    if (currentUser && userId === currentUser.id) {
+      return currentUser.user_metadata?.full_name || currentUser.email || "Usuário";
+    }
     const profile = profiles.find(p => p.id === userId);
     return profile?.full_name || profile?.email || "Usuário";
   };
@@ -95,6 +98,7 @@ export const ProductChecklistDialog = ({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["route-products", routeId] });
+      queryClient.invalidateQueries({ queryKey: ["profiles-for-checklist"] });
     },
     onError: () => {
       toast({ title: "Erro ao atualizar conferência", variant: "destructive" });
