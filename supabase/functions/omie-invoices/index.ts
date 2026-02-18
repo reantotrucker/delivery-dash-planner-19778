@@ -137,7 +137,7 @@ serve(async (req) => {
       });
 
       const orderObservations = new Map<number, string>();
-      const orderVendedorNames = new Map<number, string>(); // orderId -> vendedor name (from order response directly)
+      const orderVendedorCodes = new Map<number, number>(); // orderId -> vendedor code
       const uniqueOrderIds = [...orderIdSet];
       if (uniqueOrderIds.length > 0) {
         console.log(`Buscando observações de ${uniqueOrderIds.length} pedidos...`);
@@ -160,31 +160,68 @@ serve(async (req) => {
                 const orderData = await res.json();
                 if (orderData.faultstring) {
                   console.log(`Pedido ${orderId} fault: ${orderData.faultstring}`);
-                  return { orderId, obs: '', vendedorName: '' };
+                  return { orderId, obs: '', vendedorCode: 0 };
                 }
                 const pvp = orderData.pedido_venda_produto;
                 const obs = pvp?.observacoes?.obs_venda
                   || pvp?.obs_venda
                   || pvp?.informacoes_adicionais?.obs_venda
                   || '';
-                // Extract vendedor name directly from order - no extra API call needed
-                const vendedorName = pvp?.cabecalho?.nome_vendedor
-                  || pvp?.cabecalho?.vendedor
-                  || pvp?.informacoes_adicionais?.nome_vendedor
-                  || '';
-                return { orderId, obs, vendedorName };
+                // codVend is in informacoes_adicionais
+                const vendedorCode = pvp?.informacoes_adicionais?.codVend
+                  || pvp?.cabecalho?.codigo_vendedor
+                  || 0;
+                return { orderId, obs, vendedorCode };
               } catch (e) {
                 console.log(`Erro pedido ${orderId}:`, e);
-                return { orderId, obs: '', vendedorName: '' };
+                return { orderId, obs: '', vendedorCode: 0 };
               }
             })
           );
-          results.forEach(({ orderId, obs, vendedorName }) => {
+          results.forEach(({ orderId, obs, vendedorCode }) => {
             if (obs) orderObservations.set(orderId, obs);
-            if (vendedorName) orderVendedorNames.set(orderId, vendedorName);
+            if (vendedorCode) orderVendedorCodes.set(orderId, vendedorCode);
           });
         }
       }
+
+      // Fetch all vendedores in one call and build a code->name map
+      const vendedorCodeToName = new Map<number, string>();
+      const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
+      if (uniqueVendedorCodes.length > 0) {
+        try {
+          console.log(`Buscando lista de vendedores para códigos: ${uniqueVendedorCodes.join(', ')}`);
+          const vendBody = {
+            call: 'ListarVendedores',
+            app_key: OMIE_APP_KEY,
+            app_secret: OMIE_APP_SECRET,
+            param: [{ pagina: 1, registros_por_pagina: 100 }],
+          };
+          const vendRes = await fetchWithRetry(`${OMIE_API_URL}/geral/vendedores/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(vendBody),
+          });
+          const vendData = await vendRes.json();
+          console.log('Resposta ListarVendedores:', JSON.stringify(vendData).substring(0, 500));
+          const vendedores = vendData.cadastro || vendData.vendedores || vendData.lista_vendedores || [];
+          vendedores.forEach((v: any) => {
+            const code = v.codigo || v.nCodigo || v.id;
+            const name = v.nome || v.cNome || v.razao_social || v.nomeVendedor;
+            if (code && name) vendedorCodeToName.set(Number(code), name);
+          });
+          console.log(`Vendedores carregados: ${vendedorCodeToName.size}`);
+        } catch (e) {
+          console.log('Erro ao buscar vendedores:', e);
+        }
+      }
+
+      // Build orderId -> vendedorName map
+      const orderVendedorNames = new Map<number, string>();
+      orderVendedorCodes.forEach((code, orderId) => {
+        const name = vendedorCodeToName.get(code);
+        if (name) orderVendedorNames.set(orderId, name);
+      });
 
       // Map invoices with nfDestInt for client name/cpf
       const invoices = (data.nfCadastro || [])
