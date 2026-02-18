@@ -533,6 +533,12 @@ export default function OmieImport() {
                               {invoice.clientCpfCnpj}
                             </p>
                           )}
+                          {invoice.vendedorName && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <ShoppingCart className="w-3 h-3" />
+                              Vendedor: {invoice.vendedorName}
+                            </div>
+                          )}
                         </div>
 
                         {/* Endereço */}
