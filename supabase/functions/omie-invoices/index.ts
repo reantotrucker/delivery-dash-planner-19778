@@ -22,33 +22,6 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
   throw lastError || new Error('Falha após múltiplas tentativas');
 }
 
-async function fetchVendedorName(
-  vendedorId: number,
-  appKey: string,
-  appSecret: string
-): Promise<string | null> {
-  if (!vendedorId) return null;
-  try {
-    const body = {
-      call: 'ConsultarVendedor',
-      app_key: appKey,
-      app_secret: appSecret,
-      param: [{ codigo: vendedorId }],
-    };
-    const res = await fetchWithRetry(`${OMIE_API_URL}/geral/vendedores/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (data.faultstring) return null;
-    return data.nome || null;
-  } catch (e) {
-    console.log(`Erro ao buscar vendedor ${vendedorId}:`, e);
-    return null;
-  }
-}
-
 async function fetchClientDetails(
   clientId: number,
   appKey: string,
@@ -164,7 +137,7 @@ serve(async (req) => {
       });
 
       const orderObservations = new Map<number, string>();
-      const orderVendedorIds = new Map<number, number>(); // orderId -> vendedorId
+      const orderVendedorNames = new Map<number, string>(); // orderId -> vendedor name (from order response directly)
       const uniqueOrderIds = [...orderIdSet];
       if (uniqueOrderIds.length > 0) {
         console.log(`Buscando observações de ${uniqueOrderIds.length} pedidos...`);
@@ -187,40 +160,30 @@ serve(async (req) => {
                 const orderData = await res.json();
                 if (orderData.faultstring) {
                   console.log(`Pedido ${orderId} fault: ${orderData.faultstring}`);
-                  return { orderId, obs: '', vendedorId: 0 };
+                  return { orderId, obs: '', vendedorName: '' };
                 }
                 const pvp = orderData.pedido_venda_produto;
                 const obs = pvp?.observacoes?.obs_venda
                   || pvp?.obs_venda
                   || pvp?.informacoes_adicionais?.obs_venda
                   || '';
-                const vendedorId = pvp?.cabecalho?.codigo_vendedor || pvp?.codigo_vendedor || 0;
-                return { orderId, obs, vendedorId };
+                // Extract vendedor name directly from order - no extra API call needed
+                const vendedorName = pvp?.cabecalho?.nome_vendedor
+                  || pvp?.cabecalho?.vendedor
+                  || pvp?.informacoes_adicionais?.nome_vendedor
+                  || '';
+                return { orderId, obs, vendedorName };
               } catch (e) {
                 console.log(`Erro pedido ${orderId}:`, e);
-                return { orderId, obs: '', vendedorId: 0 };
+                return { orderId, obs: '', vendedorName: '' };
               }
             })
           );
-          results.forEach(({ orderId, obs, vendedorId }) => {
+          results.forEach(({ orderId, obs, vendedorName }) => {
             if (obs) orderObservations.set(orderId, obs);
-            if (vendedorId) orderVendedorIds.set(orderId, vendedorId);
+            if (vendedorName) orderVendedorNames.set(orderId, vendedorName);
           });
         }
-      }
-
-      // Fetch vendedor names
-      const uniqueVendedorIds = [...new Set(orderVendedorIds.values())];
-      const vendedorNames = new Map<number, string>();
-      if (uniqueVendedorIds.length > 0) {
-        console.log(`Buscando ${uniqueVendedorIds.length} vendedores...`);
-        const results = await Promise.all(
-          uniqueVendedorIds.map(async (vid) => ({
-            vid,
-            name: await fetchVendedorName(vid, OMIE_APP_KEY, OMIE_APP_SECRET),
-          }))
-        );
-        results.forEach(({ vid, name }) => { if (name) vendedorNames.set(vid, name); });
       }
 
       // Map invoices with nfDestInt for client name/cpf
@@ -232,8 +195,7 @@ serve(async (req) => {
         .map((nf: any) => {
         const orderId = nf.compl?.nIdPedido || 0;
         const orderObs = orderObservations.get(orderId) || '';
-        const vendedorId = orderVendedorIds.get(orderId);
-        const vendedorName = vendedorId ? vendedorNames.get(vendedorId) || null : null;
+        const vendedorName = orderVendedorNames.get(orderId) || null;
         return {
           id: nf.compl?.nIdNF || nf.ide?.nNF || String(Math.random()),
           number: nf.ide?.nNF,
