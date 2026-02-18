@@ -343,6 +343,7 @@ serve(async (req) => {
         accessKey: cupom.cabecalhoCupom?.cChaveCupom,
         orderId: cupom.cabecalhoCupom?.nIdPedido || 0,
         orderObservation: '',
+        vendedorName: null as string | null,
       }));
 
       // Fetch client addresses in parallel
@@ -370,11 +371,12 @@ serve(async (req) => {
         }
       }
 
-      // Fetch order observations for NFC-e
+      // Fetch order observations and vendedor codes for NFC-e
       const nfceOrderIds = [...new Set(nfceInvoices.map((inv: any) => inv.orderId).filter((id: number) => id > 0))] as number[];
       if (nfceOrderIds.length > 0) {
         console.log(`NFCe: Buscando observações de ${nfceOrderIds.length} pedidos...`);
         const orderObservations = new Map<number, string>();
+        const orderVendedorCodes = new Map<number, number>();
         for (let i = 0; i < nfceOrderIds.length; i += 5) {
           const batch = nfceOrderIds.slice(i, i + 5);
           const results = await Promise.all(
@@ -392,22 +394,61 @@ serve(async (req) => {
                   body: JSON.stringify(body),
                 });
                 const orderData = await res.json();
-                if (orderData.faultstring) return { orderId, obs: '' };
+                if (orderData.faultstring) return { orderId, obs: '', vendedorCode: 0 };
                 const pvp = orderData.pedido_venda_produto;
-                const obs = pvp?.observacoes?.obs_venda || '';
-                return { orderId, obs };
+                const obs = pvp?.observacoes?.obs_venda || pvp?.obs_venda || pvp?.informacoes_adicionais?.obs_venda || '';
+                const vendedorCode = pvp?.informacoes_adicionais?.codVend || pvp?.cabecalho?.codigo_vendedor || 0;
+                return { orderId, obs, vendedorCode };
               } catch {
-                return { orderId, obs: '' };
+                return { orderId, obs: '', vendedorCode: 0 };
               }
             })
           );
-          results.forEach(({ orderId, obs }) => {
+          results.forEach(({ orderId, obs, vendedorCode }) => {
             if (obs) orderObservations.set(orderId, obs);
+            if (vendedorCode) orderVendedorCodes.set(orderId, vendedorCode);
           });
         }
+
+        // Fetch vendedor names for NFC-e
+        const vendedorCodeToName = new Map<number, string>();
+        const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
+        if (uniqueVendedorCodes.length > 0) {
+          try {
+            console.log(`NFCe: Buscando vendedores para códigos: ${uniqueVendedorCodes.join(', ')}`);
+            const vendBody = {
+              call: 'ListarVendedores',
+              app_key: OMIE_APP_KEY,
+              app_secret: OMIE_APP_SECRET,
+              param: [{ pagina: 1, registros_por_pagina: 100 }],
+            };
+            const vendRes = await fetchWithRetry(`${OMIE_API_URL}/geral/vendedores/`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(vendBody),
+            });
+            const vendData = await vendRes.json();
+            const vendedores = vendData.cadastro || vendData.vendedores || vendData.lista_vendedores || [];
+            vendedores.forEach((v: any) => {
+              const code = v.codigo || v.nCodigo || v.id;
+              const name = v.nome || v.cNome || v.razao_social || v.nomeVendedor;
+              if (code && name) vendedorCodeToName.set(Number(code), name);
+            });
+            console.log(`NFCe: Vendedores carregados: ${vendedorCodeToName.size}`);
+          } catch (e) {
+            console.log('NFCe: Erro ao buscar vendedores:', e);
+          }
+        }
+
         for (const inv of nfceInvoices) {
-          if (inv.orderId > 0 && orderObservations.has(inv.orderId)) {
-            inv.orderObservation = orderObservations.get(inv.orderId) || '';
+          if (inv.orderId > 0) {
+            if (orderObservations.has(inv.orderId)) {
+              inv.orderObservation = orderObservations.get(inv.orderId) || '';
+            }
+            const vendCode = orderVendedorCodes.get(inv.orderId);
+            if (vendCode) {
+              inv.vendedorName = vendedorCodeToName.get(vendCode) || null;
+            }
           }
         }
       }
