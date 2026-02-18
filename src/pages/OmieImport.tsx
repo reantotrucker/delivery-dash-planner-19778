@@ -45,6 +45,7 @@ interface OmieInvoice {
   number: string | number;
   series: string;
   emissionDate: string;
+  emissionTime?: string | null;
   clientId: number;
   clientName: string;
   clientCpfCnpj: string;
@@ -295,6 +296,20 @@ export default function OmieImport() {
     return partial?.id || '';
   }, [consultants]);
 
+  // Resolve period from emission time: 06:00–11:59 = MANHA, 12:00–18:00 = TARDE
+  const resolvePeriodFromTime = useCallback((emissionTime?: string | null): 'MANHA' | 'TARDE' | null => {
+    if (!emissionTime) return null;
+    // Time format expected: "HH:MM:SS" or "HH:MM"
+    const match = emissionTime.match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return null;
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const totalMinutes = hours * 60 + minutes;
+    if (totalMinutes >= 6 * 60 && totalMinutes <= 11 * 60 + 59) return 'MANHA';
+    if (totalMinutes >= 12 * 60 && totalMinutes <= 18 * 60) return 'TARDE';
+    return null;
+  }, []);
+
   const handleOpenInvoiceDialog = (invoice: OmieInvoice) => {
     if (importedNfNumbers.has(String(invoice.number))) return;
     setDialogDriverId('');
@@ -305,6 +320,9 @@ export default function OmieImport() {
     // Auto-fill payment method from Omie mapping
     const autoPaymentId = resolvePaymentMethodId(invoice.paymentMethod);
     setDialogPaymentMethodId(autoPaymentId || '');
+    // Auto-detect period from emission time
+    const autoPeriod = resolvePeriodFromTime(invoice.emissionTime);
+    if (autoPeriod) setPeriod(autoPeriod);
     setDialogUrgent(false);
     setDialogInvoice(invoice);
   };
