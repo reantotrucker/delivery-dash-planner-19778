@@ -227,7 +227,10 @@ serve(async (req) => {
       const invoices = (data.nfCadastro || [])
         .filter((nf: any) => {
           const status = nf.ide?.cSitNFe;
-          return status !== 'C' && status !== 'CANCELADA';
+          const isNotCanceled = status !== 'C' && status !== 'CANCELADA';
+          // tpNF: '0' = entrada, '1' = saída — só queremos notas de saída emitidas por nós
+          const isSaida = nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1;
+          return isNotCanceled && isSaida;
         })
         .map((nf: any) => {
         const orderId = nf.compl?.nIdPedido || 0;
