@@ -63,6 +63,7 @@ interface OmieInvoice {
   accessKey?: string;
   orderId?: number;
   orderObservation?: string;
+  vendedorName?: string | null;
   products?: OmieProduct[];
 }
 
@@ -280,11 +281,27 @@ export default function OmieImport() {
     setTimeout(() => setFetchCounter(c => c + 1), 0);
   }, []);
 
+  const resolveConsultantId = useCallback((vendedorName?: string | null): string => {
+    if (!vendedorName || !consultants) return '';
+    const normalized = (s: string) => s.toLowerCase().trim();
+    // Try exact match first
+    const exact = consultants.find(c => normalized(c.name) === normalized(vendedorName));
+    if (exact) return exact.id;
+    // Try partial match (vendedor name contains consultant name or vice versa)
+    const partial = consultants.find(c =>
+      normalized(vendedorName).includes(normalized(c.name)) ||
+      normalized(c.name).includes(normalized(vendedorName))
+    );
+    return partial?.id || '';
+  }, [consultants]);
+
   const handleOpenInvoiceDialog = (invoice: OmieInvoice) => {
     if (importedNfNumbers.has(String(invoice.number))) return;
     setDialogDriverId('');
     setDialogVehicleId('');
-    setDialogConsultantId('');
+    // Auto-fill consultant from Omie vendedor
+    const autoConsultantId = resolveConsultantId(invoice.vendedorName);
+    setDialogConsultantId(autoConsultantId);
     // Auto-fill payment method from Omie mapping
     const autoPaymentId = resolvePaymentMethodId(invoice.paymentMethod);
     setDialogPaymentMethodId(autoPaymentId || '');
@@ -632,7 +649,14 @@ export default function OmieImport() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label>Consultor</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Consultor</Label>
+                    {dialogInvoice?.vendedorName && (
+                      <span className="text-xs text-muted-foreground">
+                        Omie: <span className="font-medium">{dialogInvoice.vendedorName}</span>
+                      </span>
+                    )}
+                  </div>
                   <Select value={dialogConsultantId} onValueChange={setDialogConsultantId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o consultor" />
