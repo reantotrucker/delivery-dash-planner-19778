@@ -1,69 +1,60 @@
 
-# Redesign Visual da Tabela de Rotas
+# Redesign: Tabela de Rotas para Layout em Cards
 
-## Problemas Atuais
-- Tabela densa e monocratica, dificil de escanear visualmente
-- Status "OK" e "SOMENTE ENTREGAR" sem destaque claro
-- Colunas de acao (icones) pequenas e sem clareza
-- Pagamento sem destaque visual
-- Linhas muito similares entre si, sem separacao visual clara
+## Visao Geral
+Substituir o layout de tabela atual por um grid de cards modernos, mais visuais e faceis de ler. Cada rota sera representada por um card individual com todas as informacoes organizadas de forma clara.
 
-## Melhorias Propostas
+## Design dos Cards
 
-### 1. Status com Badges Coloridos
-Substituir o botao simples por badges com cores fortes e iconografia:
-- **ENTREGUE**: Badge verde solido com icone de check
-- **NAO_ENTREGUE / PEND**: Badge vermelho/amarelo com icone de alerta
-- Tamanho maior e mais legivel
+Cada card tera a seguinte estrutura:
 
-### 2. Pagamento com Badges
-Transformar texto plano de pagamento em badges compactos com cores distintas:
-- PIX: badge azul
-- BOLETO: badge amarelo/amber
-- CARTAO CREDITO: badge roxo
-- DINHEIRO: badge verde
-- SOMENTE ENTREGAR: badge cinza
+```text
++--------------------------------------------------+
+|  [#1]  NOME DO CLIENTE              [OK] badge    |
+|  Bairro: Centro  |  Consultor: Joao              |
+|  Endereco: Rua ABC, 123        [Maps] [Waze]     |
+|  ------------------------------------------------ |
+|  [Motor: Carlos]  [Veic: ABC-1234]  [PIX badge]  |
+|  ------------------------------------------------ |
+|  [Produtos 2/3]  [Ocorr. 1]  [Editar]  [Excluir] |
++--------------------------------------------------+
+```
 
-### 3. Linhas Alternadas com Melhor Contraste
-- Melhorar o contraste entre linhas pares e impares
-- Manter a cor do motorista mas com melhor opacidade
-- Adicionar hover mais visivel
+- Borda lateral esquerda com a **cor do motorista** (5px de espessura)
+- Fundo do card com leve tonalidade da cor do motorista
+- Rotas urgentes com borda vermelha e indicador visual
+- Status como badge grande e clicavel no canto superior direito
+- Pagamento como badge colorido (PIX azul, BOLETO amber, etc.)
+- Botoes de acao na parte inferior do card, maiores e mais acessiveis
 
-### 4. Header da Tabela Mais Destacado
-- Fundo mais escuro no header
-- Borda inferior mais grossa separando do conteudo
-- Texto em uppercase com letter-spacing
-
-### 5. Coluna de Acoes Reorganizada
-- Icones com tooltips mais claros
-- Separacao visual entre grupos de acoes
-- Tamanho dos icones levemente maior para facilitar clique
-
-### 6. Cliente em Destaque
-- Nome do cliente com fonte bold e cor mais clara/branca
-- Truncar com ellipsis de forma mais elegante
-
----
+## Layout Responsivo
+- **Desktop (lg+)**: Grid de 2 colunas
+- **Tablet (md)**: Grid de 2 colunas
+- **Mobile**: 1 coluna, cards empilhados com scroll
 
 ## Detalhes Tecnicos
 
 ### Arquivo modificado
 - `src/components/routes/RouteTable.tsx`
 
-### Mudancas especificas
+### Mudancas principais
 
-**Header**: Adicionar `bg-card/80 border-b-2 border-primary/30` no `TableRow` do header.
+1. **Remover estrutura de Table** (`Table`, `TableHeader`, `TableBody`, `TableRow`, `TableCell`) e substituir por `div` com grid layout usando classes Tailwind `grid grid-cols-1 md:grid-cols-2 gap-3`.
 
-**Status**: Criar componente inline com `Badge` colorido:
-```text
-ENTREGUE  ->  Badge variant verde com check icon
-PENDENTE  ->  Badge variant vermelho/amber
-```
+2. **Criar estrutura de Card** para cada rota usando o componente `Card` existente:
+   - Header: numero da rota + nome do cliente (bold, grande) + badge de status clicavel
+   - Body: informacoes organizadas em linhas (bairro, endereco com links Maps/Waze, consultor)
+   - Separador visual
+   - Footer: motorista, veiculo, badge de pagamento, e botoes de acao
 
-**Pagamento**: Criar funcao `getPaymentBadgeStyle(name)` que retorna classes Tailwind por tipo de pagamento.
+3. **Borda lateral colorida**: Usar `borderLeft: 5px solid ${route.driver?.color}` inline style no card.
 
-**Linhas**: Melhorar alternancia com `even:bg-muted/20 odd:bg-background` e `hover:bg-muted/40 transition-colors`.
+4. **Status badge**: Manter os badges ja criados (verde ENTREGUE, vermelho PENDENTE), posicionados no canto superior direito.
 
-**Cliente**: `text-foreground font-bold` em vez de `font-medium`.
+5. **Acoes**: Botoes maiores com texto visivel (nao apenas icones), dispostos horizontalmente no footer do card.
 
-**Acoes**: Aumentar de `h-5 w-5` para `h-6 w-6` no mobile e manter `sm:h-7 sm:w-7`, adicionar `rounded-md` nos botoes.
+6. **Manter toda a logica existente**: toggleStatus, deleteRoute, deleteOccurrence, dialogs (ProductChecklist, RouteOccurrence, RouteEdit, AlertDialog de exclusao) permanecem inalterados.
+
+7. **Estado vazio**: Exibir mensagem centralizada "Nenhuma rota cadastrada" quando `routes.length === 0`.
+
+8. **Manter `getPaymentBadgeStyle`** e toda a logica de queries (routeProductCounts, occurrences).
