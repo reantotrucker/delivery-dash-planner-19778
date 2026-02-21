@@ -172,6 +172,8 @@ export default function OmieImport() {
       return data;
     },
     enabled: fetchCounter > 0,
+    staleTime: 10 * 60 * 1000, // 10 minutos - mantém cache ao navegar
+    gcTime: 30 * 60 * 1000, // 30 minutos - mantém no garbage collector
   });
 
   // Filter invoices by date range client-side

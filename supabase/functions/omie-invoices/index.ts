@@ -57,6 +57,87 @@ async function fetchClientDetails(
   }
 }
 
+async function fetchOrderDetails(
+  orderId: number,
+  appKey: string,
+  appSecret: string
+): Promise<{ obs: string; vendedorCode: number }> {
+  try {
+    const body = {
+      call: 'ConsultarPedido',
+      app_key: appKey,
+      app_secret: appSecret,
+      param: [{ codigo_pedido: orderId }],
+    };
+    const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/pedido/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const orderData = await res.json();
+    if (orderData.faultstring) {
+      console.log(`Pedido ${orderId} fault: ${orderData.faultstring}`);
+      return { obs: '', vendedorCode: 0 };
+    }
+    const pvp = orderData.pedido_venda_produto;
+    const obs = pvp?.observacoes?.obs_venda || pvp?.obs_venda || pvp?.informacoes_adicionais?.obs_venda || '';
+    const vendedorCode = pvp?.informacoes_adicionais?.codVend || pvp?.cabecalho?.codigo_vendedor || 0;
+    return { obs, vendedorCode };
+  } catch (e) {
+    console.log(`Erro pedido ${orderId}:`, e);
+    return { obs: '', vendedorCode: 0 };
+  }
+}
+
+async function fetchVendedorNames(
+  codes: number[],
+  appKey: string,
+  appSecret: string
+): Promise<Map<number, string>> {
+  const map = new Map<number, string>();
+  if (codes.length === 0) return map;
+  try {
+    console.log(`Buscando vendedores para códigos: ${codes.join(', ')}`);
+    const vendBody = {
+      call: 'ListarVendedores',
+      app_key: appKey,
+      app_secret: appSecret,
+      param: [{ pagina: 1, registros_por_pagina: 100 }],
+    };
+    const vendRes = await fetchWithRetry(`${OMIE_API_URL}/geral/vendedores/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(vendBody),
+    });
+    const vendData = await vendRes.json();
+    const vendedores = vendData.cadastro || vendData.vendedores || vendData.lista_vendedores || [];
+    vendedores.forEach((v: any) => {
+      const code = v.codigo || v.nCodigo || v.id;
+      const name = v.nome || v.cNome || v.razao_social || v.nomeVendedor;
+      if (code && name) map.set(Number(code), name);
+    });
+    console.log(`Vendedores carregados: ${map.size}`);
+  } catch (e) {
+    console.log('Erro ao buscar vendedores:', e);
+  }
+  return map;
+}
+
+// Process batches with concurrency limit
+async function processBatches<T, R>(
+  items: T[],
+  batchSize: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(fn));
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -130,91 +211,54 @@ serve(async (req) => {
         throw new Error(`Omie NFe: ${data.faultstring}`);
       }
 
-      // Collect order IDs to fetch observations from pedidos de venda
-      const orderIdSet = new Set<number>();
-      (data.nfCadastro || []).forEach((nf: any) => {
-        if (nf.compl?.nIdPedido && nf.compl.nIdPedido > 0) orderIdSet.add(nf.compl.nIdPedido);
+      // Filter invoices first to avoid unnecessary API calls
+      const validInvoices = (data.nfCadastro || []).filter((nf: any) => {
+        const status = nf.ide?.cSitNFe;
+        const isNotCanceled = status !== 'C' && status !== 'CANCELADA';
+        const isSaida = nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1;
+        return isNotCanceled && isSaida;
       });
 
-      const orderObservations = new Map<number, string>();
-      const orderVendedorCodes = new Map<number, number>(); // orderId -> vendedor code
-      const uniqueOrderIds = [...orderIdSet];
-      if (uniqueOrderIds.length > 0) {
-        console.log(`Buscando observações de ${uniqueOrderIds.length} pedidos...`);
-        for (let i = 0; i < uniqueOrderIds.length; i += 5) {
-          const batch = uniqueOrderIds.slice(i, i + 5);
-          const results = await Promise.all(
-            batch.map(async (orderId) => {
-              try {
-                const body = {
-                  call: 'ConsultarPedido',
-                  app_key: OMIE_APP_KEY,
-                  app_secret: OMIE_APP_SECRET,
-                  param: [{ codigo_pedido: orderId }],
-                };
-                const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/pedido/`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(body),
-                });
-                const orderData = await res.json();
-                if (orderData.faultstring) {
-                  console.log(`Pedido ${orderId} fault: ${orderData.faultstring}`);
-                  return { orderId, obs: '', vendedorCode: 0 };
-                }
-                const pvp = orderData.pedido_venda_produto;
-                const obs = pvp?.observacoes?.obs_venda
-                  || pvp?.obs_venda
-                  || pvp?.informacoes_adicionais?.obs_venda
-                  || '';
-                // codVend is in informacoes_adicionais
-                const vendedorCode = pvp?.informacoes_adicionais?.codVend
-                  || pvp?.cabecalho?.codigo_vendedor
-                  || 0;
-                return { orderId, obs, vendedorCode };
-              } catch (e) {
-                console.log(`Erro pedido ${orderId}:`, e);
-                return { orderId, obs: '', vendedorCode: 0 };
-              }
-            })
-          );
-          results.forEach(({ orderId, obs, vendedorCode }) => {
-            if (obs) orderObservations.set(orderId, obs);
-            if (vendedorCode) orderVendedorCodes.set(orderId, vendedorCode);
-          });
-        }
-      }
+      // Collect unique order IDs and client IDs from filtered invoices only
+      const orderIdSet = new Set<number>();
+      const clientIdSet = new Set<number>();
+      validInvoices.forEach((nf: any) => {
+        if (nf.compl?.nIdPedido && nf.compl.nIdPedido > 0) orderIdSet.add(nf.compl.nIdPedido);
+        if (nf.nfDestInt?.nCodCli) clientIdSet.add(nf.nfDestInt.nCodCli);
+      });
 
-      // Fetch all vendedores in one call and build a code->name map
-      const vendedorCodeToName = new Map<number, string>();
+      const uniqueOrderIds = [...orderIdSet];
+      const uniqueClientIds = [...clientIdSet];
+
+      // Fetch orders AND clients in parallel (biggest optimization)
+      console.log(`Buscando ${uniqueOrderIds.length} pedidos e ${uniqueClientIds.length} clientes em paralelo...`);
+      
+      const [orderResults, clientResults] = await Promise.all([
+        // Fetch order details (obs + vendedor code) - batch of 8
+        processBatches(uniqueOrderIds, 8, (orderId) =>
+          fetchOrderDetails(orderId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ orderId, ...r }))
+        ),
+        // Fetch client addresses - batch of 8
+        processBatches(uniqueClientIds, 8, (clientId) =>
+          fetchClientDetails(clientId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ clientId, details: r }))
+        ),
+      ]);
+
+      const orderObservations = new Map<number, string>();
+      const orderVendedorCodes = new Map<number, number>();
+      orderResults.forEach(({ orderId, obs, vendedorCode }) => {
+        if (obs) orderObservations.set(orderId, obs);
+        if (vendedorCode) orderVendedorCodes.set(orderId, vendedorCode);
+      });
+
+      const clientAddresses = new Map<number, any>();
+      clientResults.forEach(({ clientId, details }) => {
+        if (details) clientAddresses.set(clientId, details);
+      });
+
+      // Fetch vendedor names
       const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
-      if (uniqueVendedorCodes.length > 0) {
-        try {
-          console.log(`Buscando lista de vendedores para códigos: ${uniqueVendedorCodes.join(', ')}`);
-          const vendBody = {
-            call: 'ListarVendedores',
-            app_key: OMIE_APP_KEY,
-            app_secret: OMIE_APP_SECRET,
-            param: [{ pagina: 1, registros_por_pagina: 100 }],
-          };
-          const vendRes = await fetchWithRetry(`${OMIE_API_URL}/geral/vendedores/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(vendBody),
-          });
-          const vendData = await vendRes.json();
-          console.log('Resposta ListarVendedores:', JSON.stringify(vendData).substring(0, 500));
-          const vendedores = vendData.cadastro || vendData.vendedores || vendData.lista_vendedores || [];
-          vendedores.forEach((v: any) => {
-            const code = v.codigo || v.nCodigo || v.id;
-            const name = v.nome || v.cNome || v.razao_social || v.nomeVendedor;
-            if (code && name) vendedorCodeToName.set(Number(code), name);
-          });
-          console.log(`Vendedores carregados: ${vendedorCodeToName.size}`);
-        } catch (e) {
-          console.log('Erro ao buscar vendedores:', e);
-        }
-      }
+      const vendedorCodeToName = await fetchVendedorNames(uniqueVendedorCodes, OMIE_APP_KEY, OMIE_APP_SECRET);
 
       // Build orderId -> vendedorName map
       const orderVendedorNames = new Map<number, string>();
@@ -223,35 +267,28 @@ serve(async (req) => {
         if (name) orderVendedorNames.set(orderId, name);
       });
 
-      // Map invoices with nfDestInt for client name/cpf
-      const invoices = (data.nfCadastro || [])
-        .filter((nf: any) => {
-          const status = nf.ide?.cSitNFe;
-          const isNotCanceled = status !== 'C' && status !== 'CANCELADA';
-          // tpNF: '0' = entrada, '1' = saída — só queremos notas de saída emitidas por nós
-          const isSaida = nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1;
-          return isNotCanceled && isSaida;
-        })
-        .map((nf: any) => {
+      // Map invoices
+      const invoices = validInvoices.map((nf: any) => {
         const orderId = nf.compl?.nIdPedido || 0;
         const orderObs = orderObservations.get(orderId) || '';
         const vendedorName = orderVendedorNames.get(orderId) || null;
+        const clientId = nf.nfDestInt?.nCodCli;
         return {
           id: nf.compl?.nIdNF || nf.ide?.nNF || String(Math.random()),
           number: nf.ide?.nNF,
           series: nf.ide?.serie,
           emissionDate: nf.ide?.dEmi,
-          clientId: nf.nfDestInt?.nCodCli,
+          clientId,
           clientName: nf.nfDestInt?.cRazao || '',
           clientCpfCnpj: nf.nfDestInt?.cnpj_cpf || '',
-          address: null as any,
+          address: clientId ? clientAddresses.get(clientId) || null : null,
           totalValue: nf.total?.ICMSTot?.vNF || 0,
           status: nf.ide?.cSitNFe,
           paymentMethod: nf.pag?.[0]?.tPag,
           accessKey: nf.compl?.cChaveNFe,
-          orderId: orderId,
+          orderId,
           orderObservation: orderObs,
-          vendedorName: vendedorName,
+          vendedorName,
           products: (nf.det || []).map((item: any) => ({
             name: item.prod?.xProd || '',
             quantity: item.prod?.qCom || 0,
@@ -263,29 +300,6 @@ serve(async (req) => {
         };
       }).reverse();
 
-      // Fetch client addresses in parallel (deduplicate by clientId)
-      const uniqueClientIds = [...new Set(invoices.map((inv: any) => inv.clientId).filter(Boolean))] as number[];
-      console.log(`Buscando endereços de ${uniqueClientIds.length} clientes...`);
-
-      const clientAddresses = new Map<number, any>();
-      // Fetch in batches of 5 to avoid overwhelming the API
-      for (let i = 0; i < uniqueClientIds.length; i += 5) {
-        const batch = uniqueClientIds.slice(i, i + 5);
-        const results = await Promise.all(
-          batch.map(id => fetchClientDetails(id, OMIE_APP_KEY, OMIE_APP_SECRET))
-        );
-        batch.forEach((id, idx) => {
-          if (results[idx]) clientAddresses.set(id, results[idx]);
-        });
-      }
-
-      // Attach addresses to invoices
-      for (const inv of invoices) {
-        if (inv.clientId && clientAddresses.has(inv.clientId)) {
-          inv.address = clientAddresses.get(inv.clientId);
-        }
-      }
-
       result = {
         type: 'nfe',
         page: data.pagina || page,
@@ -294,10 +308,8 @@ serve(async (req) => {
         invoices,
       };
     } else {
-      // NFC-e using CuponsFiscais on cupomfiscalconsultar endpoint
-      // NFCe API returns newest first (page 1 = most recent), opposite of NF-e
+      // NFC-e
       const actualPage = page;
-
       const requestBody = {
         call: 'CuponsFiscais',
         app_key: OMIE_APP_KEY,
@@ -328,7 +340,6 @@ serve(async (req) => {
       }
       const cupons = data.cupons || data.cupomFiscalCadastro || [];
 
-
       // Map initial invoices
       const nfceInvoices = cupons.map((cupom: any) => ({
         id: cupom.cabecalhoCupom?.nIdCupom || String(Math.random()),
@@ -346,109 +357,55 @@ serve(async (req) => {
         vendedorName: null as string | null,
       }));
 
-      // Fetch client addresses in parallel
+      // Collect unique IDs
       const uniqueClientIds = [...new Set(nfceInvoices.map((inv: any) => inv.clientId).filter(Boolean))] as number[];
-      if (uniqueClientIds.length > 0) {
-        console.log(`NFCe: Buscando endereços de ${uniqueClientIds.length} clientes...`);
-        const clientAddresses = new Map<number, any>();
-        for (let i = 0; i < uniqueClientIds.length; i += 5) {
-          const batch = uniqueClientIds.slice(i, i + 5);
-          const results = await Promise.all(
-            batch.map(id => fetchClientDetails(id, OMIE_APP_KEY, OMIE_APP_SECRET))
-          );
-          batch.forEach((id, idx) => {
-            if (results[idx]) clientAddresses.set(id, results[idx]);
-          });
-        }
-        for (const inv of nfceInvoices) {
-          if (inv.clientId && clientAddresses.has(inv.clientId)) {
-            const clientData = clientAddresses.get(inv.clientId);
-            inv.address = clientData;
-            if (!inv.clientName && clientData?.name) {
-              inv.clientName = clientData.name;
-            }
-          }
+      const nfceOrderIds = [...new Set(nfceInvoices.map((inv: any) => inv.orderId).filter((id: number) => id > 0))] as number[];
+
+      // Fetch clients AND orders in parallel
+      console.log(`NFCe: Buscando ${uniqueClientIds.length} clientes e ${nfceOrderIds.length} pedidos em paralelo...`);
+      
+      const [clientResults, orderResults] = await Promise.all([
+        processBatches(uniqueClientIds, 8, (clientId) =>
+          fetchClientDetails(clientId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ clientId, details: r }))
+        ),
+        processBatches(nfceOrderIds, 8, (orderId) =>
+          fetchOrderDetails(orderId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ orderId, ...r }))
+        ),
+      ]);
+
+      // Apply client addresses
+      const clientAddresses = new Map<number, any>();
+      clientResults.forEach(({ clientId, details }) => {
+        if (details) clientAddresses.set(clientId, details);
+      });
+      for (const inv of nfceInvoices) {
+        if (inv.clientId && clientAddresses.has(inv.clientId)) {
+          const clientData = clientAddresses.get(inv.clientId);
+          inv.address = clientData;
+          if (!inv.clientName && clientData?.name) inv.clientName = clientData.name;
         }
       }
 
-      // Fetch order observations and vendedor codes for NFC-e
-      const nfceOrderIds = [...new Set(nfceInvoices.map((inv: any) => inv.orderId).filter((id: number) => id > 0))] as number[];
-      if (nfceOrderIds.length > 0) {
-        console.log(`NFCe: Buscando observações de ${nfceOrderIds.length} pedidos...`);
-        const orderObservations = new Map<number, string>();
-        const orderVendedorCodes = new Map<number, number>();
-        for (let i = 0; i < nfceOrderIds.length; i += 5) {
-          const batch = nfceOrderIds.slice(i, i + 5);
-          const results = await Promise.all(
-            batch.map(async (orderId) => {
-              try {
-                const body = {
-                  call: 'ConsultarPedido',
-                  app_key: OMIE_APP_KEY,
-                  app_secret: OMIE_APP_SECRET,
-                  param: [{ codigo_pedido: orderId }],
-                };
-                const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/pedido/`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(body),
-                });
-                const orderData = await res.json();
-                if (orderData.faultstring) return { orderId, obs: '', vendedorCode: 0 };
-                const pvp = orderData.pedido_venda_produto;
-                const obs = pvp?.observacoes?.obs_venda || pvp?.obs_venda || pvp?.informacoes_adicionais?.obs_venda || '';
-                const vendedorCode = pvp?.informacoes_adicionais?.codVend || pvp?.cabecalho?.codigo_vendedor || 0;
-                return { orderId, obs, vendedorCode };
-              } catch {
-                return { orderId, obs: '', vendedorCode: 0 };
-              }
-            })
-          );
-          results.forEach(({ orderId, obs, vendedorCode }) => {
-            if (obs) orderObservations.set(orderId, obs);
-            if (vendedorCode) orderVendedorCodes.set(orderId, vendedorCode);
-          });
-        }
+      // Apply order observations and vendedor
+      const orderObservations = new Map<number, string>();
+      const orderVendedorCodes = new Map<number, number>();
+      orderResults.forEach(({ orderId, obs, vendedorCode }) => {
+        if (obs) orderObservations.set(orderId, obs);
+        if (vendedorCode) orderVendedorCodes.set(orderId, vendedorCode);
+      });
 
-        // Fetch vendedor names for NFC-e
-        const vendedorCodeToName = new Map<number, string>();
-        const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
-        if (uniqueVendedorCodes.length > 0) {
-          try {
-            console.log(`NFCe: Buscando vendedores para códigos: ${uniqueVendedorCodes.join(', ')}`);
-            const vendBody = {
-              call: 'ListarVendedores',
-              app_key: OMIE_APP_KEY,
-              app_secret: OMIE_APP_SECRET,
-              param: [{ pagina: 1, registros_por_pagina: 100 }],
-            };
-            const vendRes = await fetchWithRetry(`${OMIE_API_URL}/geral/vendedores/`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(vendBody),
-            });
-            const vendData = await vendRes.json();
-            const vendedores = vendData.cadastro || vendData.vendedores || vendData.lista_vendedores || [];
-            vendedores.forEach((v: any) => {
-              const code = v.codigo || v.nCodigo || v.id;
-              const name = v.nome || v.cNome || v.razao_social || v.nomeVendedor;
-              if (code && name) vendedorCodeToName.set(Number(code), name);
-            });
-            console.log(`NFCe: Vendedores carregados: ${vendedorCodeToName.size}`);
-          } catch (e) {
-            console.log('NFCe: Erro ao buscar vendedores:', e);
+      // Fetch vendedor names
+      const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
+      const vendedorCodeToName = await fetchVendedorNames(uniqueVendedorCodes, OMIE_APP_KEY, OMIE_APP_SECRET);
+
+      for (const inv of nfceInvoices) {
+        if (inv.orderId > 0) {
+          if (orderObservations.has(inv.orderId)) {
+            inv.orderObservation = orderObservations.get(inv.orderId) || '';
           }
-        }
-
-        for (const inv of nfceInvoices) {
-          if (inv.orderId > 0) {
-            if (orderObservations.has(inv.orderId)) {
-              inv.orderObservation = orderObservations.get(inv.orderId) || '';
-            }
-            const vendCode = orderVendedorCodes.get(inv.orderId);
-            if (vendCode) {
-              inv.vendedorName = vendedorCodeToName.get(vendCode) || null;
-            }
+          const vendCode = orderVendedorCodes.get(inv.orderId);
+          if (vendCode) {
+            inv.vendedorName = vendedorCodeToName.get(vendCode) || null;
           }
         }
       }
