@@ -79,8 +79,8 @@ interface OmieResponse {
 export default function OmieImport() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'nfe' | 'nfce'>('nfe');
-  const [period, setPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
   const [currentPage, setCurrentPage] = useState<number | null>(null);
+  const [dialogPeriod, setDialogPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
   const [dialogInvoice, setDialogInvoice] = useState<OmieInvoice | null>(null);
   const [dialogDriverId, setDialogDriverId] = useState<string>('');
   const [dialogVehicleId, setDialogVehicleId] = useState<string>('');
@@ -206,8 +206,8 @@ export default function OmieImport() {
   }, [data?.invoices, startDate, endDate]);
 
   const createRoutesMutation = useMutation({
-    mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId, urgent }: { 
-      invoice: OmieInvoice; driverId: string; vehicleId: string; consultantId: string; paymentMethodId: string; urgent: boolean;
+    mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId, urgent, period }: { 
+      invoice: OmieInvoice; driverId: string; vehicleId: string; consultantId: string; paymentMethodId: string; urgent: boolean; period: 'MANHA' | 'TARDE';
     }) => {
       const today = format(new Date(), 'yyyy-MM-dd');
       
@@ -308,6 +308,9 @@ export default function OmieImport() {
     const autoPaymentId = resolvePaymentMethodId(invoice.paymentMethod);
     setDialogPaymentMethodId(autoPaymentId || '');
     setDialogUrgent(false);
+    // Auto-detect period based on current time
+    const currentHour = new Date().getHours();
+    setDialogPeriod(currentHour < 12 ? 'MANHA' : 'TARDE');
     setDialogInvoice(invoice);
   };
 
@@ -320,6 +323,7 @@ export default function OmieImport() {
       consultantId: dialogConsultantId,
       paymentMethodId: dialogPaymentMethodId,
       urgent: dialogUrgent,
+      period: dialogPeriod,
     });
   };
 
@@ -453,18 +457,6 @@ export default function OmieImport() {
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs">Período:</Label>
-                  <Select value={period} onValueChange={(v) => setPeriod(v as 'MANHA' | 'TARDE')}>
-                    <SelectTrigger className="w-28 h-9">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MANHA">Manhã</SelectItem>
-                      <SelectItem value="TARDE">Tarde</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <p className="text-xs text-muted-foreground">Clique em uma NF para criar rota</p>
               </div>
             </div>
@@ -626,6 +618,19 @@ export default function OmieImport() {
               </div>
 
               <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label>Período de Entrega</Label>
+                  <Select value={dialogPeriod} onValueChange={(v) => setDialogPeriod(v as 'MANHA' | 'TARDE')}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MANHA">☀️ Manhã</SelectItem>
+                      <SelectItem value="TARDE">🌙 Tarde</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-1">
                   <Label>Motorista</Label>
                   <Select value={dialogDriverId} onValueChange={setDialogDriverId}>
