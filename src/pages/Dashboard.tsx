@@ -22,6 +22,7 @@ const Dashboard = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedPeriod, setSelectedPeriod] = useState<"MANHA" | "TARDE">("MANHA");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDriverFilter, setSelectedDriverFilter] = useState<string>("all");
   const [selectedDriverForPrint, setSelectedDriverForPrint] = useState<string>("all");
   const [printPeriod, setPrintPeriod] = useState<"MANHA" | "TARDE" | "COMPLETO">("MANHA");
   const [chartsOpen, setChartsOpen] = useState(true);
@@ -67,6 +68,10 @@ const Dashboard = () => {
   });
 
   const filteredRoutes = routes.filter((route) => {
+    // Driver filter
+    if (selectedDriverFilter !== "all" && route.driver?.name !== selectedDriverFilter) {
+      return false;
+    }
     const searchLower = searchTerm.toLowerCase();
     return (
       route.client.toLowerCase().includes(searchLower) ||
@@ -263,6 +268,19 @@ const Dashboard = () => {
               </TabsList>
               
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Select value={selectedDriverFilter} onValueChange={setSelectedDriverFilter}>
+                  <SelectTrigger className="w-full sm:w-44 h-9 text-sm bg-secondary">
+                    <SelectValue placeholder="Motorista" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos Motoristas</SelectItem>
+                    {drivers.map((driver) => (
+                      <SelectItem key={driver.id} value={driver.name}>
+                        {driver.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <div className="relative flex-1 sm:flex-initial">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
