@@ -1,10 +1,9 @@
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, X, Package, CheckCircle2, XCircle, User } from "lucide-react";
+import { Package, CheckCircle2, XCircle, User } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface ProductChecklistDialogProps {
@@ -26,6 +25,9 @@ interface RouteProduct {
   checked: boolean;
   checked_at: string | null;
   checked_by: string | null;
+  checked2: boolean;
+  checked2_at: string | null;
+  checked2_by: string | null;
 }
 
 export const ProductChecklistDialog = ({
@@ -59,20 +61,26 @@ export const ProductChecklistDialog = ({
     staleTime: Infinity,
   });
 
-  // Fetch profile names for checked_by user ids
-  const checkedByIds = [...new Set(products.filter(p => p.checked_by).map(p => p.checked_by!))];
+  // Fetch profile names for all checked_by user ids (both checks)
+  const allCheckedByIds = [
+    ...new Set(
+      products
+        .flatMap(p => [p.checked_by, p.checked2_by])
+        .filter(Boolean) as string[]
+    ),
+  ];
   const { data: profiles = [] } = useQuery({
-    queryKey: ["profiles-for-checklist", checkedByIds],
+    queryKey: ["profiles-for-checklist", allCheckedByIds],
     queryFn: async () => {
-      if (checkedByIds.length === 0) return [];
+      if (allCheckedByIds.length === 0) return [];
       const { data, error } = await supabase
         .from("profiles")
         .select("id, full_name, email")
-        .in("id", checkedByIds);
+        .in("id", allCheckedByIds);
       if (error) throw error;
       return data;
     },
-    enabled: open && checkedByIds.length > 0,
+    enabled: open && allCheckedByIds.length > 0,
   });
 
   const getCheckedByName = (userId: string | null) => {
@@ -84,7 +92,7 @@ export const ProductChecklistDialog = ({
     return profile?.full_name || profile?.email || "Usuário";
   };
 
-  const toggleMutation = useMutation({
+  const toggleCheck1 = useMutation({
     mutationFn: async ({ productId, checked }: { productId: string; checked: boolean }) => {
       const { error } = await supabase
         .from("route_products")
@@ -102,11 +110,34 @@ export const ProductChecklistDialog = ({
       queryClient.invalidateQueries({ queryKey: ["route-product-counts"] });
     },
     onError: () => {
-      toast({ title: "Erro ao atualizar conferência", variant: "destructive" });
+      toast({ title: "Erro ao atualizar 1ª conferência", variant: "destructive" });
     },
   });
 
-  const checkedCount = products.filter((p) => p.checked).length;
+  const toggleCheck2 = useMutation({
+    mutationFn: async ({ productId, checked2 }: { productId: string; checked2: boolean }) => {
+      const { error } = await supabase
+        .from("route_products")
+        .update({
+          checked2,
+          checked2_at: checked2 ? new Date().toISOString() : null,
+          checked2_by: checked2 ? currentUser?.id ?? null : null,
+        } as any)
+        .eq("id", productId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["route-products", routeId] });
+      queryClient.invalidateQueries({ queryKey: ["profiles-for-checklist"] });
+      queryClient.invalidateQueries({ queryKey: ["route-product-counts"] });
+    },
+    onError: () => {
+      toast({ title: "Erro ao atualizar 2ª conferência", variant: "destructive" });
+    },
+  });
+
+  const checked1Count = products.filter((p) => p.checked).length;
+  const checked2Count = products.filter((p) => p.checked2).length;
   const totalCount = products.length;
 
   return (
@@ -119,15 +150,36 @@ export const ProductChecklistDialog = ({
           </DialogTitle>
           <p className="text-sm text-muted-foreground">{clientName}</p>
           {totalCount > 0 && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-medium">
-                {checkedCount}/{totalCount} conferidos
-              </span>
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-500 transition-all duration-300 rounded-full"
-                  style={{ width: `${totalCount > 0 ? (checkedCount / totalCount) * 100 : 0}%` }}
-                />
+            <div className="space-y-1.5 mt-1">
+              {/* 1ª Conferência - Verde */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-green-600 dark:text-green-400 w-24 shrink-0">
+                  1ª Conf.
+                </span>
+                <span className="text-xs font-medium w-10 text-right">
+                  {checked1Count}/{totalCount}
+                </span>
+                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 transition-all duration-300 rounded-full"
+                    style={{ width: `${totalCount > 0 ? (checked1Count / totalCount) * 100 : 0}%` }}
+                  />
+                </div>
+              </div>
+              {/* 2ª Conferência - Azul */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-blue-600 dark:text-blue-400 w-24 shrink-0">
+                  2ª Conf.
+                </span>
+                <span className="text-xs font-medium w-10 text-right">
+                  {checked2Count}/{totalCount}
+                </span>
+                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-300 rounded-full"
+                    style={{ width: `${totalCount > 0 ? (checked2Count / totalCount) * 100 : 0}%` }}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -143,35 +195,23 @@ export const ProductChecklistDialog = ({
         ) : (
           <ScrollArea className="max-h-[400px]">
             <div className="space-y-2">
-              {products.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() =>
-                    toggleMutation.mutate({
-                      productId: product.id,
-                      checked: !product.checked,
-                    })
-                  }
-                  className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
-                    product.checked
-                      ? "border-green-500 bg-green-500/10"
-                      : "border-red-500 bg-red-500/10"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5">
-                      {product.checked ? (
-                        <CheckCircle2 className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <XCircle className="w-5 h-5 text-red-500" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={`text-sm font-medium break-words ${
-                          product.checked ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"
-                        }`}
-                      >
+              {products.map((product) => {
+                const bothChecked = product.checked && product.checked2;
+                const oneChecked = product.checked || product.checked2;
+                const borderClass = bothChecked
+                  ? "border-blue-500 bg-blue-500/10"
+                  : product.checked
+                    ? "border-green-500 bg-green-500/10"
+                    : "border-red-500 bg-red-500/10";
+
+                return (
+                  <div
+                    key={product.id}
+                    className={`p-3 rounded-lg border transition-all duration-200 ${borderClass}`}
+                  >
+                    {/* Product info */}
+                    <div className="flex-1 min-w-0 mb-2">
+                      <p className="text-sm font-medium break-words">
                         {product.name}
                       </p>
                       <div className="flex items-center justify-between mt-1">
@@ -194,16 +234,63 @@ export const ProductChecklistDialog = ({
                           )}
                         </div>
                       </div>
-                      {product.checked && product.checked_by && (
-                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                          <User className="w-3 h-3" />
-                          <span>Conferido por: {getCheckedByName(product.checked_by)}</span>
+                    </div>
+
+                    {/* Two check buttons */}
+                    <div className="flex gap-2 mt-2">
+                      {/* 1ª Conferência - Verde */}
+                      <button
+                        onClick={() => toggleCheck1.mutate({ productId: product.id, checked: !product.checked })}
+                        className={`flex-1 flex items-center gap-2 p-2 rounded-md border transition-all text-xs font-medium ${
+                          product.checked
+                            ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400"
+                            : "border-muted bg-muted/30 text-muted-foreground hover:border-green-400"
+                        }`}
+                      >
+                        {product.checked ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+                        )}
+                        <div className="text-left min-w-0">
+                          <div>1ª Conf.</div>
+                          {product.checked && product.checked_by && (
+                            <div className="flex items-center gap-1 mt-0.5 truncate">
+                              <User className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{getCheckedByName(product.checked_by)}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </button>
+
+                      {/* 2ª Conferência - Azul */}
+                      <button
+                        onClick={() => toggleCheck2.mutate({ productId: product.id, checked2: !product.checked2 })}
+                        className={`flex-1 flex items-center gap-2 p-2 rounded-md border transition-all text-xs font-medium ${
+                          product.checked2
+                            ? "border-blue-500 bg-blue-500/20 text-blue-700 dark:text-blue-400"
+                            : "border-muted bg-muted/30 text-muted-foreground hover:border-blue-400"
+                        }`}
+                      >
+                        {product.checked2 ? (
+                          <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+                        )}
+                        <div className="text-left min-w-0">
+                          <div>2ª Conf.</div>
+                          {product.checked2 && product.checked2_by && (
+                            <div className="flex items-center gap-1 mt-0.5 truncate">
+                              <User className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{getCheckedByName(product.checked2_by)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
                     </div>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </ScrollArea>
         )}
