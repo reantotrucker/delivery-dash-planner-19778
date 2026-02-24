@@ -7,16 +7,20 @@ const corsHeaders = {
 
 const OMIE_API_URL = 'https://app.omie.com.br/api/v1';
 
-async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2, timeoutMs = 8000): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const response = await fetch(url, options);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
       return response;
     } catch (error) {
       lastError = error as Error;
-      console.log(`Tentativa ${attempt + 1} falhou, aguardando...`);
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      if (attempt < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
   }
   throw lastError || new Error('Falha após múltiplas tentativas');
@@ -234,12 +238,12 @@ serve(async (req) => {
       console.log(`Buscando ${uniqueOrderIds.length} pedidos e ${uniqueClientIds.length} clientes em paralelo...`);
       
       const [orderResults, clientResults] = await Promise.all([
-        // Fetch order details (obs + vendedor code) - batch of 8
-        processBatches(uniqueOrderIds, 8, (orderId) =>
+        // Fetch order details (obs + vendedor code) - batch of 15
+        processBatches(uniqueOrderIds, 15, (orderId) =>
           fetchOrderDetails(orderId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ orderId, ...r }))
         ),
-        // Fetch client addresses - batch of 8
-        processBatches(uniqueClientIds, 8, (clientId) =>
+        // Fetch client addresses - batch of 15
+        processBatches(uniqueClientIds, 15, (clientId) =>
           fetchClientDetails(clientId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ clientId, details: r }))
         ),
       ]);
@@ -365,10 +369,10 @@ serve(async (req) => {
       console.log(`NFCe: Buscando ${uniqueClientIds.length} clientes e ${nfceOrderIds.length} pedidos em paralelo...`);
       
       const [clientResults, orderResults] = await Promise.all([
-        processBatches(uniqueClientIds, 8, (clientId) =>
+        processBatches(uniqueClientIds, 15, (clientId) =>
           fetchClientDetails(clientId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ clientId, details: r }))
         ),
-        processBatches(nfceOrderIds, 8, (orderId) =>
+        processBatches(nfceOrderIds, 15, (orderId) =>
           fetchOrderDetails(orderId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ orderId, ...r }))
         ),
       ]);
