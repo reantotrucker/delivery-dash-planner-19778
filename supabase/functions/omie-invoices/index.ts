@@ -340,15 +340,13 @@ function getLast30DaysRange() {
 async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: string, appSecret: string) {
   let actualPage = page;
   let data: any = null;
-  const dateRange = getLast30DaysRange();
-  console.log(`Filtro de data NFe: ${dateRange.dDtEmissaoDe} a ${dateRange.dDtEmissaoAte}`);
 
   if (fetchLastPage && page === 1) {
     const discoverBody = {
       call: 'ListarNF',
       app_key: appKey,
       app_secret: appSecret,
-      param: [{ pagina: 1, registros_por_pagina: 50, apenas_importado_api: 'N', ...dateRange }],
+      param: [{ pagina: 1, registros_por_pagina: 50, apenas_importado_api: 'N' }],
     };
     console.log('Chamando API Omie NFe para descobrir última página...');
     const discoverRes = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
@@ -382,7 +380,7 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
       call: 'ListarNF',
       app_key: appKey,
       app_secret: appSecret,
-      param: [{ pagina: actualPage, registros_por_pagina: 50, apenas_importado_api: 'N', ...dateRange }],
+      param: [{ pagina: actualPage, registros_por_pagina: 50, apenas_importado_api: 'N' }],
     };
     console.log('Chamando API Omie NFe, página:', actualPage);
     const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
@@ -405,12 +403,21 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
     }
   }
 
+  // Filter only last 30 days by emission date (ListarNF doesn't support date params)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const validInvoices = (data.nfCadastro || []).filter((nf: any) => {
     const status = nf.ide?.cSitNFe;
     const isNotCanceled = status !== 'C' && status !== 'CANCELADA';
     const isSaida = nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1;
+    // Filter by date: parse dd/mm/yyyy
+    if (nf.ide?.dEmi) {
+      const [d, m, y] = nf.ide.dEmi.split('/');
+      const emiDate = new Date(Number(y), Number(m) - 1, Number(d));
+      if (emiDate < thirtyDaysAgo) return false;
+    }
     return isNotCanceled && isSaida;
   });
+  console.log(`NFe: ${(data.nfCadastro || []).length} total, ${validInvoices.length} nos últimos 30 dias`);
 
   const orderIdSet = new Set<number>();
   const clientIdSet = new Set<number>();
