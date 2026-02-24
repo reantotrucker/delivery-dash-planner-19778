@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const OMIE_API_URL = 'https://app.omie.com.br/api/v1';
 
-async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2, timeoutMs = 15000): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2, timeoutMs = 45000): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -452,9 +452,13 @@ serve(async (req) => {
   } catch (error) {
     console.error('Erro na edge function omie-invoices:', error);
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-    const isTemporary = errorMessage.includes('temporariamente') || errorMessage.includes('SOAP-ERROR');
+    const isAbort = errorMessage.includes('aborted') || errorMessage.includes('AbortError');
+    const isTemporary = isAbort || errorMessage.includes('temporariamente') || errorMessage.includes('SOAP-ERROR') || errorMessage.includes('Consumo redundante');
+    const userMessage = isAbort 
+      ? 'A API do Omie demorou muito para responder. Tente novamente em alguns segundos.' 
+      : errorMessage;
     return new Response(
-      JSON.stringify({ error: errorMessage, isTemporary }),
+      JSON.stringify({ error: userMessage, isTemporary }),
       { status: isTemporary ? 503 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
