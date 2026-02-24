@@ -80,7 +80,7 @@ async function setMultiCache(entries: { key: string; value: any }[], ttlHours = 
 }
 
 // --- Omie API helpers ---
-async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2, timeoutMs = 45000): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3, timeoutMs = 45000): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -88,11 +88,24 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2,
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       const response = await fetch(url, { ...options, signal: controller.signal });
       clearTimeout(timer);
+      // Check for redundant consumption error in response
+      if (response.ok) {
+        const cloned = response.clone();
+        try {
+          const body = await cloned.json();
+          if (body.faultstring && body.faultstring.includes('Consumo redundante')) {
+            console.log(`Consumo redundante detectado, aguardando 30s (tentativa ${attempt + 1})...`);
+            await new Promise(resolve => setTimeout(resolve, 30000));
+            continue;
+          }
+        } catch { /* not json, return as-is */ }
+      }
       return response;
     } catch (error) {
       lastError = error as Error;
       if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const delay = (error as Error).message?.includes('aborted') ? 10000 : 2000;
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
@@ -260,9 +273,9 @@ async function fetchClientsWithCache(
   if (uncachedIds.length > 0) {
     const cacheEntries: { key: string; value: any }[] = [];
     // Fetch uncached in batches of 5 with delays between batches
-    for (let i = 0; i < uncachedIds.length; i += 5) {
-      const batch = uncachedIds.slice(i, i + 5);
-      if (i > 0) await new Promise(resolve => setTimeout(resolve, 500));
+    for (let i = 0; i < uncachedIds.length; i += 3) {
+      const batch = uncachedIds.slice(i, i + 3);
+      if (i > 0) await new Promise(resolve => setTimeout(resolve, 5000));
       const batchResults = await Promise.all(batch.map(async (clientId) => {
         try {
           const body = {
@@ -336,9 +349,9 @@ async function fetchOrdersWithCache(
   if (uncachedIds.length > 0) {
     const cacheEntries: { key: string; value: any }[] = [];
     // Fetch uncached in batches of 5 with delays
-    for (let i = 0; i < uncachedIds.length; i += 5) {
-      const batch = uncachedIds.slice(i, i + 5);
-      if (i > 0) await new Promise(resolve => setTimeout(resolve, 500));
+    for (let i = 0; i < uncachedIds.length; i += 3) {
+      const batch = uncachedIds.slice(i, i + 3);
+      if (i > 0) await new Promise(resolve => setTimeout(resolve, 5000));
       const batchResults = await Promise.all(batch.map(async (orderId) => {
         try {
           const body = {
@@ -434,8 +447,8 @@ serve(async (req) => {
           data = discoverData;
           console.log('NFe: apenas 1 página, reutilizando dados.');
         } else {
-          console.log(`NFe: ${totalPages} páginas. Aguardando antes de buscar página ${actualPage}...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log(`NFe: ${totalPages} páginas. Aguardando 30s antes de buscar página ${actualPage}...`);
+          await new Promise(resolve => setTimeout(resolve, 30000));
         }
       }
 
@@ -488,11 +501,12 @@ serve(async (req) => {
 
       console.log(`Buscando ${uniqueOrderIds.length} pedidos e ${uniqueClientIds.length} clientes (com cache)...`);
 
-      // Fetch with cache in parallel
-      const [{ orderObservations, orderVendedorCodes }, clientAddresses] = await Promise.all([
-        fetchOrdersWithCache(uniqueOrderIds, OMIE_APP_KEY, OMIE_APP_SECRET),
-        fetchClientsWithCache(uniqueClientIds, OMIE_APP_KEY, OMIE_APP_SECRET),
-      ]);
+      // Fetch sequentially to avoid Omie rate limits
+      const { orderObservations, orderVendedorCodes } = await fetchOrdersWithCache(uniqueOrderIds, OMIE_APP_KEY, OMIE_APP_SECRET);
+      if (uniqueOrderIds.length > 0 && uniqueClientIds.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+      const clientAddresses = await fetchClientsWithCache(uniqueClientIds, OMIE_APP_KEY, OMIE_APP_SECRET);
 
       // Fetch vendedor names
       const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
@@ -592,10 +606,11 @@ serve(async (req) => {
 
       console.log(`NFCe: Buscando ${uniqueClientIds.length} clientes e ${nfceOrderIds.length} pedidos (com cache)...`);
 
-      const [clientAddresses, { orderObservations, orderVendedorCodes }] = await Promise.all([
-        fetchClientsWithCache(uniqueClientIds, OMIE_APP_KEY, OMIE_APP_SECRET),
-        fetchOrdersWithCache(nfceOrderIds, OMIE_APP_KEY, OMIE_APP_SECRET),
-      ]);
+      const clientAddresses = await fetchClientsWithCache(uniqueClientIds, OMIE_APP_KEY, OMIE_APP_SECRET);
+      if (uniqueClientIds.length > 0 && nfceOrderIds.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+      const { orderObservations, orderVendedorCodes } = await fetchOrdersWithCache(nfceOrderIds, OMIE_APP_KEY, OMIE_APP_SECRET);
 
       for (const inv of nfceInvoices) {
         if (inv.clientId && clientAddresses.has(inv.clientId)) {
