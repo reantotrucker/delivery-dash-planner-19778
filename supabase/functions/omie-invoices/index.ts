@@ -387,14 +387,14 @@ async function fetchNfePage(pageNum: number, appKey: string, appSecret: string, 
 // --- Build full result for NFe (last 30 days, paginating backwards) ---
 async function buildNfeResult(_page: number, fetchLastPage: boolean, appKey: string, appSecret: string) {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const MAX_PAGES_TO_FETCH = 5; // Max pages to fetch backwards to avoid rate limits
+  const MAX_PAGES_TO_FETCH = 5;
 
-  // Step 1: Discover total pages
+  // Step 1: Discover total pages (fetchNfePage has built-in retry for rate limits)
   const firstData = await fetchNfePage(1, appKey, appSecret);
   const totalPages = firstData.total_de_paginas || 1;
-  console.log(`NFe: ${totalPages} páginas totais. Buscando últimas páginas (30 dias)...`);
+  console.log(`NFe: ${totalPages} páginas totais. Buscando últimas páginas...`);
 
-  // Step 2: Fetch pages backwards from last, collecting 30-day invoices
+  // Step 2: Fetch pages backwards - NO preventive waits, rely on retry mechanism
   const allNfCadastro: any[] = [];
   let currentPage = totalPages;
   let pagesFetched = 0;
@@ -402,20 +402,10 @@ async function buildNfeResult(_page: number, fetchLastPage: boolean, appKey: str
 
   while (currentPage > 0 && pagesFetched < MAX_PAGES_TO_FETCH && !foundOlderThan30Days) {
     let pageData;
-
     if (currentPage === 1 && totalPages === 1) {
-      // Reuse first page data if there's only 1 page
       pageData = firstData;
     } else {
-      // Wait between API calls to avoid rate limits
-      if (pagesFetched > 0 || currentPage !== totalPages) {
-        console.log(`Aguardando 31s antes de buscar página ${currentPage}...`);
-        await new Promise(resolve => setTimeout(resolve, 31000));
-      } else {
-        // First fetch after discovering pages - still need to wait
-        console.log(`Aguardando 31s antes de buscar página ${currentPage}...`);
-        await new Promise(resolve => setTimeout(resolve, 31000));
-      }
+      // fetchNfePage handles "Consumo redundante" with 35s retry internally
       pageData = await fetchNfePage(currentPage, appKey, appSecret);
     }
     pagesFetched++;
@@ -426,32 +416,25 @@ async function buildNfeResult(_page: number, fetchLastPage: boolean, appKey: str
       const emiDate = parseOmieDate(nf.ide?.dEmi);
       if (emiDate && emiDate < thirtyDaysAgo) {
         olderCount++;
-        continue; // Skip invoices older than 30 days
+        continue;
       }
       allNfCadastro.push(nf);
     }
 
-    console.log(`Página ${currentPage}: ${pageInvoices.length} notas, ${olderCount} anteriores a 30 dias, ${allNfCadastro.length} coletadas`);
-
-    // If we found any older invoices, no need to go further back
-    if (olderCount > 0) {
-      foundOlderThan30Days = true;
-    }
-
+    console.log(`Página ${currentPage}: ${pageInvoices.length} notas, ${olderCount} antigas, ${allNfCadastro.length} coletadas`);
+    if (olderCount > 0) foundOlderThan30Days = true;
     currentPage--;
   }
 
-  console.log(`NFe: Total ${allNfCadastro.length} notas dos últimos 30 dias (${pagesFetched} páginas buscadas)`);
+  console.log(`NFe: Total ${allNfCadastro.length} notas dos últimos 30 dias (${pagesFetched} páginas)`);
 
-  // Step 3: Filter valid invoices (not canceled, saída only)
+  // Step 3: Filter valid invoices
   const validInvoices = allNfCadastro.filter((nf: any) => {
     const status = nf.ide?.cSitNFe;
-    const isNotCanceled = status !== 'C' && status !== 'CANCELADA';
-    const isSaida = nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1;
-    return isNotCanceled && isSaida;
+    return status !== 'C' && status !== 'CANCELADA' && (nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1);
   });
 
-  // Step 4: Enrich with order/client/vendor data
+  // Step 4: Lightweight enrichment - ONLY use cached data to avoid timeouts
   const orderIdSet = new Set<number>();
   const clientIdSet = new Set<number>();
   validInvoices.forEach((nf: any) => {
@@ -459,17 +442,53 @@ async function buildNfeResult(_page: number, fetchLastPage: boolean, appKey: str
     if (nf.nfDestInt?.nCodCli) clientIdSet.add(nf.nfDestInt.nCodCli);
   });
 
-  const uniqueOrderIds = [...orderIdSet];
-  const uniqueClientIds = [...clientIdSet];
+  // Only use cached data - don't make API calls for enrichment
+  const orderCacheKeys = [...orderIdSet].map(id => `order_${id}`);
+  const clientCacheKeys = [...clientIdSet].map(id => `client_${id}`);
+  const [cachedOrders, cachedClients] = await Promise.all([
+    getMultiCached(orderCacheKeys),
+    getMultiCached(clientCacheKeys),
+  ]);
 
-  console.log(`Buscando ${uniqueOrderIds.length} pedidos e ${uniqueClientIds.length} clientes (com cache)...`);
+  const orderObservations = new Map<number, string>();
+  const orderVendedorCodes = new Map<number, number>();
+  orderIdSet.forEach(id => {
+    const cached = cachedOrders.get(`order_${id}`);
+    if (cached) {
+      if (cached.obs) orderObservations.set(id, cached.obs);
+      if (cached.vendedorCode) orderVendedorCodes.set(id, cached.vendedorCode);
+    }
+  });
 
-  const { orderObservations, orderVendedorCodes } = await fetchOrdersWithCache(uniqueOrderIds, appKey, appSecret);
-  if (uniqueOrderIds.length > 0 && uniqueClientIds.length > 0) {
-    await new Promise(resolve => setTimeout(resolve, 5000));
+  const clientAddresses = new Map<number, any>();
+  clientIdSet.forEach(id => {
+    const cached = cachedClients.get(`client_${id}`);
+    if (cached) clientAddresses.set(id, cached);
+  });
+
+  // Fetch uncached orders/clients in background-friendly small batches (max 10 items, no delays)
+  const uncachedOrderIds = [...orderIdSet].filter(id => !cachedOrders.has(`order_${id}`));
+  const uncachedClientIds = [...clientIdSet].filter(id => !cachedClients.has(`client_${id}`));
+  
+  console.log(`Enriquecimento: ${orderIdSet.size - uncachedOrderIds.length}/${orderIdSet.size} pedidos do cache, ${clientIdSet.size - uncachedClientIds.length}/${clientIdSet.size} clientes do cache`);
+  
+  // Fetch a small number of uncached items (max 6) to progressively build cache
+  const MAX_UNCACHED_FETCH = 6;
+  if (uncachedOrderIds.length > 0) {
+    const toFetch = uncachedOrderIds.slice(0, MAX_UNCACHED_FETCH);
+    console.log(`Buscando ${toFetch.length} pedidos não cacheados...`);
+    const { orderObservations: newObs, orderVendedorCodes: newCodes } = await fetchOrdersWithCache(toFetch, appKey, appSecret);
+    newObs.forEach((v, k) => orderObservations.set(k, v));
+    newCodes.forEach((v, k) => orderVendedorCodes.set(k, v));
   }
-  const clientAddresses = await fetchClientsWithCache(uniqueClientIds, appKey, appSecret);
+  if (uncachedClientIds.length > 0) {
+    const toFetch = uncachedClientIds.slice(0, MAX_UNCACHED_FETCH);
+    console.log(`Buscando ${toFetch.length} clientes não cacheados...`);
+    const newClients = await fetchClientsWithCache(toFetch, appKey, appSecret);
+    newClients.forEach((v, k) => clientAddresses.set(k, v));
+  }
 
+  // Vendedor names from cache
   const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
   const vendedorCodeToName = await fetchVendedorNames(uniqueVendedorCodes, appKey, appSecret);
 
@@ -481,8 +500,6 @@ async function buildNfeResult(_page: number, fetchLastPage: boolean, appKey: str
 
   const invoices = validInvoices.map((nf: any) => {
     const orderId = nf.compl?.nIdPedido || 0;
-    const orderObs = orderObservations.get(orderId) || '';
-    const vendedorName = orderVendedorNames.get(orderId) || null;
     const clientId = nf.nfDestInt?.nCodCli;
     return {
       id: nf.compl?.nIdNF || nf.ide?.nNF || String(Math.random()),
@@ -498,8 +515,8 @@ async function buildNfeResult(_page: number, fetchLastPage: boolean, appKey: str
       paymentMethod: nf.pag?.[0]?.tPag,
       accessKey: nf.compl?.cChaveNFe,
       orderId,
-      orderObservation: orderObs,
-      vendedorName,
+      orderObservation: orderObservations.get(orderId) || '',
+      vendedorName: orderVendedorNames.get(orderId) || null,
       products: (nf.det || []).map((item: any) => ({
         name: item.prod?.xProd || '',
         quantity: item.prod?.qCom || 0,
