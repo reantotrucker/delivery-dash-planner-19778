@@ -157,8 +157,11 @@ export default function OmieImport() {
   const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 1));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
 
-  // Main query - auto-loads on mount (no fetchCounter needed)
-  const { data, isLoading, error, isFetching } = useQuery<OmieResponse>({
+  // Track if user has triggered a fetch
+  const [fetchTriggered, setFetchTriggered] = useState(false);
+
+  // Main query - only fetches when user clicks the button
+  const { data, isLoading, error, isFetching, refetch } = useQuery<OmieResponse>({
     queryKey: ['omie-invoices', activeTab, currentPage, forceRefresh],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('omie-invoices', {
@@ -176,6 +179,7 @@ export default function OmieImport() {
       if (forceRefresh) setForceRefresh(false);
       return data;
     },
+    enabled: fetchTriggered, // Only fetch when triggered by user
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000,
   });
@@ -277,6 +281,7 @@ export default function OmieImport() {
 
   const handleForceRefresh = useCallback(() => {
     setForceRefresh(true);
+    setFetchTriggered(true);
     queryClient.invalidateQueries({ queryKey: ['omie-invoices'] });
   }, [queryClient]);
 
@@ -425,7 +430,7 @@ export default function OmieImport() {
             </div>
 
             <div className="flex items-end">
-              <Button onClick={handleForceRefresh} disabled={isLoading || isFetching} className="w-full">
+              <Button onClick={() => { setFetchTriggered(true); handleForceRefresh(); }} disabled={isLoading || isFetching} className="w-full">
                 {isLoading || isFetching ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -434,7 +439,7 @@ export default function OmieImport() {
                 ) : (
                   <>
                     <RefreshCw className="w-4 h-4 mr-2" />
-                    Atualizar Notas
+                    {data ? 'Atualizar Notas' : 'Buscar Notas'}
                   </>
                 )}
               </Button>
@@ -452,13 +457,23 @@ export default function OmieImport() {
         </Card>
       )}
 
-      {/* Loading state on first load */}
+      {/* Loading state */}
       {(isLoading || isFetching) && !data && (
         <Card>
           <CardContent className="py-12 text-center">
             <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-primary" />
             <p className="text-muted-foreground">Carregando notas fiscais...</p>
-            <p className="text-xs text-muted-foreground mt-1">Os dados são atualizados automaticamente a cada 10 minutos</p>
+            <p className="text-xs text-muted-foreground mt-1">Isso pode levar alguns segundos</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Initial state - no fetch yet */}
+      {!fetchTriggered && !data && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <RefreshCw className="w-8 h-8 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Clique em "Buscar Notas" para carregar as notas fiscais do Omie</p>
           </CardContent>
         </Card>
       )}
