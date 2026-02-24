@@ -84,25 +84,12 @@ export function AppSidebar() {
       {/* Footer */}
       <div className="p-3 border-t border-border space-y-2">
         {!collapsed && (
-          <>
-            <div 
-              className="w-full text-center py-1.5 px-2 rounded-md text-xs font-bold uppercase tracking-wider"
-              style={{
-                color: '#00ff88',
-                textShadow: '0 0 7px #00ff88, 0 0 10px #00ff88, 0 0 21px #00ff88, 0 0 42px #00cc66',
-                background: 'rgba(0, 255, 136, 0.05)',
-                border: '1px solid rgba(0, 255, 136, 0.2)',
-              }}
-            >
-              {user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário'}
-            </div>
-            <Badge 
-              variant="outline" 
-              className="w-full justify-center py-1 text-[10px]"
-            >
-              {getRoleLabel()}
-            </Badge>
-          </>
+          <Badge 
+            variant="outline" 
+            className="w-full justify-center py-1.5 text-xs"
+          >
+            {getRoleLabel()}
+          </Badge>
         )}
         <Button
           variant="ghost"
