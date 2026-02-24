@@ -328,7 +328,7 @@ async function fetchVendedorNames(
   return map;
 }
 
-// Helper to get date range (last 30 days)
+// Helper to get date range (last 30 days) for NFCe
 function getLast30DaysRange() {
   const now = new Date();
   const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -336,89 +336,117 @@ function getLast30DaysRange() {
   return { dDtEmissaoDe: format(past), dDtEmissaoAte: format(now) };
 }
 
-// --- Build full result for NFe ---
-async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: string, appSecret: string) {
-  let actualPage = page;
-  let data: any = null;
+// Parse dd/mm/yyyy to Date
+function parseOmieDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const parts = dateStr.split('/');
+  if (parts.length !== 3) return null;
+  const [d, m, y] = parts;
+  return new Date(Number(y), Number(m) - 1, Number(d));
+}
 
-  if (fetchLastPage && page === 1) {
-    const discoverBody = {
-      call: 'ListarNF',
-      app_key: appKey,
-      app_secret: appSecret,
-      param: [{ pagina: 1, registros_por_pagina: 50, apenas_importado_api: 'N' }],
-    };
-    console.log('Chamando API Omie NFe para descobrir última página...');
-    const discoverRes = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(discoverBody),
-    });
-    const discoverData = await discoverRes.json();
-    
-    if (discoverData.faultstring) {
-      if (discoverData.faultstring.includes('SOAP-ERROR') || discoverData.faultstring.includes('Unexpected')) {
-        throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
-      }
-      throw new Error(`Omie NFe: ${discoverData.faultstring}`);
-    }
-
-    const totalPages = discoverData.total_de_paginas || 1;
-    actualPage = totalPages;
-
-    if (totalPages === 1) {
-      data = discoverData;
-      console.log('NFe: apenas 1 página, reutilizando dados.');
-    } else {
-      console.log(`NFe: ${totalPages} páginas. Aguardando 30s antes de buscar página ${actualPage}...`);
-      await new Promise(resolve => setTimeout(resolve, 30000));
-    }
+// Fetch a single NFe page from API
+async function fetchNfePage(pageNum: number, appKey: string, appSecret: string): Promise<any> {
+  const requestBody = {
+    call: 'ListarNF',
+    app_key: appKey,
+    app_secret: appSecret,
+    param: [{ pagina: pageNum, registros_por_pagina: 50, apenas_importado_api: 'N' }],
+  };
+  console.log('Chamando API Omie NFe, página:', pageNum);
+  const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
+  });
+  const responseText = await response.text();
+  console.log('Status HTTP:', response.status);
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch {
+    throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
   }
-
-  if (!data) {
-    const requestBody = {
-      call: 'ListarNF',
-      app_key: appKey,
-      app_secret: appSecret,
-      param: [{ pagina: actualPage, registros_por_pagina: 50, apenas_importado_api: 'N' }],
-    };
-    console.log('Chamando API Omie NFe, página:', actualPage);
-    const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    });
-    const responseText = await response.text();
-    console.log('Status HTTP:', response.status);
-    try {
-      data = JSON.parse(responseText);
-    } catch {
-      throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
+  if (data.faultstring) {
+    if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
+      throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
     }
-    if (data.faultstring) {
-      if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
-        throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
-      }
-      throw new Error(`Omie NFe: ${data.faultstring}`);
+    if (data.faultstring.includes('Consumo redundante')) {
+      throw new Error('API Omie com consumo redundante. Aguarde alguns segundos e tente novamente.');
     }
+    throw new Error(`Omie NFe: ${data.faultstring}`);
   }
+  return data;
+}
 
-  // Filter only last 30 days by emission date (ListarNF doesn't support date params)
+// --- Build full result for NFe (last 30 days, paginating backwards) ---
+async function buildNfeResult(_page: number, fetchLastPage: boolean, appKey: string, appSecret: string) {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const validInvoices = (data.nfCadastro || []).filter((nf: any) => {
+  const MAX_PAGES_TO_FETCH = 5; // Max pages to fetch backwards to avoid rate limits
+
+  // Step 1: Discover total pages
+  const firstData = await fetchNfePage(1, appKey, appSecret);
+  const totalPages = firstData.total_de_paginas || 1;
+  console.log(`NFe: ${totalPages} páginas totais. Buscando últimas páginas (30 dias)...`);
+
+  // Step 2: Fetch pages backwards from last, collecting 30-day invoices
+  const allNfCadastro: any[] = [];
+  let currentPage = totalPages;
+  let pagesFetched = 0;
+  let foundOlderThan30Days = false;
+
+  while (currentPage > 0 && pagesFetched < MAX_PAGES_TO_FETCH && !foundOlderThan30Days) {
+    let pageData;
+
+    if (currentPage === 1 && totalPages === 1) {
+      // Reuse first page data if there's only 1 page
+      pageData = firstData;
+    } else {
+      // Wait between API calls to avoid rate limits
+      if (pagesFetched > 0 || currentPage !== totalPages) {
+        console.log(`Aguardando 31s antes de buscar página ${currentPage}...`);
+        await new Promise(resolve => setTimeout(resolve, 31000));
+      } else {
+        // First fetch after discovering pages - still need to wait
+        console.log(`Aguardando 31s antes de buscar página ${currentPage}...`);
+        await new Promise(resolve => setTimeout(resolve, 31000));
+      }
+      pageData = await fetchNfePage(currentPage, appKey, appSecret);
+    }
+    pagesFetched++;
+
+    const pageInvoices = pageData.nfCadastro || [];
+    let olderCount = 0;
+    for (const nf of pageInvoices) {
+      const emiDate = parseOmieDate(nf.ide?.dEmi);
+      if (emiDate && emiDate < thirtyDaysAgo) {
+        olderCount++;
+        continue; // Skip invoices older than 30 days
+      }
+      allNfCadastro.push(nf);
+    }
+
+    console.log(`Página ${currentPage}: ${pageInvoices.length} notas, ${olderCount} anteriores a 30 dias, ${allNfCadastro.length} coletadas`);
+
+    // If we found any older invoices, no need to go further back
+    if (olderCount > 0) {
+      foundOlderThan30Days = true;
+    }
+
+    currentPage--;
+  }
+
+  console.log(`NFe: Total ${allNfCadastro.length} notas dos últimos 30 dias (${pagesFetched} páginas buscadas)`);
+
+  // Step 3: Filter valid invoices (not canceled, saída only)
+  const validInvoices = allNfCadastro.filter((nf: any) => {
     const status = nf.ide?.cSitNFe;
     const isNotCanceled = status !== 'C' && status !== 'CANCELADA';
     const isSaida = nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1;
-    // Filter by date: parse dd/mm/yyyy
-    if (nf.ide?.dEmi) {
-      const [d, m, y] = nf.ide.dEmi.split('/');
-      const emiDate = new Date(Number(y), Number(m) - 1, Number(d));
-      if (emiDate < thirtyDaysAgo) return false;
-    }
     return isNotCanceled && isSaida;
   });
-  console.log(`NFe: ${(data.nfCadastro || []).length} total, ${validInvoices.length} nos últimos 30 dias`);
 
+  // Step 4: Enrich with order/client/vendor data
   const orderIdSet = new Set<number>();
   const clientIdSet = new Set<number>();
   validInvoices.forEach((nf: any) => {
@@ -480,9 +508,9 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
 
   return {
     type: 'nfe' as const,
-    page: data.pagina || page,
-    totalPages: data.total_de_paginas || 1,
-    totalRecords: data.total_de_registros || 0,
+    page: 1,
+    totalPages: 1,
+    totalRecords: invoices.length,
     invoices,
   };
 }
@@ -598,9 +626,9 @@ serve(async (req) => {
       getSupabase().rpc('clean_omie_cache').then(() => {}).catch(() => {});
     }
 
-    // Determine cache key for this listing
+    // Determine cache key for this listing - NFe always uses single key now (all 30-day data)
     const listingCacheKey = type === 'nfe'
-      ? (fetchLastPage ? 'listing_nfe_last' : `listing_nfe_page_${page}`)
+      ? 'listing_nfe_30days'
       : `listing_nfce_page_${page}`;
 
     // Check listing cache first (unless forceRefresh)
@@ -640,7 +668,7 @@ serve(async (req) => {
     console.error('Erro na edge function omie-invoices:', error);
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
     const isAbort = errorMessage.includes('aborted') || errorMessage.includes('AbortError');
-    const isTemporary = isAbort || errorMessage.includes('temporariamente') || errorMessage.includes('SOAP-ERROR') || errorMessage.includes('Consumo redundante');
+    const isTemporary = isAbort || errorMessage.includes('temporariamente') || errorMessage.includes('SOAP-ERROR') || errorMessage.includes('Consumo redundante') || errorMessage.includes('consumo redundante');
     const userMessage = isAbort 
       ? 'A API do Omie demorou muito para responder. Tente novamente em alguns segundos.' 
       : errorMessage;
