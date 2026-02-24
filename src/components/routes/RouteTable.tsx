@@ -64,14 +64,15 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
       if (routes.length === 0) return {};
       const { data, error } = await supabase
         .from("route_products")
-        .select("route_id, checked")
+        .select("route_id, checked, checked2")
         .in("route_id", routes.map(r => r.id));
       if (error) throw error;
-      const counts: Record<string, { total: number; checked: number }> = {};
-      data?.forEach((p) => {
-        if (!counts[p.route_id]) counts[p.route_id] = { total: 0, checked: 0 };
+      const counts: Record<string, { total: number; checked: number; checked2: number }> = {};
+      (data as any[])?.forEach((p) => {
+        if (!counts[p.route_id]) counts[p.route_id] = { total: 0, checked: 0, checked2: 0 };
         counts[p.route_id].total++;
         if (p.checked) counts[p.route_id].checked++;
+        if (p.checked2) counts[p.route_id].checked2++;
       });
       return counts;
     },
@@ -274,8 +275,11 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                   >
                     <Package className="w-3 h-3" />
                     Produtos
-                    <span className={`ml-0.5 text-[9px] font-bold ${productCount.checked === productCount.total ? "text-emerald-400" : "text-orange-400"}`}>
+                    <span className={`ml-0.5 text-[9px] font-bold ${productCount.checked === productCount.total ? "text-green-500" : "text-orange-400"}`}>
                       {productCount.checked}/{productCount.total}
+                    </span>
+                    <span className={`text-[9px] font-bold ${productCount.checked2 === productCount.total ? "text-blue-500" : "text-orange-400"}`}>
+                      {productCount.checked2}/{productCount.total}
                     </span>
                   </Button>
                 )}

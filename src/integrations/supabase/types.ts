@@ -191,6 +191,9 @@ export type Database = {
           checked: boolean
           checked_at: string | null
           checked_by: string | null
+          checked2: boolean
+          checked2_at: string | null
+          checked2_by: string | null
           code: string | null
           created_at: string
           id: string
@@ -205,6 +208,9 @@ export type Database = {
           checked?: boolean
           checked_at?: string | null
           checked_by?: string | null
+          checked2?: boolean
+          checked2_at?: string | null
+          checked2_by?: string | null
           code?: string | null
           created_at?: string
           id?: string
@@ -219,6 +225,9 @@ export type Database = {
           checked?: boolean
           checked_at?: string | null
           checked_by?: string | null
+          checked2?: boolean
+          checked2_at?: string | null
+          checked2_by?: string | null
           code?: string | null
           created_at?: string
           id?: string
