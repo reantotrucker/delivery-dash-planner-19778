@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,6 +8,78 @@ const corsHeaders = {
 
 const OMIE_API_URL = 'https://app.omie.com.br/api/v1';
 
+// Supabase client for cache operations
+function getSupabase() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+}
+
+// --- Cache helpers ---
+async function getCached(key: string): Promise<any | null> {
+  try {
+    const sb = getSupabase();
+    const { data } = await sb
+      .from('omie_cache')
+      .select('cache_value, expires_at')
+      .eq('cache_key', key)
+      .maybeSingle();
+    if (data && new Date(data.expires_at) > new Date()) {
+      return data.cache_value;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function setCache(key: string, value: any, ttlHours = 24): Promise<void> {
+  try {
+    const sb = getSupabase();
+    const expires_at = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
+    await sb
+      .from('omie_cache')
+      .upsert({ cache_key: key, cache_value: value, expires_at }, { onConflict: 'cache_key' });
+  } catch (e) {
+    console.log('Cache write error:', e);
+  }
+}
+
+async function getMultiCached(keys: string[]): Promise<Map<string, any>> {
+  const result = new Map<string, any>();
+  if (keys.length === 0) return result;
+  try {
+    const sb = getSupabase();
+    const { data } = await sb
+      .from('omie_cache')
+      .select('cache_key, cache_value, expires_at')
+      .in('cache_key', keys);
+    const now = new Date();
+    data?.forEach((row: any) => {
+      if (new Date(row.expires_at) > now) {
+        result.set(row.cache_key, row.cache_value);
+      }
+    });
+  } catch {
+    // ignore cache errors
+  }
+  return result;
+}
+
+async function setMultiCache(entries: { key: string; value: any }[], ttlHours = 24): Promise<void> {
+  if (entries.length === 0) return;
+  try {
+    const sb = getSupabase();
+    const expires_at = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
+    const rows = entries.map(e => ({ cache_key: e.key, cache_value: e.value, expires_at }));
+    await sb.from('omie_cache').upsert(rows, { onConflict: 'cache_key' });
+  } catch (e) {
+    console.log('Cache multi-write error:', e);
+  }
+}
+
+// --- Omie API helpers ---
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2, timeoutMs = 45000): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -31,6 +104,11 @@ async function fetchClientDetails(
   appKey: string,
   appSecret: string
 ): Promise<{ name: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string; cep: string } | null> {
+  // Check cache first
+  const cacheKey = `client_${clientId}`;
+  const cached = await getCached(cacheKey);
+  if (cached) return cached;
+
   try {
     const body = {
       call: 'ConsultarCliente',
@@ -45,7 +123,7 @@ async function fetchClientDetails(
     });
     const data = await res.json();
     if (data.faultstring) return null;
-    return {
+    const result = {
       name: data.razao_social || data.nome_fantasia || '',
       street: data.endereco || '',
       number: data.endereco_numero || '',
@@ -55,6 +133,9 @@ async function fetchClientDetails(
       state: data.estado || '',
       cep: data.cep || '',
     };
+    // Cache for 7 days (client data rarely changes)
+    await setCache(cacheKey, result, 168);
+    return result;
   } catch (e) {
     console.log(`Erro ao buscar cliente ${clientId}:`, e);
     return null;
@@ -66,6 +147,11 @@ async function fetchOrderDetails(
   appKey: string,
   appSecret: string
 ): Promise<{ obs: string; vendedorCode: number }> {
+  // Check cache first
+  const cacheKey = `order_${orderId}`;
+  const cached = await getCached(cacheKey);
+  if (cached) return cached;
+
   try {
     const body = {
       call: 'ConsultarPedido',
@@ -86,7 +172,10 @@ async function fetchOrderDetails(
     const pvp = orderData.pedido_venda_produto;
     const obs = pvp?.observacoes?.obs_venda || pvp?.obs_venda || pvp?.informacoes_adicionais?.obs_venda || '';
     const vendedorCode = pvp?.informacoes_adicionais?.codVend || pvp?.cabecalho?.codigo_vendedor || 0;
-    return { obs, vendedorCode };
+    const result = { obs, vendedorCode };
+    // Cache for 24h
+    await setCache(cacheKey, result, 24);
+    return result;
   } catch (e) {
     console.log(`Erro pedido ${orderId}:`, e);
     return { obs: '', vendedorCode: 0 };
@@ -100,6 +189,20 @@ async function fetchVendedorNames(
 ): Promise<Map<number, string>> {
   const map = new Map<number, string>();
   if (codes.length === 0) return map;
+
+  // Check cache first
+  const cacheKey = 'vendedores_all';
+  const cached = await getCached(cacheKey);
+  if (cached) {
+    const entries = cached as Array<[number, string]>;
+    entries.forEach(([code, name]) => map.set(code, name));
+    // Check if all needed codes are in cache
+    if (codes.every(c => map.has(c))) {
+      console.log('Vendedores servidos do cache');
+      return map;
+    }
+  }
+
   try {
     console.log(`Buscando vendedores para códigos: ${codes.join(', ')}`);
     const vendBody = {
@@ -121,25 +224,156 @@ async function fetchVendedorNames(
       if (code && name) map.set(Number(code), name);
     });
     console.log(`Vendedores carregados: ${map.size}`);
+    // Cache for 24h
+    await setCache(cacheKey, Array.from(map.entries()), 24);
   } catch (e) {
     console.log('Erro ao buscar vendedores:', e);
   }
   return map;
 }
 
-// Process batches with concurrency limit
-async function processBatches<T, R>(
-  items: T[],
-  batchSize: number,
-  fn: (item: T) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const batchResults = await Promise.all(batch.map(fn));
-    results.push(...batchResults);
+// Process with cache-aware batching
+async function fetchClientsWithCache(
+  clientIds: number[],
+  appKey: string,
+  appSecret: string
+): Promise<Map<number, any>> {
+  const result = new Map<number, any>();
+  if (clientIds.length === 0) return result;
+
+  // Bulk check cache
+  const cacheKeys = clientIds.map(id => `client_${id}`);
+  const cachedData = await getMultiCached(cacheKeys);
+  
+  const uncachedIds: number[] = [];
+  clientIds.forEach(id => {
+    const cached = cachedData.get(`client_${id}`);
+    if (cached) {
+      result.set(id, cached);
+    } else {
+      uncachedIds.push(id);
+    }
+  });
+
+  console.log(`Clientes: ${clientIds.length - uncachedIds.length} do cache, ${uncachedIds.length} da API`);
+
+  if (uncachedIds.length > 0) {
+    const cacheEntries: { key: string; value: any }[] = [];
+    // Fetch uncached in batches of 5 with delays between batches
+    for (let i = 0; i < uncachedIds.length; i += 5) {
+      const batch = uncachedIds.slice(i, i + 5);
+      if (i > 0) await new Promise(resolve => setTimeout(resolve, 500));
+      const batchResults = await Promise.all(batch.map(async (clientId) => {
+        try {
+          const body = {
+            call: 'ConsultarCliente',
+            app_key: appKey,
+            app_secret: appSecret,
+            param: [{ codigo_cliente_omie: clientId }],
+          };
+          const res = await fetchWithRetry(`${OMIE_API_URL}/geral/clientes/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          const data = await res.json();
+          if (data.faultstring) return { clientId, details: null };
+          const details = {
+            name: data.razao_social || data.nome_fantasia || '',
+            street: data.endereco || '',
+            number: data.endereco_numero || '',
+            complement: data.complemento || '',
+            neighborhood: data.bairro || '',
+            city: data.cidade || '',
+            state: data.estado || '',
+            cep: data.cep || '',
+          };
+          return { clientId, details };
+        } catch {
+          return { clientId, details: null };
+        }
+      }));
+      batchResults.forEach(({ clientId, details }) => {
+        if (details) {
+          result.set(clientId, details);
+          cacheEntries.push({ key: `client_${clientId}`, value: details });
+        }
+      });
+    }
+    // Write all to cache at once
+    await setMultiCache(cacheEntries, 168);
   }
-  return results;
+
+  return result;
+}
+
+async function fetchOrdersWithCache(
+  orderIds: number[],
+  appKey: string,
+  appSecret: string
+): Promise<{ orderObservations: Map<number, string>; orderVendedorCodes: Map<number, number> }> {
+  const orderObservations = new Map<number, string>();
+  const orderVendedorCodes = new Map<number, number>();
+  if (orderIds.length === 0) return { orderObservations, orderVendedorCodes };
+
+  // Bulk check cache
+  const cacheKeys = orderIds.map(id => `order_${id}`);
+  const cachedData = await getMultiCached(cacheKeys);
+  
+  const uncachedIds: number[] = [];
+  orderIds.forEach(id => {
+    const cached = cachedData.get(`order_${id}`);
+    if (cached) {
+      if (cached.obs) orderObservations.set(id, cached.obs);
+      if (cached.vendedorCode) orderVendedorCodes.set(id, cached.vendedorCode);
+    } else {
+      uncachedIds.push(id);
+    }
+  });
+
+  console.log(`Pedidos: ${orderIds.length - uncachedIds.length} do cache, ${uncachedIds.length} da API`);
+
+  if (uncachedIds.length > 0) {
+    const cacheEntries: { key: string; value: any }[] = [];
+    // Fetch uncached in batches of 5 with delays
+    for (let i = 0; i < uncachedIds.length; i += 5) {
+      const batch = uncachedIds.slice(i, i + 5);
+      if (i > 0) await new Promise(resolve => setTimeout(resolve, 500));
+      const batchResults = await Promise.all(batch.map(async (orderId) => {
+        try {
+          const body = {
+            call: 'ConsultarPedido',
+            app_key: appKey,
+            app_secret: appSecret,
+            param: [{ codigo_pedido: orderId }],
+          };
+          const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/pedido/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          const orderData = await res.json();
+          if (orderData.faultstring) return { orderId, obs: '', vendedorCode: 0 };
+          const pvp = orderData.pedido_venda_produto;
+          const obs = pvp?.observacoes?.obs_venda || pvp?.obs_venda || pvp?.informacoes_adicionais?.obs_venda || '';
+          const vendedorCode = pvp?.informacoes_adicionais?.codVend || pvp?.cabecalho?.codigo_vendedor || 0;
+          return { orderId, obs, vendedorCode };
+        } catch {
+          return { orderId, obs: '', vendedorCode: 0 };
+        }
+      }));
+      batchResults.forEach(({ orderId, obs, vendedorCode }) => {
+        if (obs) orderObservations.set(orderId, obs);
+        if (vendedorCode) orderVendedorCodes.set(orderId, vendedorCode);
+        if (obs || vendedorCode) {
+          cacheEntries.push({ key: `order_${orderId}`, value: { obs, vendedorCode } });
+        }
+      });
+    }
+    await setMultiCache(cacheEntries, 24);
+  }
+
+  return { orderObservations, orderVendedorCodes };
 }
 
 serve(async (req) => {
@@ -160,6 +394,11 @@ serve(async (req) => {
       throw new Error('Tipo inválido. Use "nfe" ou "nfce".');
     }
 
+    // Clean expired cache periodically (1 in 10 chance)
+    if (Math.random() < 0.1) {
+      getSupabase().rpc('clean_omie_cache').then(() => {}).catch(() => {});
+    }
+
     let result;
 
     if (type === 'nfe') {
@@ -167,7 +406,6 @@ serve(async (req) => {
       let data: any = null;
 
       if (fetchLastPage && page === 1) {
-        // First call to discover total pages - we'll reuse this data if it's the only page
         const discoverBody = {
           call: 'ListarNF',
           app_key: OMIE_APP_KEY,
@@ -193,17 +431,14 @@ serve(async (req) => {
         actualPage = totalPages;
 
         if (totalPages === 1) {
-          // Only 1 page — reuse the data we already have, no second call needed
           data = discoverData;
           console.log('NFe: apenas 1 página, reutilizando dados.');
         } else {
-          // Need to fetch the last page — wait to avoid rate limit
           console.log(`NFe: ${totalPages} páginas. Aguardando antes de buscar página ${actualPage}...`);
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
 
-      // Only fetch if we don't already have data
       if (!data) {
         const requestBody = {
           call: 'ListarNF',
@@ -211,24 +446,19 @@ serve(async (req) => {
           app_secret: OMIE_APP_SECRET,
           param: [{ pagina: actualPage, registros_por_pagina: 50, apenas_importado_api: 'N' }],
         };
-
         console.log('Chamando API Omie NFe, página:', actualPage);
-
         const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
-
         const responseText = await response.text();
         console.log('Status HTTP:', response.status);
-
         try {
           data = JSON.parse(responseText);
         } catch {
           throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
         }
-
         if (data.faultstring) {
           if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
             throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
@@ -237,7 +467,7 @@ serve(async (req) => {
         }
       }
 
-      // Filter invoices first to avoid unnecessary API calls
+      // Filter valid invoices
       const validInvoices = (data.nfCadastro || []).filter((nf: any) => {
         const status = nf.ide?.cSitNFe;
         const isNotCanceled = status !== 'C' && status !== 'CANCELADA';
@@ -245,7 +475,7 @@ serve(async (req) => {
         return isNotCanceled && isSaida;
       });
 
-      // Collect unique order IDs and client IDs from filtered invoices only
+      // Collect unique IDs
       const orderIdSet = new Set<number>();
       const clientIdSet = new Set<number>();
       validInvoices.forEach((nf: any) => {
@@ -256,44 +486,24 @@ serve(async (req) => {
       const uniqueOrderIds = [...orderIdSet];
       const uniqueClientIds = [...clientIdSet];
 
-      // Fetch orders AND clients in parallel (biggest optimization)
-      console.log(`Buscando ${uniqueOrderIds.length} pedidos e ${uniqueClientIds.length} clientes em paralelo...`);
-      
-      const [orderResults, clientResults] = await Promise.all([
-        // Fetch order details (obs + vendedor code) - batch of 15
-        processBatches(uniqueOrderIds, 15, (orderId) =>
-          fetchOrderDetails(orderId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ orderId, ...r }))
-        ),
-        // Fetch client addresses - batch of 15
-        processBatches(uniqueClientIds, 15, (clientId) =>
-          fetchClientDetails(clientId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ clientId, details: r }))
-        ),
+      console.log(`Buscando ${uniqueOrderIds.length} pedidos e ${uniqueClientIds.length} clientes (com cache)...`);
+
+      // Fetch with cache in parallel
+      const [{ orderObservations, orderVendedorCodes }, clientAddresses] = await Promise.all([
+        fetchOrdersWithCache(uniqueOrderIds, OMIE_APP_KEY, OMIE_APP_SECRET),
+        fetchClientsWithCache(uniqueClientIds, OMIE_APP_KEY, OMIE_APP_SECRET),
       ]);
-
-      const orderObservations = new Map<number, string>();
-      const orderVendedorCodes = new Map<number, number>();
-      orderResults.forEach(({ orderId, obs, vendedorCode }) => {
-        if (obs) orderObservations.set(orderId, obs);
-        if (vendedorCode) orderVendedorCodes.set(orderId, vendedorCode);
-      });
-
-      const clientAddresses = new Map<number, any>();
-      clientResults.forEach(({ clientId, details }) => {
-        if (details) clientAddresses.set(clientId, details);
-      });
 
       // Fetch vendedor names
       const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
       const vendedorCodeToName = await fetchVendedorNames(uniqueVendedorCodes, OMIE_APP_KEY, OMIE_APP_SECRET);
 
-      // Build orderId -> vendedorName map
       const orderVendedorNames = new Map<number, string>();
       orderVendedorCodes.forEach((code, orderId) => {
         const name = vendedorCodeToName.get(code);
         if (name) orderVendedorNames.set(orderId, name);
       });
 
-      // Map invoices
       const invoices = validInvoices.map((nf: any) => {
         const orderId = nf.compl?.nIdPedido || 0;
         const orderObs = orderObservations.get(orderId) || '';
@@ -342,31 +552,25 @@ serve(async (req) => {
         app_secret: OMIE_APP_SECRET,
         param: [{ nPagina: actualPage, nRegPorPagina: 50 }],
       };
-
       console.log('Chamando API Omie NFCe, página:', actualPage);
-
       const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/cupomfiscalconsultar/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
-
       const responseText = await response.text();
       console.log('Status HTTP:', response.status);
-
       let data;
       try {
         data = JSON.parse(responseText);
       } catch {
         throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
       }
-
       if (data.faultstring) {
         throw new Error(`Omie NFCe: ${data.faultstring}`);
       }
       const cupons = data.cupons || data.cupomFiscalCadastro || [];
 
-      // Map initial invoices
       const nfceInvoices = cupons.map((cupom: any) => ({
         id: cupom.cabecalhoCupom?.nIdCupom || String(Math.random()),
         number: cupom.cabecalhoCupom?.nNumCupom,
@@ -383,27 +587,16 @@ serve(async (req) => {
         vendedorName: null as string | null,
       }));
 
-      // Collect unique IDs
       const uniqueClientIds = [...new Set(nfceInvoices.map((inv: any) => inv.clientId).filter(Boolean))] as number[];
       const nfceOrderIds = [...new Set(nfceInvoices.map((inv: any) => inv.orderId).filter((id: number) => id > 0))] as number[];
 
-      // Fetch clients AND orders in parallel
-      console.log(`NFCe: Buscando ${uniqueClientIds.length} clientes e ${nfceOrderIds.length} pedidos em paralelo...`);
-      
-      const [clientResults, orderResults] = await Promise.all([
-        processBatches(uniqueClientIds, 15, (clientId) =>
-          fetchClientDetails(clientId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ clientId, details: r }))
-        ),
-        processBatches(nfceOrderIds, 15, (orderId) =>
-          fetchOrderDetails(orderId, OMIE_APP_KEY, OMIE_APP_SECRET).then(r => ({ orderId, ...r }))
-        ),
+      console.log(`NFCe: Buscando ${uniqueClientIds.length} clientes e ${nfceOrderIds.length} pedidos (com cache)...`);
+
+      const [clientAddresses, { orderObservations, orderVendedorCodes }] = await Promise.all([
+        fetchClientsWithCache(uniqueClientIds, OMIE_APP_KEY, OMIE_APP_SECRET),
+        fetchOrdersWithCache(nfceOrderIds, OMIE_APP_KEY, OMIE_APP_SECRET),
       ]);
 
-      // Apply client addresses
-      const clientAddresses = new Map<number, any>();
-      clientResults.forEach(({ clientId, details }) => {
-        if (details) clientAddresses.set(clientId, details);
-      });
       for (const inv of nfceInvoices) {
         if (inv.clientId && clientAddresses.has(inv.clientId)) {
           const clientData = clientAddresses.get(inv.clientId);
@@ -412,15 +605,6 @@ serve(async (req) => {
         }
       }
 
-      // Apply order observations and vendedor
-      const orderObservations = new Map<number, string>();
-      const orderVendedorCodes = new Map<number, number>();
-      orderResults.forEach(({ orderId, obs, vendedorCode }) => {
-        if (obs) orderObservations.set(orderId, obs);
-        if (vendedorCode) orderVendedorCodes.set(orderId, vendedorCode);
-      });
-
-      // Fetch vendedor names
       const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
       const vendedorCodeToName = await fetchVendedorNames(uniqueVendedorCodes, OMIE_APP_KEY, OMIE_APP_SECRET);
 
