@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, parse, isWithinInterval, startOfDay, endOfDay, subDays } from "date-fns";
+import { format, parse, isWithinInterval, startOfDay, endOfDay, subDays, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,18 +14,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle } from "lucide-react";
+import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle, RefreshCw, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Omie tPag fiscal codes mapped to local payment method names
 const OMIE_PAYMENT_MAP: Record<string, string> = {
   '01': 'DINHEIRO',
-  '02': 'COLETA', // Cheque -> closest match
+  '02': 'COLETA',
   '03': 'CARTAO CREDITO',
-  '04': 'CARTAO CREDITO', // Débito -> same category
-  '05': 'COLETA', // Crédito Loja
-  '14': 'BOLETO', // Duplicata -> Boleto
+  '04': 'CARTAO CREDITO',
+  '05': 'COLETA',
+  '14': 'BOLETO',
   '15': 'BOLETO',
   '17': 'PIX',
   '99': 'DINHEIRO',
@@ -73,7 +73,8 @@ interface OmieResponse {
   totalPages: number;
   totalRecords: number;
   invoices: OmieInvoice[];
-  requestedPage?: 'last'; // when we requested the last page
+  fromCache?: boolean;
+  cachedAt?: string;
 }
 
 export default function OmieImport() {
@@ -89,6 +90,7 @@ export default function OmieImport() {
   const [productsInvoice, setProductsInvoice] = useState<OmieInvoice | null>(null);
   const [dialogUrgent, setDialogUrgent] = useState(false);
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
+  const [forceRefresh, setForceRefresh] = useState(false);
 
   // Query existing routes to find already-imported NF numbers
   const { data: existingRoutes } = useQuery({
@@ -154,26 +156,28 @@ export default function OmieImport() {
 
   const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 1));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
-  const [fetchCounter, setFetchCounter] = useState(0);
 
-  const { data, isLoading, error } = useQuery<OmieResponse>({
-    queryKey: ['omie-invoices', activeTab, currentPage, fetchCounter],
+  // Main query - auto-loads on mount (no fetchCounter needed)
+  const { data, isLoading, error, isFetching } = useQuery<OmieResponse>({
+    queryKey: ['omie-invoices', activeTab, currentPage, forceRefresh],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('omie-invoices', {
         body: {
           type: activeTab,
           page: currentPage ?? 1,
           fetchLastPage: currentPage === null,
+          forceRefresh,
         },
       });
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
+      // Reset forceRefresh after successful fetch
+      if (forceRefresh) setForceRefresh(false);
       return data;
     },
-    enabled: fetchCounter > 0,
-    staleTime: 10 * 60 * 1000, // 10 minutos - mantém cache ao navegar
-    gcTime: 30 * 60 * 1000, // 30 minutos - mantém no garbage collector
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000,
   });
 
   // Filter invoices by date range client-side
@@ -184,7 +188,6 @@ export default function OmieImport() {
     return data.invoices.filter((invoice) => {
       if (!invoice.emissionDate) return false;
       
-      // Parse date from DD/MM/YYYY format
       try {
         const invoiceDate = parse(invoice.emissionDate, 'dd/MM/yyyy', new Date());
         
@@ -200,7 +203,7 @@ export default function OmieImport() {
         }
         return true;
       } catch {
-        return true; // Include if date parsing fails
+        return true;
       }
     });
   }, [data?.invoices, startDate, endDate]);
@@ -237,7 +240,6 @@ export default function OmieImport() {
 
       if (error) throw error;
 
-      // Save products if available
       if (invoice.products && invoice.products.length > 0 && data && data.length > 0) {
         const routeId = data[0].id;
         const productRows = invoice.products.map((p) => ({
@@ -273,23 +275,20 @@ export default function OmieImport() {
     },
   });
 
-  const handleSearch = useCallback(() => {
-    setCurrentPage(null);
-    setTimeout(() => setFetchCounter(c => c + 1), 0);
-  }, []);
+  const handleForceRefresh = useCallback(() => {
+    setForceRefresh(true);
+    queryClient.invalidateQueries({ queryKey: ['omie-invoices'] });
+  }, [queryClient]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
-    setTimeout(() => setFetchCounter(c => c + 1), 0);
   }, []);
 
   const resolveConsultantId = useCallback((vendedorName?: string | null): string => {
     if (!vendedorName || !consultants) return '';
     const normalized = (s: string) => s.toLowerCase().trim();
-    // Try exact match first
     const exact = consultants.find(c => normalized(c.name) === normalized(vendedorName));
     if (exact) return exact.id;
-    // Try partial match (vendedor name contains consultant name or vice versa)
     const partial = consultants.find(c =>
       normalized(vendedorName).includes(normalized(c.name)) ||
       normalized(c.name).includes(normalized(vendedorName))
@@ -301,14 +300,11 @@ export default function OmieImport() {
     if (importedNfNumbers.has(String(invoice.number))) return;
     setDialogDriverId('');
     setDialogVehicleId('');
-    // Auto-fill consultant from Omie vendedor
     const autoConsultantId = resolveConsultantId(invoice.vendedorName);
     setDialogConsultantId(autoConsultantId);
-    // Auto-fill payment method from Omie mapping
     const autoPaymentId = resolvePaymentMethodId(invoice.paymentMethod);
     setDialogPaymentMethodId(autoPaymentId || '');
     setDialogUrgent(false);
-    // Auto-detect period based on current time
     const currentHour = new Date().getHours();
     setDialogPeriod(currentHour < 12 ? 'MANHA' : 'TARDE');
     setDialogInvoice(invoice);
@@ -332,6 +328,20 @@ export default function OmieImport() {
     return `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city}/${address.state}`;
   };
 
+  // Format cache time
+  const cacheInfo = useMemo(() => {
+    if (!data?.cachedAt) return null;
+    try {
+      const cachedDate = new Date(data.cachedAt);
+      return {
+        fromCache: data.fromCache,
+        timeAgo: formatDistanceToNow(cachedDate, { addSuffix: true, locale: ptBR }),
+      };
+    } catch {
+      return null;
+    }
+  }, [data?.cachedAt, data?.fromCache]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -350,7 +360,7 @@ export default function OmieImport() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Tipo de Documento</Label>
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'nfe' | 'nfce')}>
+              <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as 'nfe' | 'nfce'); setCurrentPage(null); }}>
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="nfe">NF-e</TabsTrigger>
                   <TabsTrigger value="nfce">NFC-e</TabsTrigger>
@@ -415,16 +425,16 @@ export default function OmieImport() {
             </div>
 
             <div className="flex items-end">
-              <Button onClick={handleSearch} disabled={isLoading} className="w-full">
-                {isLoading ? (
+              <Button onClick={handleForceRefresh} disabled={isLoading || isFetching} className="w-full">
+                {isLoading || isFetching ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Buscando...
                   </>
                 ) : (
                   <>
-                    <Download className="w-4 h-4 mr-2" />
-                    Buscar Notas
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Atualizar Notas
                   </>
                 )}
               </Button>
@@ -438,6 +448,17 @@ export default function OmieImport() {
         <Card className="border-destructive">
           <CardContent className="pt-6">
             <p className="text-destructive">{error.message}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading state on first load */}
+      {(isLoading || isFetching) && !data && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-primary" />
+            <p className="text-muted-foreground">Carregando notas fiscais...</p>
+            <p className="text-xs text-muted-foreground mt-1">Os dados são atualizados automaticamente a cada 10 minutos</p>
           </CardContent>
         </Card>
       )}
@@ -457,6 +478,23 @@ export default function OmieImport() {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* Cache status indicator */}
+                {cacheInfo && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    <span>
+                      {cacheInfo.fromCache ? 'Cache' : 'Atualizado'} {cacheInfo.timeAgo}
+                    </span>
+                    {cacheInfo.fromCache && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        cache
+                      </Badge>
+                    )}
+                  </div>
+                )}
+                {isFetching && data && (
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                )}
                 <p className="text-xs text-muted-foreground">Clique em uma NF para criar rota</p>
               </div>
             </div>
