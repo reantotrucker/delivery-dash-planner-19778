@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const OMIE_API_URL = 'https://app.omie.com.br/api/v1';
 
-async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2, timeoutMs = 8000): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2, timeoutMs = 15000): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -19,7 +19,7 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2,
     } catch (error) {
       lastError = error as Error;
       if (attempt < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
   }
@@ -164,55 +164,77 @@ serve(async (req) => {
 
     if (type === 'nfe') {
       let actualPage = page;
+      let data: any = null;
 
       if (fetchLastPage && page === 1) {
+        // First call to discover total pages - we'll reuse this data if it's the only page
         const discoverBody = {
           call: 'ListarNF',
           app_key: OMIE_APP_KEY,
           app_secret: OMIE_APP_SECRET,
           param: [{ pagina: 1, registros_por_pagina: 50, apenas_importado_api: 'N' }],
         };
+        console.log('Chamando API Omie NFe para descobrir última página...');
         const discoverRes = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(discoverBody),
         });
         const discoverData = await discoverRes.json();
-        if (discoverData.total_de_paginas) {
-          actualPage = discoverData.total_de_paginas;
+        
+        if (discoverData.faultstring) {
+          if (discoverData.faultstring.includes('SOAP-ERROR') || discoverData.faultstring.includes('Unexpected')) {
+            throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
+          }
+          throw new Error(`Omie NFe: ${discoverData.faultstring}`);
+        }
+
+        const totalPages = discoverData.total_de_paginas || 1;
+        actualPage = totalPages;
+
+        if (totalPages === 1) {
+          // Only 1 page — reuse the data we already have, no second call needed
+          data = discoverData;
+          console.log('NFe: apenas 1 página, reutilizando dados.');
+        } else {
+          // Need to fetch the last page — wait to avoid rate limit
+          console.log(`NFe: ${totalPages} páginas. Aguardando antes de buscar página ${actualPage}...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
 
-      const requestBody = {
-        call: 'ListarNF',
-        app_key: OMIE_APP_KEY,
-        app_secret: OMIE_APP_SECRET,
-        param: [{ pagina: actualPage, registros_por_pagina: 50, apenas_importado_api: 'N' }],
-      };
+      // Only fetch if we don't already have data
+      if (!data) {
+        const requestBody = {
+          call: 'ListarNF',
+          app_key: OMIE_APP_KEY,
+          app_secret: OMIE_APP_SECRET,
+          param: [{ pagina: actualPage, registros_por_pagina: 50, apenas_importado_api: 'N' }],
+        };
 
-      console.log('Chamando API Omie NFe, página:', actualPage);
+        console.log('Chamando API Omie NFe, página:', actualPage);
 
-      const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+        const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
 
-      const responseText = await response.text();
-      console.log('Status HTTP:', response.status);
+        const responseText = await response.text();
+        console.log('Status HTTP:', response.status);
 
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch {
-        throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
-      }
-
-      if (data.faultstring) {
-        if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
-          throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
         }
-        throw new Error(`Omie NFe: ${data.faultstring}`);
+
+        if (data.faultstring) {
+          if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
+            throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
+          }
+          throw new Error(`Omie NFe: ${data.faultstring}`);
+        }
       }
 
       // Filter invoices first to avoid unnecessary API calls
