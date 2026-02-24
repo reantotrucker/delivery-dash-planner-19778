@@ -345,38 +345,43 @@ function parseOmieDate(dateStr: string): Date | null {
   return new Date(Number(y), Number(m) - 1, Number(d));
 }
 
-// Fetch a single NFe page from API
-async function fetchNfePage(pageNum: number, appKey: string, appSecret: string): Promise<any> {
-  const requestBody = {
-    call: 'ListarNF',
-    app_key: appKey,
-    app_secret: appSecret,
-    param: [{ pagina: pageNum, registros_por_pagina: 50, apenas_importado_api: 'N' }],
-  };
-  console.log('Chamando API Omie NFe, página:', pageNum);
-  const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
-  });
-  const responseText = await response.text();
-  console.log('Status HTTP:', response.status);
-  let data;
-  try {
-    data = JSON.parse(responseText);
-  } catch {
-    throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
-  }
-  if (data.faultstring) {
-    if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
-      throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
+// Fetch a single NFe page from API (with built-in retry for "Consumo redundante")
+async function fetchNfePage(pageNum: number, appKey: string, appSecret: string, maxRetries = 3): Promise<any> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const requestBody = {
+      call: 'ListarNF',
+      app_key: appKey,
+      app_secret: appSecret,
+      param: [{ pagina: pageNum, registros_por_pagina: 50, apenas_importado_api: 'N' }],
+    };
+    console.log(`Chamando API Omie NFe, página: ${pageNum} (tentativa ${attempt + 1})`);
+    const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+    const responseText = await response.text();
+    console.log('Status HTTP:', response.status);
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      throw new Error(`Erro ao parsear resposta Omie: ${responseText.substring(0, 200)}`);
     }
-    if (data.faultstring.includes('Consumo redundante')) {
-      throw new Error('API Omie com consumo redundante. Aguarde alguns segundos e tente novamente.');
+    if (data.faultstring) {
+      if (data.faultstring.includes('Consumo redundante')) {
+        console.log(`Consumo redundante na página ${pageNum}, aguardando 35s antes de tentar novamente...`);
+        await new Promise(resolve => setTimeout(resolve, 35000));
+        continue; // Retry
+      }
+      if (data.faultstring.includes('SOAP-ERROR') || data.faultstring.includes('Unexpected')) {
+        throw new Error('API Omie temporariamente indisponível. Tente novamente em alguns segundos.');
+      }
+      throw new Error(`Omie NFe: ${data.faultstring}`);
     }
-    throw new Error(`Omie NFe: ${data.faultstring}`);
+    return data;
   }
-  return data;
+  throw new Error('API Omie com consumo redundante após múltiplas tentativas. Tente novamente em alguns minutos.');
 }
 
 // --- Build full result for NFe (last 30 days, paginating backwards) ---
