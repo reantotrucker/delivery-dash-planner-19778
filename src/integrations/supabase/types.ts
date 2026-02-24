@@ -59,6 +59,27 @@ export type Database = {
         }
         Relationships: []
       }
+      omie_cache: {
+        Row: {
+          cache_key: string
+          cache_value: Json
+          created_at: string
+          expires_at: string
+        }
+        Insert: {
+          cache_key: string
+          cache_value: Json
+          created_at?: string
+          expires_at?: string
+        }
+        Update: {
+          cache_key?: string
+          cache_value?: Json
+          created_at?: string
+          expires_at?: string
+        }
+        Relationships: []
+      }
       payment_methods: {
         Row: {
           created_at: string | null
@@ -392,6 +413,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      clean_omie_cache: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
