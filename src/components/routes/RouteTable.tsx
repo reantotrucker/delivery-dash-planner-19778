@@ -59,7 +59,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
   const [checklistRoute, setChecklistRoute] = useState<Route | null>(null);
 
   const { data: routeProductCounts = {} } = useQuery({
-    queryKey: ["route-product-counts", routes.map(r => r.id)],
+    queryKey: ["route-product-counts"],
     queryFn: async () => {
       if (routes.length === 0) return {};
       const { data, error } = await supabase
