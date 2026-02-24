@@ -328,17 +328,27 @@ async function fetchVendedorNames(
   return map;
 }
 
+// Helper to get date range (last 30 days)
+function getLast30DaysRange() {
+  const now = new Date();
+  const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const format = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  return { dDtEmissaoDe: format(past), dDtEmissaoAte: format(now) };
+}
+
 // --- Build full result for NFe ---
 async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: string, appSecret: string) {
   let actualPage = page;
   let data: any = null;
+  const dateRange = getLast30DaysRange();
+  console.log(`Filtro de data NFe: ${dateRange.dDtEmissaoDe} a ${dateRange.dDtEmissaoAte}`);
 
   if (fetchLastPage && page === 1) {
     const discoverBody = {
       call: 'ListarNF',
       app_key: appKey,
       app_secret: appSecret,
-      param: [{ pagina: 1, registros_por_pagina: 50, apenas_importado_api: 'N' }],
+      param: [{ pagina: 1, registros_por_pagina: 50, apenas_importado_api: 'N', ...dateRange }],
     };
     console.log('Chamando API Omie NFe para descobrir última página...');
     const discoverRes = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
@@ -372,7 +382,7 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
       call: 'ListarNF',
       app_key: appKey,
       app_secret: appSecret,
-      param: [{ pagina: actualPage, registros_por_pagina: 50, apenas_importado_api: 'N' }],
+      param: [{ pagina: actualPage, registros_por_pagina: 50, apenas_importado_api: 'N', ...dateRange }],
     };
     console.log('Chamando API Omie NFe, página:', actualPage);
     const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
@@ -472,11 +482,13 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
 
 // --- Build full result for NFCe ---
 async function buildNfceResult(page: number, appKey: string, appSecret: string) {
+  const dateRange = getLast30DaysRange();
+  console.log(`Filtro de data NFCe: ${dateRange.dDtEmissaoDe} a ${dateRange.dDtEmissaoAte}`);
   const requestBody = {
     call: 'CuponsFiscais',
     app_key: appKey,
     app_secret: appSecret,
-    param: [{ nPagina: page, nRegPorPagina: 50 }],
+    param: [{ nPagina: page, nRegPorPagina: 50, ...dateRange }],
   };
   console.log('Chamando API Omie NFCe, página:', page);
   const response = await fetchWithRetry(`${OMIE_API_URL}/produtos/cupomfiscalconsultar/`, {
