@@ -2,7 +2,7 @@ import { Route, generateGoogleMapsLink, generateWazeLink } from "./types";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User } from "lucide-react";
+import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2 } from "lucide-react";
 import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
 import { ProductChecklistDialog } from "./ProductChecklistDialog";
 import { RouteEditDialog } from "./RouteEditDialog";
@@ -29,6 +29,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const getPaymentBadgeStyle = (name: string | undefined) => {
   if (!name) return { className: "bg-muted text-muted-foreground border-muted", label: "-" };
@@ -57,6 +61,9 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [checklistRoute, setChecklistRoute] = useState<Route | null>(null);
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [reschedulePeriod, setReschedulePeriod] = useState<"MANHA" | "TARDE">("MANHA");
 
   const { data: routeProductCounts = {} } = useQuery({
     queryKey: ["route-product-counts"],
@@ -136,6 +143,39 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
     } catch (error) {
       console.error("Error deleting occurrence:", error);
       toast({ title: "Erro ao excluir ocorrência", variant: "destructive" });
+    }
+  };
+
+  const rescheduleRoute = async (route: Route) => {
+    if (!rescheduleDate) {
+      toast({ title: "Selecione uma data", variant: "destructive" });
+      return;
+    }
+    try {
+      setReschedulingId(route.id);
+      const { error } = await supabase.from("routes").insert({
+        client: route.client,
+        neighborhood: route.neighborhood,
+        address: route.address,
+        cep: route.cep,
+        observation: route.observation,
+        consultant_id: route.consultant_id,
+        driver_id: route.driver_id,
+        vehicle_id: route.vehicle_id,
+        payment_method_id: route.payment_method_id,
+        date: rescheduleDate,
+        period: reschedulePeriod,
+        urgent: route.urgent || false,
+        status: "NAO_ENTREGUE",
+      });
+      if (error) throw error;
+      toast({ title: "Rota reagendada com sucesso!" });
+      onUpdate();
+    } catch (error) {
+      console.error("Error rescheduling route:", error);
+      toast({ title: "Erro ao reagendar rota", variant: "destructive" });
+    } finally {
+      setReschedulingId(null);
     }
   };
 
@@ -373,6 +413,61 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
 
                 {/* Spacer */}
                 <div className="flex-1" />
+
+                {/* Reschedule (for pending routes) */}
+                {(isAdmin || canManageOccurrences) && route.status !== "ENTREGUE" && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[10px] sm:text-xs gap-1 px-2 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                        disabled={reschedulingId === route.id}
+                      >
+                        {reschedulingId === route.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <RotateCcw className="w-3 h-3" />
+                        )}
+                        Reagendar
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-3 space-y-3" align="end">
+                      <p className="text-xs font-medium text-foreground">Reagendar rota para:</p>
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-[10px]">Data</Label>
+                          <Input
+                            type="date"
+                            className="h-8 text-xs"
+                            value={rescheduleDate}
+                            onChange={(e) => setRescheduleDate(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px]">Período</Label>
+                          <Select value={reschedulePeriod} onValueChange={(v) => setReschedulePeriod(v as "MANHA" | "TARDE")}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="MANHA">MANHÃ</SelectItem>
+                              <SelectItem value="TARDE">TARDE</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full h-8 text-xs"
+                        onClick={() => rescheduleRoute(route)}
+                        disabled={reschedulingId === route.id}
+                      >
+                        Confirmar
+                      </Button>
+                    </PopoverContent>
+                  </Popover>
+                )}
 
                 {/* Edit & Delete */}
                 {isAdmin && (
