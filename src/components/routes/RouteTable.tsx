@@ -62,7 +62,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [checklistRoute, setChecklistRoute] = useState<Route | null>(null);
   const [reschedulingId, setReschedulingId] = useState<string | null>(null);
-  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleDate, setRescheduleDate] = useState(new Date().toISOString().split("T")[0]);
   const [reschedulePeriod, setReschedulePeriod] = useState<"MANHA" | "TARDE">("MANHA");
 
   const { data: routeProductCounts = {} } = useQuery({
