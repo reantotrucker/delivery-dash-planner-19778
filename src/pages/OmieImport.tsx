@@ -14,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle } from "lucide-react";
+import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -154,6 +155,7 @@ export default function OmieImport() {
 
   const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 1));
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+  const [searchTerm, setSearchTerm] = useState("");
   const [fetchCounter, setFetchCounter] = useState(0);
 
   const { data, isLoading, error } = useQuery<OmieResponse>({
@@ -176,34 +178,47 @@ export default function OmieImport() {
     gcTime: 30 * 60 * 1000, // 30 minutos - mantém no garbage collector
   });
 
-  // Filter invoices by date range client-side
+  // Filter invoices by date range and search term client-side
   const filteredInvoices = useMemo(() => {
     if (!data?.invoices) return [];
-    if (!startDate && !endDate) return data.invoices;
+    
+    let result = data.invoices;
 
-    return data.invoices.filter((invoice) => {
-      if (!invoice.emissionDate) return false;
-      
-      // Parse date from DD/MM/YYYY format
-      try {
-        const invoiceDate = parse(invoice.emissionDate, 'dd/MM/yyyy', new Date());
-        
-        if (startDate && endDate) {
-          return isWithinInterval(invoiceDate, {
-            start: startOfDay(startDate),
-            end: endOfDay(endDate),
-          });
-        } else if (startDate) {
-          return invoiceDate >= startOfDay(startDate);
-        } else if (endDate) {
-          return invoiceDate <= endOfDay(endDate);
+    // Date filter
+    if (startDate || endDate) {
+      result = result.filter((invoice) => {
+        if (!invoice.emissionDate) return false;
+        try {
+          const invoiceDate = parse(invoice.emissionDate, 'dd/MM/yyyy', new Date());
+          if (startDate && endDate) {
+            return isWithinInterval(invoiceDate, {
+              start: startOfDay(startDate),
+              end: endOfDay(endDate),
+            });
+          } else if (startDate) {
+            return invoiceDate >= startOfDay(startDate);
+          } else if (endDate) {
+            return invoiceDate <= endOfDay(endDate);
+          }
+          return true;
+        } catch {
+          return true;
         }
-        return true;
-      } catch {
-        return true; // Include if date parsing fails
-      }
-    });
-  }, [data?.invoices, startDate, endDate]);
+      });
+    }
+
+    // Search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.trim().toLowerCase();
+      result = result.filter((invoice) => {
+        const clientMatch = invoice.clientName?.toLowerCase().includes(term);
+        const numberMatch = String(invoice.number).toLowerCase().includes(term);
+        return clientMatch || numberMatch;
+      });
+    }
+
+    return result;
+  }, [data?.invoices, startDate, endDate, searchTerm]);
 
   const createRoutesMutation = useMutation({
     mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId, urgent, period }: { 
@@ -456,8 +471,16 @@ export default function OmieImport() {
                 </CardDescription>
               </div>
 
-              <div className="flex items-center gap-3">
-                <p className="text-xs text-muted-foreground">Clique em uma NF para criar rota</p>
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <div className="relative flex-1 md:w-64">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por cliente ou nº NF..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
