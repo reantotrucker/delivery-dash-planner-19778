@@ -1000,7 +1000,6 @@ export default function OmieImport() {
               )}
             </div>
           </DialogHeader>
-          </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-3">
               <div className="space-y-1">
