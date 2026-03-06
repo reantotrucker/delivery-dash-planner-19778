@@ -338,6 +338,18 @@ const Dashboard = () => {
                     className="pl-9 bg-secondary border-border w-full sm:w-64"
                   />
                 </div>
+                {canManageRoutes && selectedDriverFilter !== "all" && (
+                  <Button
+                    onClick={handleOptimizeOrder}
+                    disabled={isOptimizing || filteredRoutes.length < 2}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 whitespace-nowrap"
+                  >
+                    {isOptimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Route className="w-4 h-4" />}
+                    Sugerir Ordem
+                  </Button>
+                )}
               </div>
             </div>
 
