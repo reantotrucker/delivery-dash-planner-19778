@@ -1120,24 +1120,6 @@ export default function OmieImport() {
                 </Select>
               </div>
 
-              {extractedProducts.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Produtos ({extractedProducts.length})</Label>
-                  <ScrollArea className="max-h-[200px]">
-                    <div className="space-y-2">
-                      {extractedProducts.map((product, idx) => (
-                        <div key={idx} className="p-2 rounded-lg border bg-muted/30 text-sm">
-                          <p className="font-medium">{product.name}</p>
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>{product.quantity} {product.unit}</span>
-                            {product.total_value && <span className="text-primary font-medium">R$ {product.total_value.toFixed(2)}</span>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              )}
             </div>
           </div>
           <DialogFooter className="flex-row justify-between sm:justify-between">
