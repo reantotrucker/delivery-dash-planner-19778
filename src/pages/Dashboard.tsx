@@ -248,6 +248,7 @@ const Dashboard = () => {
   };
 
 
+  return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card/50 backdrop-blur-sm border-b border-border sticky top-0 z-40">
