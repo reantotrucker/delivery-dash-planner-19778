@@ -489,6 +489,10 @@ export default function OmieImport() {
   };
 
   const formatAddress = (address: OmieInvoice['address']) => {
+    if (!address) return 'Endereço não disponível';
+    return `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city}/${address.state}`;
+  };
+
   return (
     <div className="space-y-6">
       <div>
