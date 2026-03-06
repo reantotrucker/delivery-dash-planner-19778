@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp, Route, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,8 +14,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
+  const { toast } = useToast();
   const { isAdmin, isMotorista, isComercial } = useAuth();
   const canManageRoutes = isAdmin;
   const canManageOccurrences = isAdmin || isMotorista || isComercial;
@@ -26,6 +28,7 @@ const Dashboard = () => {
   const [selectedDriverForPrint, setSelectedDriverForPrint] = useState<string>("all");
   const [printPeriod, setPrintPeriod] = useState<"MANHA" | "TARDE" | "COMPLETO">("MANHA");
   const [chartsOpen, setChartsOpen] = useState(true);
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   const { data: routes = [], refetch } = useQuery({
     queryKey: ["routes", selectedDate, selectedPeriod],
@@ -200,6 +203,51 @@ const Dashboard = () => {
     printWindow.print();
   };
 
+  const handleOptimizeOrder = async () => {
+    if (filteredRoutes.length < 2) {
+      toast({ title: "Mínimo 2 rotas para otimizar", variant: "destructive" });
+      return;
+    }
+
+    setIsOptimizing(true);
+    try {
+      const routeData = filteredRoutes.map(r => ({
+        id: r.id,
+        client: r.client,
+        address: r.address || "",
+        neighborhood: r.neighborhood,
+        cep: r.cep || "",
+      }));
+
+      const { data, error } = await supabase.functions.invoke("optimize-route-order", {
+        body: { routes: routeData },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const orderedIds: string[] = data.orderedIds;
+
+      // Batch update order_number
+      for (let i = 0; i < orderedIds.length; i++) {
+        const { error: updateError } = await supabase
+          .from("routes")
+          .update({ order_number: i + 1 })
+          .eq("id", orderedIds[i]);
+        if (updateError) throw updateError;
+      }
+
+      await refetch();
+      toast({ title: "Ordem otimizada com sucesso! 🚀" });
+    } catch (err: any) {
+      console.error("Optimize error:", err);
+      toast({ title: "Erro ao otimizar ordem", description: err.message, variant: "destructive" });
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -290,6 +338,18 @@ const Dashboard = () => {
                     className="pl-9 bg-secondary border-border w-full sm:w-64"
                   />
                 </div>
+                {canManageRoutes && selectedDriverFilter !== "all" && (
+                  <Button
+                    onClick={handleOptimizeOrder}
+                    disabled={isOptimizing || filteredRoutes.length < 2}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 whitespace-nowrap"
+                  >
+                    {isOptimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Route className="w-4 h-4" />}
+                    Sugerir Ordem
+                  </Button>
+                )}
               </div>
             </div>
 

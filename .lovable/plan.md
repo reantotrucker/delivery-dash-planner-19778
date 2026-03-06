@@ -1,31 +1,60 @@
 
+# Redesign: Tabela de Rotas para Layout em Cards
 
-## Plano: Sugestão Inteligente de Ordem de Rotas com IA
+## Visao Geral
+Substituir o layout de tabela atual por um grid de cards modernos, mais visuais e faceis de ler. Cada rota sera representada por um card individual com todas as informacoes organizadas de forma clara.
 
-### O que será feito
+## Design dos Cards
 
-Um botão "Sugerir Ordem" no Dashboard que, ao ser clicado, envia os endereços das rotas filtradas (por motorista e período) para a IA, que retorna a sequência otimizada de entregas. O sistema então atualiza automaticamente o `order_number` de cada rota.
+Cada card tera a seguinte estrutura:
 
-### Como funciona
+```text
++--------------------------------------------------+
+|  [#1]  NOME DO CLIENTE              [OK] badge    |
+|  Bairro: Centro  |  Consultor: Joao              |
+|  Endereco: Rua ABC, 123        [Maps] [Waze]     |
+|  ------------------------------------------------ |
+|  [Motor: Carlos]  [Veic: ABC-1234]  [PIX badge]  |
+|  ------------------------------------------------ |
+|  [Produtos 2/3]  [Ocorr. 1]  [Editar]  [Excluir] |
++--------------------------------------------------+
+```
 
-1. **Botão no Dashboard** - Ao lado dos filtros de motorista/busca, um botão "Sugerir Ordem" (ícone de rota/mapa) aparece quando há rotas filtradas por um motorista específico.
+- Borda lateral esquerda com a **cor do motorista** (5px de espessura)
+- Fundo do card com leve tonalidade da cor do motorista
+- Rotas urgentes com borda vermelha e indicador visual
+- Status como badge grande e clicavel no canto superior direito
+- Pagamento como badge colorido (PIX azul, BOLETO amber, etc.)
+- Botoes de acao na parte inferior do card, maiores e mais acessiveis
 
-2. **Edge Function `optimize-route-order`** - Recebe a lista de rotas (id, client, address, neighborhood, cep) e usa o modelo `google/gemini-2.5-flash` via Lovable AI Gateway para analisar os endereços em Manaus e retornar a ordem otimizada de entrega (minimizando deslocamento).
+## Layout Responsivo
+- **Desktop (lg+)**: Grid de 2 colunas
+- **Tablet (md)**: Grid de 2 colunas
+- **Mobile**: 1 coluna, cards empilhados com scroll
 
-3. **Atualização automática** - Com a resposta da IA, o sistema atualiza o `order_number` de cada rota no banco e recarrega a lista.
+## Detalhes Tecnicos
 
-### Detalhes técnicos
+### Arquivo modificado
+- `src/components/routes/RouteTable.tsx`
 
-- **Nova Edge Function**: `supabase/functions/optimize-route-order/index.ts`
-  - Recebe: `{ routes: [{ id, client, address, neighborhood, cep }] }`
-  - Prompt pede para ordenar por proximidade geográfica em Manaus
-  - Retorna: `{ orderedIds: ["id1", "id2", ...] }`
+### Mudancas principais
 
-- **Dashboard (`src/pages/Dashboard.tsx`)**:
-  - Botão "Sugerir Ordem" visível apenas quando um motorista específico está selecionado no filtro
-  - Ao clicar, invoca a edge function com as rotas filtradas
-  - Atualiza `order_number` de cada rota (1, 2, 3...) via batch update
-  - Toast de sucesso/erro + refetch
+1. **Remover estrutura de Table** (`Table`, `TableHeader`, `TableBody`, `TableRow`, `TableCell`) e substituir por `div` com grid layout usando classes Tailwind `grid grid-cols-1 md:grid-cols-2 gap-3`.
 
-- **Sem alterações no banco** - Usa o campo `order_number` já existente na tabela `routes`
+2. **Criar estrutura de Card** para cada rota usando o componente `Card` existente:
+   - Header: numero da rota + nome do cliente (bold, grande) + badge de status clicavel
+   - Body: informacoes organizadas em linhas (bairro, endereco com links Maps/Waze, consultor)
+   - Separador visual
+   - Footer: motorista, veiculo, badge de pagamento, e botoes de acao
 
+3. **Borda lateral colorida**: Usar `borderLeft: 5px solid ${route.driver?.color}` inline style no card.
+
+4. **Status badge**: Manter os badges ja criados (verde ENTREGUE, vermelho PENDENTE), posicionados no canto superior direito.
+
+5. **Acoes**: Botoes maiores com texto visivel (nao apenas icones), dispostos horizontalmente no footer do card.
+
+6. **Manter toda a logica existente**: toggleStatus, deleteRoute, deleteOccurrence, dialogs (ProductChecklist, RouteOccurrence, RouteEdit, AlertDialog de exclusao) permanecem inalterados.
+
+7. **Estado vazio**: Exibir mensagem centralizada "Nenhuma rota cadastrada" quando `routes.length === 0`.
+
+8. **Manter `getPaymentBadgeStyle`** e toda a logica de queries (routeProductCounts, occurrences).
