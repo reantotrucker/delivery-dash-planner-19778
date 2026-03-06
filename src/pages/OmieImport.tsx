@@ -14,8 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle, Search } from "lucide-react";
+import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle, Search, Upload, Camera } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -90,7 +92,25 @@ export default function OmieImport() {
   const [productsInvoice, setProductsInvoice] = useState<OmieInvoice | null>(null);
   const [dialogUrgent, setDialogUrgent] = useState(false);
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
-
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedData, setExtractedData] = useState<any>(null);
+  const [extractDialogOpen, setExtractDialogOpen] = useState(false);
+  const [extractFormData, setExtractFormData] = useState({
+    client: '',
+    neighborhood: '',
+    address: '',
+    cep: '',
+    observation: '',
+    driverId: '',
+    vehicleId: '',
+    consultantId: '',
+    paymentMethodId: '',
+    period: 'MANHA' as 'MANHA' | 'TARDE',
+    urgent: false,
+  });
+  const [extractedProducts, setExtractedProducts] = useState<Array<{
+    name: string; code: string | null; quantity: number; unit: string; unit_value: number | null; total_value: number | null;
+  }>>([]);
   // Query existing routes to find already-imported NF numbers
   const { data: existingRoutes } = useQuery({
     queryKey: ['existing-route-nf-numbers'],
@@ -342,6 +362,132 @@ export default function OmieImport() {
     });
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Max 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Arquivo muito grande. Máximo 10MB.');
+      return;
+    }
+
+    setIsExtracting(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]); // Remove data:...;base64, prefix
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke('extract-invoice-data', {
+        body: { fileBase64: base64, fileName: file.name, mimeType: file.type },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      const extracted = data.data;
+      setExtractedData(extracted);
+
+      // Auto-resolve consultant
+      const autoConsultantId = resolveConsultantId(extracted.seller_name);
+      // Auto-resolve payment method
+      let autoPaymentId = '';
+      if (extracted.payment_method && paymentMethods) {
+        const found = paymentMethods.find(pm => 
+          pm.name.toLowerCase() === extracted.payment_method?.toLowerCase()
+        );
+        autoPaymentId = found?.id || '';
+      }
+
+      const currentHour = new Date().getHours();
+      setExtractFormData({
+        client: extracted.client_name || '',
+        neighborhood: extracted.neighborhood || '',
+        address: extracted.address || '',
+        cep: extracted.cep || '',
+        observation: extracted.invoice_number ? `NF ${extracted.invoice_number}${extracted.observation ? ' - ' + extracted.observation : ''}` : (extracted.observation || ''),
+        driverId: '',
+        vehicleId: '',
+        consultantId: autoConsultantId,
+        paymentMethodId: autoPaymentId,
+        period: currentHour < 12 ? 'MANHA' : 'TARDE',
+        urgent: false,
+      });
+
+      setExtractedProducts(
+        (extracted.products || []).map((p: any) => ({
+          name: p.name || '',
+          code: p.code || null,
+          quantity: p.quantity || 1,
+          unit: p.unit || 'UN',
+          unit_value: p.unit_value || null,
+          total_value: p.total_value || null,
+        }))
+      );
+
+      setExtractDialogOpen(true);
+      toast.success('Dados extraídos com sucesso!');
+    } catch (err: any) {
+      toast.error(`Erro ao extrair dados: ${err.message}`);
+    } finally {
+      setIsExtracting(false);
+      // Reset file input
+      e.target.value = '';
+    }
+  };
+
+  const handleCreateRouteFromExtract = async () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const routeToCreate = {
+      client: extractFormData.client || 'Cliente não identificado',
+      neighborhood: extractFormData.neighborhood || 'N/A',
+      address: extractFormData.address || null,
+      cep: extractFormData.cep || null,
+      observation: extractFormData.observation || null,
+      date: today,
+      period: extractFormData.period,
+      order_number: 1,
+      status: 'NAO_ENTREGUE' as const,
+      driver_id: (extractFormData.driverId && extractFormData.driverId !== 'none') ? extractFormData.driverId : null,
+      vehicle_id: (extractFormData.vehicleId && extractFormData.vehicleId !== 'none') ? extractFormData.vehicleId : null,
+      consultant_id: (extractFormData.consultantId && extractFormData.consultantId !== 'none') ? extractFormData.consultantId : null,
+      payment_method_id: (extractFormData.paymentMethodId && extractFormData.paymentMethodId !== 'none') ? extractFormData.paymentMethodId : null,
+      urgent: extractFormData.urgent,
+    };
+
+    try {
+      const { data: routeData, error } = await supabase.from('routes').insert([routeToCreate]).select();
+      if (error) throw error;
+
+      if (extractedProducts.length > 0 && routeData && routeData.length > 0) {
+        const routeId = routeData[0].id;
+        const productRows = extractedProducts.map((p) => ({
+          route_id: routeId,
+          name: p.name,
+          code: p.code,
+          quantity: p.quantity,
+          unit: p.unit || 'UN',
+          unit_value: p.unit_value,
+          total_value: p.total_value,
+        }));
+        await supabase.from('route_products').insert(productRows);
+      }
+
+      toast.success('Rota criada com sucesso!');
+      setExtractDialogOpen(false);
+      setExtractedData(null);
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    } catch (err: any) {
+      toast.error(`Erro ao criar rota: ${err.message}`);
+    }
+  };
+
   const formatAddress = (address: OmieInvoice['address']) => {
     if (!address) return 'Endereço não disponível';
     return `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city}/${address.state}`;
@@ -349,11 +495,39 @@ export default function OmieImport() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Importar do Omie</h1>
-        <p className="text-muted-foreground">
-          Busque notas fiscais do Omie e crie rotas de entrega automaticamente
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Importar do Omie</h1>
+          <p className="text-muted-foreground">
+            Busque notas fiscais do Omie e crie rotas de entrega automaticamente
+          </p>
+        </div>
+        <div>
+          <input
+            type="file"
+            id="invoice-file-upload"
+            className="hidden"
+            accept="image/*,application/pdf,.pdf"
+            onChange={handleFileUpload}
+          />
+          <Button
+            variant="outline"
+            onClick={() => document.getElementById('invoice-file-upload')?.click()}
+            disabled={isExtracting}
+          >
+            {isExtracting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Extraindo...
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4 mr-2" />
+                Importar com Foto/PDF
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -785,6 +959,173 @@ export default function OmieImport() {
             <Button variant="outline" onClick={() => setProductsInvoice(null)}>
               Fechar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para criar rota a partir de foto/PDF */}
+      <Dialog open={extractDialogOpen} onOpenChange={setExtractDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Criar Rota - Dados Extraídos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Cliente</Label>
+                <Input
+                  value={extractFormData.client}
+                  onChange={(e) => setExtractFormData(prev => ({ ...prev, client: e.target.value }))}
+                  placeholder="Nome do cliente"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Endereço</Label>
+                <Input
+                  value={extractFormData.address}
+                  onChange={(e) => setExtractFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Endereço"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Bairro</Label>
+                  <Input
+                    value={extractFormData.neighborhood}
+                    onChange={(e) => setExtractFormData(prev => ({ ...prev, neighborhood: e.target.value }))}
+                    placeholder="Bairro"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>CEP</Label>
+                  <Input
+                    value={extractFormData.cep}
+                    onChange={(e) => setExtractFormData(prev => ({ ...prev, cep: e.target.value }))}
+                    placeholder="CEP"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Observação</Label>
+                <Textarea
+                  value={extractFormData.observation}
+                  onChange={(e) => setExtractFormData(prev => ({ ...prev, observation: e.target.value }))}
+                  placeholder="Observações"
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>Período de Entrega</Label>
+                <Select value={extractFormData.period} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, period: v as 'MANHA' | 'TARDE' }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MANHA">☀️ Manhã</SelectItem>
+                    <SelectItem value="TARDE">🌙 Tarde</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Motorista</Label>
+                <Select value={extractFormData.driverId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, driverId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o motorista" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {drivers?.map(d => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Veículo</Label>
+                <Select value={extractFormData.vehicleId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, vehicleId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o veículo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {vehicles?.map(v => (
+                      <SelectItem key={v.id} value={v.id}>{v.plate}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Consultor</Label>
+                <Select value={extractFormData.consultantId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, consultantId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o consultor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {consultants?.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Forma de Pagamento</Label>
+                <Select value={extractFormData.paymentMethodId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, paymentMethodId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a forma de pagamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {paymentMethods?.map(pm => (
+                      <SelectItem key={pm.id} value={pm.id}>{pm.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {extractedProducts.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Produtos ({extractedProducts.length})</Label>
+                  <ScrollArea className="max-h-[200px]">
+                    <div className="space-y-2">
+                      {extractedProducts.map((product, idx) => (
+                        <div key={idx} className="p-2 rounded-lg border bg-muted/30 text-sm">
+                          <p className="font-medium">{product.name}</p>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{product.quantity} {product.unit}</span>
+                            {product.total_value && <span className="text-primary font-medium">R$ {product.total_value.toFixed(2)}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex-row justify-between sm:justify-between">
+            <Button
+              variant={extractFormData.urgent ? "destructive" : "outline"}
+              onClick={() => setExtractFormData(prev => ({ ...prev, urgent: !prev.urgent }))}
+              type="button"
+            >
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              Urgente
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setExtractDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCreateRouteFromExtract}>
+                <Package className="w-4 h-4 mr-2" />
+                Criar Rota
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
