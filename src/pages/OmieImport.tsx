@@ -92,7 +92,25 @@ export default function OmieImport() {
   const [productsInvoice, setProductsInvoice] = useState<OmieInvoice | null>(null);
   const [dialogUrgent, setDialogUrgent] = useState(false);
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
-
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedData, setExtractedData] = useState<any>(null);
+  const [extractDialogOpen, setExtractDialogOpen] = useState(false);
+  const [extractFormData, setExtractFormData] = useState({
+    client: '',
+    neighborhood: '',
+    address: '',
+    cep: '',
+    observation: '',
+    driverId: '',
+    vehicleId: '',
+    consultantId: '',
+    paymentMethodId: '',
+    period: 'MANHA' as 'MANHA' | 'TARDE',
+    urgent: false,
+  });
+  const [extractedProducts, setExtractedProducts] = useState<Array<{
+    name: string; code: string | null; quantity: number; unit: string; unit_value: number | null; total_value: number | null;
+  }>>([]);
   // Query existing routes to find already-imported NF numbers
   const { data: existingRoutes } = useQuery({
     queryKey: ['existing-route-nf-numbers'],
