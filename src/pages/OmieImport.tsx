@@ -495,11 +495,39 @@ export default function OmieImport() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Importar do Omie</h1>
-        <p className="text-muted-foreground">
-          Busque notas fiscais do Omie e crie rotas de entrega automaticamente
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Importar do Omie</h1>
+          <p className="text-muted-foreground">
+            Busque notas fiscais do Omie e crie rotas de entrega automaticamente
+          </p>
+        </div>
+        <div>
+          <input
+            type="file"
+            id="invoice-file-upload"
+            className="hidden"
+            accept="image/*,application/pdf,.pdf"
+            onChange={handleFileUpload}
+          />
+          <Button
+            variant="outline"
+            onClick={() => document.getElementById('invoice-file-upload')?.click()}
+            disabled={isExtracting}
+          >
+            {isExtracting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Extraindo...
+              </>
+            ) : (
+              <>
+                <Camera className="w-4 h-4 mr-2" />
+                Importar com Foto/PDF
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
