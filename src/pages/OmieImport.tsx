@@ -362,11 +362,133 @@ export default function OmieImport() {
     });
   };
 
-  const formatAddress = (address: OmieInvoice['address']) => {
-    if (!address) return 'Endereço não disponível';
-    return `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city}/${address.state}`;
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Max 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Arquivo muito grande. Máximo 10MB.');
+      return;
+    }
+
+    setIsExtracting(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]); // Remove data:...;base64, prefix
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke('extract-invoice-data', {
+        body: { fileBase64: base64, fileName: file.name, mimeType: file.type },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      const extracted = data.data;
+      setExtractedData(extracted);
+
+      // Auto-resolve consultant
+      const autoConsultantId = resolveConsultantId(extracted.seller_name);
+      // Auto-resolve payment method
+      let autoPaymentId = '';
+      if (extracted.payment_method && paymentMethods) {
+        const found = paymentMethods.find(pm => 
+          pm.name.toLowerCase() === extracted.payment_method?.toLowerCase()
+        );
+        autoPaymentId = found?.id || '';
+      }
+
+      const currentHour = new Date().getHours();
+      setExtractFormData({
+        client: extracted.client_name || '',
+        neighborhood: extracted.neighborhood || '',
+        address: extracted.address || '',
+        cep: extracted.cep || '',
+        observation: extracted.invoice_number ? `NF ${extracted.invoice_number}${extracted.observation ? ' - ' + extracted.observation : ''}` : (extracted.observation || ''),
+        driverId: '',
+        vehicleId: '',
+        consultantId: autoConsultantId,
+        paymentMethodId: autoPaymentId,
+        period: currentHour < 12 ? 'MANHA' : 'TARDE',
+        urgent: false,
+      });
+
+      setExtractedProducts(
+        (extracted.products || []).map((p: any) => ({
+          name: p.name || '',
+          code: p.code || null,
+          quantity: p.quantity || 1,
+          unit: p.unit || 'UN',
+          unit_value: p.unit_value || null,
+          total_value: p.total_value || null,
+        }))
+      );
+
+      setExtractDialogOpen(true);
+      toast.success('Dados extraídos com sucesso!');
+    } catch (err: any) {
+      toast.error(`Erro ao extrair dados: ${err.message}`);
+    } finally {
+      setIsExtracting(false);
+      // Reset file input
+      e.target.value = '';
+    }
   };
 
+  const handleCreateRouteFromExtract = async () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const routeToCreate = {
+      client: extractFormData.client || 'Cliente não identificado',
+      neighborhood: extractFormData.neighborhood || 'N/A',
+      address: extractFormData.address || null,
+      cep: extractFormData.cep || null,
+      observation: extractFormData.observation || null,
+      date: today,
+      period: extractFormData.period,
+      order_number: 1,
+      status: 'NAO_ENTREGUE' as const,
+      driver_id: (extractFormData.driverId && extractFormData.driverId !== 'none') ? extractFormData.driverId : null,
+      vehicle_id: (extractFormData.vehicleId && extractFormData.vehicleId !== 'none') ? extractFormData.vehicleId : null,
+      consultant_id: (extractFormData.consultantId && extractFormData.consultantId !== 'none') ? extractFormData.consultantId : null,
+      payment_method_id: (extractFormData.paymentMethodId && extractFormData.paymentMethodId !== 'none') ? extractFormData.paymentMethodId : null,
+      urgent: extractFormData.urgent,
+    };
+
+    try {
+      const { data: routeData, error } = await supabase.from('routes').insert([routeToCreate]).select();
+      if (error) throw error;
+
+      if (extractedProducts.length > 0 && routeData && routeData.length > 0) {
+        const routeId = routeData[0].id;
+        const productRows = extractedProducts.map((p) => ({
+          route_id: routeId,
+          name: p.name,
+          code: p.code,
+          quantity: p.quantity,
+          unit: p.unit || 'UN',
+          unit_value: p.unit_value,
+          total_value: p.total_value,
+        }));
+        await supabase.from('route_products').insert(productRows);
+      }
+
+      toast.success('Rota criada com sucesso!');
+      setExtractDialogOpen(false);
+      setExtractedData(null);
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    } catch (err: any) {
+      toast.error(`Erro ao criar rota: ${err.message}`);
+    }
+  };
+
+  const formatAddress = (address: OmieInvoice['address']) => {
   return (
     <div className="space-y-6">
       <div>
