@@ -967,7 +967,38 @@ export default function OmieImport() {
       <Dialog open={extractDialogOpen} onOpenChange={setExtractDialogOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Criar Rota - Dados Extraídos</DialogTitle>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle>Criar Rota - Dados Extraídos</DialogTitle>
+              {extractedProducts.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
+                  onClick={() => setProductsInvoice({
+                    id: 'extract',
+                    number: 'Extraída',
+                    series: '',
+                    emissionDate: '',
+                    clientId: 0,
+                    clientName: extractFormData.client,
+                    clientCpfCnpj: '',
+                    address: null,
+                    totalValue: 0,
+                    products: extractedProducts.map(p => ({
+                      name: p.name,
+                      code: p.code || '',
+                      quantity: p.quantity,
+                      unit: p.unit,
+                      unitValue: p.unit_value || 0,
+                      totalValue: p.total_value || 0,
+                    })),
+                  } as OmieInvoice)}
+                >
+                  <ShoppingCart className="w-4 h-4 mr-1" />
+                  Produtos ({extractedProducts.length})
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-3">
@@ -1088,24 +1119,6 @@ export default function OmieImport() {
                 </Select>
               </div>
 
-              {extractedProducts.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Produtos ({extractedProducts.length})</Label>
-                  <ScrollArea className="max-h-[200px]">
-                    <div className="space-y-2">
-                      {extractedProducts.map((product, idx) => (
-                        <div key={idx} className="p-2 rounded-lg border bg-muted/30 text-sm">
-                          <p className="font-medium">{product.name}</p>
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>{product.quantity} {product.unit}</span>
-                            {product.total_value && <span className="text-primary font-medium">R$ {product.total_value.toFixed(2)}</span>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-              )}
             </div>
           </div>
           <DialogFooter className="flex-row justify-between sm:justify-between">
