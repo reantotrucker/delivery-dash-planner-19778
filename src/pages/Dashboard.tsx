@@ -17,6 +17,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useToast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
+  const { toast } = useToast();
   const { isAdmin, isMotorista, isComercial } = useAuth();
   const canManageRoutes = isAdmin;
   const canManageOccurrences = isAdmin || isMotorista || isComercial;
@@ -27,6 +28,7 @@ const Dashboard = () => {
   const [selectedDriverForPrint, setSelectedDriverForPrint] = useState<string>("all");
   const [printPeriod, setPrintPeriod] = useState<"MANHA" | "TARDE" | "COMPLETO">("MANHA");
   const [chartsOpen, setChartsOpen] = useState(true);
+  const [isOptimizing, setIsOptimizing] = useState(false);
 
   const { data: routes = [], refetch } = useQuery({
     queryKey: ["routes", selectedDate, selectedPeriod],
