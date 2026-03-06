@@ -965,7 +965,7 @@ export default function OmieImport() {
 
       {/* Dialog para criar rota a partir de foto/PDF */}
       <Dialog open={extractDialogOpen} onOpenChange={setExtractDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center justify-between pr-6">
               <DialogTitle>Criar Rota - Dados Extraídos</DialogTitle>
@@ -973,7 +973,6 @@ export default function OmieImport() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
                   onClick={() => setProductsInvoice({
                     id: 'extract',
                     number: 'Extraída',
@@ -995,57 +994,26 @@ export default function OmieImport() {
                   } as OmieInvoice)}
                 >
                   <ShoppingCart className="w-4 h-4 mr-1" />
-                  Produtos ({extractedProducts.length})
+                  Produtos
                 </Button>
               )}
             </div>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label>Cliente</Label>
-                <Input
-                  value={extractFormData.client}
-                  onChange={(e) => setExtractFormData(prev => ({ ...prev, client: e.target.value }))}
-                  placeholder="Nome do cliente"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Endereço</Label>
-                <Input
-                  value={extractFormData.address}
-                  onChange={(e) => setExtractFormData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="Endereço"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Bairro</Label>
-                  <Input
-                    value={extractFormData.neighborhood}
-                    onChange={(e) => setExtractFormData(prev => ({ ...prev, neighborhood: e.target.value }))}
-                    placeholder="Bairro"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>CEP</Label>
-                  <Input
-                    value={extractFormData.cep}
-                    onChange={(e) => setExtractFormData(prev => ({ ...prev, cep: e.target.value }))}
-                    placeholder="CEP"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label>Observação</Label>
-                <Textarea
-                  value={extractFormData.observation}
-                  onChange={(e) => setExtractFormData(prev => ({ ...prev, observation: e.target.value }))}
-                  placeholder="Observações"
-                  rows={2}
-                />
-              </div>
+            <div className="p-3 rounded-lg bg-muted/50 space-y-1 text-sm">
+              <p><span className="font-medium">Cliente:</span> {extractFormData.client || 'Não identificado'}</p>
+              {extractedData?.total_value && (
+                <p><span className="font-medium">Valor:</span> R$ {Number(extractedData.total_value).toFixed(2)}</p>
+              )}
+              {extractFormData.address && (
+                <p><span className="font-medium">Endereço:</span> {extractFormData.address}{extractFormData.neighborhood ? ` - ${extractFormData.neighborhood}` : ''}{extractFormData.cep ? `, CEP: ${extractFormData.cep}` : ''}</p>
+              )}
+              {extractedData?.payment_method && (
+                <p><span className="font-medium">Pagamento:</span> {extractedData.payment_method}</p>
+              )}
+            </div>
 
+            <div className="space-y-3">
               <div className="space-y-1">
                 <Label>Período de Entrega</Label>
                 <Select value={extractFormData.period} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, period: v as 'MANHA' | 'TARDE' }))}>
@@ -1090,7 +1058,14 @@ export default function OmieImport() {
               </div>
 
               <div className="space-y-1">
-                <Label>Consultor</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Consultor</Label>
+                  {extractedData?.seller_name && (
+                    <span className="text-xs text-muted-foreground">
+                      Detectado: <span className="font-medium">{extractedData.seller_name}</span>
+                    </span>
+                  )}
+                </div>
                 <Select value={extractFormData.consultantId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, consultantId: v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o consultor" />
@@ -1118,7 +1093,6 @@ export default function OmieImport() {
                   </SelectContent>
                 </Select>
               </div>
-
             </div>
           </div>
           <DialogFooter className="flex-row justify-between sm:justify-between">
