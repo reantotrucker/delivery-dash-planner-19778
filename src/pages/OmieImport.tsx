@@ -962,6 +962,173 @@ export default function OmieImport() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog para criar rota a partir de foto/PDF */}
+      <Dialog open={extractDialogOpen} onOpenChange={setExtractDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Criar Rota - Dados Extraídos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Cliente</Label>
+                <Input
+                  value={extractFormData.client}
+                  onChange={(e) => setExtractFormData(prev => ({ ...prev, client: e.target.value }))}
+                  placeholder="Nome do cliente"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Endereço</Label>
+                <Input
+                  value={extractFormData.address}
+                  onChange={(e) => setExtractFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Endereço"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Bairro</Label>
+                  <Input
+                    value={extractFormData.neighborhood}
+                    onChange={(e) => setExtractFormData(prev => ({ ...prev, neighborhood: e.target.value }))}
+                    placeholder="Bairro"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>CEP</Label>
+                  <Input
+                    value={extractFormData.cep}
+                    onChange={(e) => setExtractFormData(prev => ({ ...prev, cep: e.target.value }))}
+                    placeholder="CEP"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Observação</Label>
+                <Textarea
+                  value={extractFormData.observation}
+                  onChange={(e) => setExtractFormData(prev => ({ ...prev, observation: e.target.value }))}
+                  placeholder="Observações"
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>Período de Entrega</Label>
+                <Select value={extractFormData.period} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, period: v as 'MANHA' | 'TARDE' }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MANHA">☀️ Manhã</SelectItem>
+                    <SelectItem value="TARDE">🌙 Tarde</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Motorista</Label>
+                <Select value={extractFormData.driverId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, driverId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o motorista" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {drivers?.map(d => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Veículo</Label>
+                <Select value={extractFormData.vehicleId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, vehicleId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o veículo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {vehicles?.map(v => (
+                      <SelectItem key={v.id} value={v.id}>{v.plate}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Consultor</Label>
+                <Select value={extractFormData.consultantId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, consultantId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o consultor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {consultants?.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Forma de Pagamento</Label>
+                <Select value={extractFormData.paymentMethodId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, paymentMethodId: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a forma de pagamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {paymentMethods?.map(pm => (
+                      <SelectItem key={pm.id} value={pm.id}>{pm.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {extractedProducts.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Produtos ({extractedProducts.length})</Label>
+                  <ScrollArea className="max-h-[200px]">
+                    <div className="space-y-2">
+                      {extractedProducts.map((product, idx) => (
+                        <div key={idx} className="p-2 rounded-lg border bg-muted/30 text-sm">
+                          <p className="font-medium">{product.name}</p>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{product.quantity} {product.unit}</span>
+                            {product.total_value && <span className="text-primary font-medium">R$ {product.total_value.toFixed(2)}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex-row justify-between sm:justify-between">
+            <Button
+              variant={extractFormData.urgent ? "destructive" : "outline"}
+              onClick={() => setExtractFormData(prev => ({ ...prev, urgent: !prev.urgent }))}
+              type="button"
+            >
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              Urgente
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setExtractDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCreateRouteFromExtract}>
+                <Package className="w-4 h-4 mr-2" />
+                Criar Rota
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
