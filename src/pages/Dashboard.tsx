@@ -203,7 +203,51 @@ const Dashboard = () => {
     printWindow.print();
   };
 
-  return (
+  const handleOptimizeOrder = async () => {
+    if (filteredRoutes.length < 2) {
+      toast({ title: "Mínimo 2 rotas para otimizar", variant: "destructive" });
+      return;
+    }
+
+    setIsOptimizing(true);
+    try {
+      const routeData = filteredRoutes.map(r => ({
+        id: r.id,
+        client: r.client,
+        address: r.address || "",
+        neighborhood: r.neighborhood,
+        cep: r.cep || "",
+      }));
+
+      const { data, error } = await supabase.functions.invoke("optimize-route-order", {
+        body: { routes: routeData },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const orderedIds: string[] = data.orderedIds;
+
+      // Batch update order_number
+      for (let i = 0; i < orderedIds.length; i++) {
+        const { error: updateError } = await supabase
+          .from("routes")
+          .update({ order_number: i + 1 })
+          .eq("id", orderedIds[i]);
+        if (updateError) throw updateError;
+      }
+
+      await refetch();
+      toast({ title: "Ordem otimizada com sucesso! 🚀" });
+    } catch (err: any) {
+      console.error("Optimize error:", err);
+      toast({ title: "Erro ao otimizar ordem", description: err.message, variant: "destructive" });
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
+
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card/50 backdrop-blur-sm border-b border-border sticky top-0 z-40">
