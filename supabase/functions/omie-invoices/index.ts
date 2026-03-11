@@ -497,30 +497,46 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
   }
   const cupons = data.cupons || data.cupomFiscalCadastro || [];
 
-  const nfceInvoices = cupons.map((cupom: any) => ({
-    id: cupom.cabecalhoCupom?.nIdCupom || String(Math.random()),
-    number: cupom.cabecalhoCupom?.nNumCupom,
-    series: cupom.cabecalhoCupom?.nSerieCupom,
-    emissionDate: cupom.cabecalhoCupom?.dDtEmissaoCupom,
-    clientId: cupom.cabecalhoCupom?.idCliente || cupom.cabecalhoCupom?.nCodCli,
-    clientName: cupom.cliente?.razao_social || cupom.cliente?.nome_fantasia || '',
-    clientCpfCnpj: cupom.cliente?.cnpj_cpf || '',
-    address: null as any,
-    totalValue: cupom.cabecalhoCupom?.nValorCupom || 0,
-    accessKey: cupom.cabecalhoCupom?.cChaveCupom,
-    orderId: cupom.cabecalhoCupom?.nIdPedido || 0,
-    orderObservation: '',
-    vendedorName: null as string | null,
-    paymentMethod: cupom.pag?.[0]?.tPag || cupom.pagamentos?.[0]?.tPag || null,
-    products: (cupom.det || cupom.itensCupom || []).map((item: any) => ({
-      name: item.prod?.xProd || item.xProd || '',
-      quantity: item.prod?.qCom || item.qCom || 0,
-      unit: item.prod?.uCom || item.uCom || '',
-      unitValue: item.prod?.vUnCom || item.vUnCom || 0,
-      totalValue: item.prod?.vProd || item.vProd || 0,
-      code: item.prod?.cProd || item.cProd || '',
-    })),
-  }));
+  // Log first cupom structure for debugging
+  if (cupons.length > 0) {
+    const first = cupons[0];
+    const itemKeys = first.det ? 'det' : first.itensCupom ? 'itensCupom' : first.itens ? 'itens' : 'none';
+    const items = first.det || first.itensCupom || first.itens || [];
+    console.log(`NFCe items field: ${itemKeys}, count: ${items.length}`);
+    if (items.length > 0) {
+      console.log('NFCe first item keys:', JSON.stringify(Object.keys(items[0])));
+      console.log('NFCe first item:', JSON.stringify(items[0]).substring(0, 500));
+    }
+    console.log('NFCe cupom top-level keys:', JSON.stringify(Object.keys(first)));
+  }
+
+  const nfceInvoices = cupons.map((cupom: any) => {
+    const items = cupom.det || cupom.itensCupom || cupom.itens || [];
+    return {
+      id: cupom.cabecalhoCupom?.nIdCupom || String(Math.random()),
+      number: cupom.cabecalhoCupom?.nNumCupom,
+      series: cupom.cabecalhoCupom?.nSerieCupom,
+      emissionDate: cupom.cabecalhoCupom?.dDtEmissaoCupom,
+      clientId: cupom.cabecalhoCupom?.idCliente || cupom.cabecalhoCupom?.nCodCli,
+      clientName: cupom.cliente?.razao_social || cupom.cliente?.nome_fantasia || '',
+      clientCpfCnpj: cupom.cliente?.cnpj_cpf || '',
+      address: null as any,
+      totalValue: cupom.cabecalhoCupom?.nValorCupom || 0,
+      accessKey: cupom.cabecalhoCupom?.cChaveCupom,
+      orderId: cupom.cabecalhoCupom?.nIdPedido || 0,
+      orderObservation: '',
+      vendedorName: null as string | null,
+      paymentMethod: cupom.pag?.[0]?.tPag || cupom.pagamentos?.[0]?.tPag || null,
+      products: items.map((item: any) => ({
+        name: item.prod?.xProd || item.xProd || item.cDescrItem || item.descricao || '',
+        quantity: item.prod?.qCom || item.qCom || item.nQtdItem || item.quantidade || 0,
+        unit: item.prod?.uCom || item.uCom || item.cUnItem || item.unidade || '',
+        unitValue: item.prod?.vUnCom || item.vUnCom || item.nValUnit || item.valor_unitario || 0,
+        totalValue: item.prod?.vProd || item.vProd || item.nValItem || item.valor_total || 0,
+        code: item.prod?.cProd || item.cProd || item.cCodItem || item.codigo || '',
+      })),
+    };
+  });
 
   const uniqueClientIds = [...new Set(nfceInvoices.map((inv: any) => inv.clientId).filter(Boolean))] as number[];
   const nfceOrderIds = [...new Set(nfceInvoices.map((inv: any) => inv.orderId).filter((id: number) => id > 0))] as number[];
