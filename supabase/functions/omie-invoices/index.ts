@@ -508,6 +508,8 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
       console.log('NFCe first item:', JSON.stringify(items[0]).substring(0, 500));
     }
     console.log('NFCe cupom top-level keys:', JSON.stringify(Object.keys(first)));
+    console.log('NFCe cabecalhoCupom keys:', JSON.stringify(Object.keys(first.cabecalhoCupom || {})));
+    console.log('NFCe cabecalhoCupom:', JSON.stringify(first.cabecalhoCupom).substring(0, 800));
   }
 
   const nfceInvoices = cupons.map((cupom: any) => {
