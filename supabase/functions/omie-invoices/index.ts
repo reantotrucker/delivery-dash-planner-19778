@@ -527,6 +527,7 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
       accessKey: cupom.cabecalhoCupom?.cChaveCupom,
       orderId: cupom.cabecalhoCupom?.nIdPedido || 0,
       orderObservation: '',
+      vendedorId: cupom.cabecalhoCupom?.idVendedor || 0,
       vendedorName: null as string | null,
       paymentMethod: cupom.pagamentosCupom?.[0]?.tPag || null,
       products: items.map((item: any) => ({
@@ -543,7 +544,10 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
   const uniqueClientIds = [...new Set(nfceInvoices.map((inv: any) => inv.clientId).filter(Boolean))] as number[];
   const nfceOrderIds = [...new Set(nfceInvoices.map((inv: any) => inv.orderId).filter((id: number) => id > 0))] as number[];
 
-  console.log(`NFCe: Buscando ${uniqueClientIds.length} clientes e ${nfceOrderIds.length} pedidos (com cache)...`);
+  // Collect vendedor IDs directly from cupom headers
+  const cupomVendedorIds = [...new Set(nfceInvoices.map((inv: any) => inv.vendedorId).filter((id: number) => id > 0))] as number[];
+
+  console.log(`NFCe: Buscando ${uniqueClientIds.length} clientes, ${nfceOrderIds.length} pedidos, ${cupomVendedorIds.length} vendedores diretos...`);
 
   const clientAddresses = await fetchClientsWithCache(uniqueClientIds, appKey, appSecret);
   if (uniqueClientIds.length > 0 && nfceOrderIds.length > 0) {
@@ -559,10 +563,15 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     }
   }
 
-  const uniqueVendedorCodes = [...new Set(orderVendedorCodes.values())].filter(Boolean);
-  const vendedorCodeToName = await fetchVendedorNames(uniqueVendedorCodes, appKey, appSecret);
+  // Merge vendedor codes from orders + direct cupom vendedor IDs
+  const allVendedorCodes = [...new Set([
+    ...orderVendedorCodes.values(),
+    ...cupomVendedorIds,
+  ])].filter(Boolean);
+  const vendedorCodeToName = await fetchVendedorNames(allVendedorCodes, appKey, appSecret);
 
   for (const inv of nfceInvoices) {
+    // Try order-based vendor first, then direct cupom vendedor
     if (inv.orderId > 0) {
       if (orderObservations.has(inv.orderId)) {
         inv.orderObservation = orderObservations.get(inv.orderId) || '';
@@ -572,6 +581,12 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
         inv.vendedorName = vendedorCodeToName.get(vendCode) || null;
       }
     }
+    // Fallback: use idVendedor from cupom header
+    if (!inv.vendedorName && inv.vendedorId > 0) {
+      inv.vendedorName = vendedorCodeToName.get(inv.vendedorId) || null;
+    }
+    // Clean up vendedorId from response
+    delete inv.vendedorId;
   }
 
   return {
