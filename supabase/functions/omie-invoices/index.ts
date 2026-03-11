@@ -526,14 +526,14 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
       orderId: cupom.cabecalhoCupom?.nIdPedido || 0,
       orderObservation: '',
       vendedorName: null as string | null,
-      paymentMethod: cupom.pag?.[0]?.tPag || cupom.pagamentos?.[0]?.tPag || null,
+      paymentMethod: cupom.pagamentosCupom?.[0]?.tPag || null,
       products: items.map((item: any) => ({
-        name: item.prod?.xProd || item.xProd || item.cDescrItem || item.descricao || '',
-        quantity: item.prod?.qCom || item.qCom || item.nQtdItem || item.quantidade || 0,
-        unit: item.prod?.uCom || item.uCom || item.cUnItem || item.unidade || '',
-        unitValue: item.prod?.vUnCom || item.vUnCom || item.nValUnit || item.valor_unitario || 0,
-        totalValue: item.prod?.vProd || item.vProd || item.nValItem || item.valor_total || 0,
-        code: item.prod?.cProd || item.cProd || item.cCodItem || item.codigo || '',
+        name: item.xProd || '',
+        quantity: item.nQuant || 0,
+        unit: item.cUn || '',
+        unitValue: item.vUnit || 0,
+        totalValue: item.vItem || 0,
+        code: item.cCodigo || '',
       })),
     };
   });
