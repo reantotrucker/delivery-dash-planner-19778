@@ -511,6 +511,15 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     orderId: cupom.cabecalhoCupom?.nIdPedido || 0,
     orderObservation: '',
     vendedorName: null as string | null,
+    paymentMethod: cupom.pag?.[0]?.tPag || cupom.pagamentos?.[0]?.tPag || null,
+    products: (cupom.det || cupom.itensCupom || []).map((item: any) => ({
+      name: item.prod?.xProd || item.xProd || '',
+      quantity: item.prod?.qCom || item.qCom || 0,
+      unit: item.prod?.uCom || item.uCom || '',
+      unitValue: item.prod?.vUnCom || item.vUnCom || 0,
+      totalValue: item.prod?.vProd || item.vProd || 0,
+      code: item.prod?.cProd || item.cProd || '',
+    })),
   }));
 
   const uniqueClientIds = [...new Set(nfceInvoices.map((inv: any) => inv.clientId).filter(Boolean))] as number[];
