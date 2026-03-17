@@ -31,6 +31,9 @@ const Dashboard = () => {
   const [printPeriod, setPrintPeriod] = useState<"MANHA" | "TARDE" | "COMPLETO">("MANHA");
   const [chartsOpen, setChartsOpen] = useState(true);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [isLoadingMap, setIsLoadingMap] = useState(false);
+  const [mapData, setMapData] = useState<any>(null);
 
   const { data: routes = [], refetch } = useQuery({
     queryKey: ["routes", selectedDate, selectedPeriod],
