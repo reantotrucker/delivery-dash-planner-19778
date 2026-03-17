@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { RouteForm } from "@/components/routes/RouteForm";
 import { RouteTable } from "@/components/routes/RouteTable";
+import { RouteMap } from "@/components/routes/RouteMap";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp, Route, Loader2 } from "lucide-react";
+import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp, Route, Loader2, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +16,7 @@ import { StatsCards } from "@/components/dashboard/StatsCards";
 import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Dashboard = () => {
   const { toast } = useToast();
@@ -29,6 +31,9 @@ const Dashboard = () => {
   const [printPeriod, setPrintPeriod] = useState<"MANHA" | "TARDE" | "COMPLETO">("MANHA");
   const [chartsOpen, setChartsOpen] = useState(true);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [isLoadingMap, setIsLoadingMap] = useState(false);
+  const [mapData, setMapData] = useState<any>(null);
 
   const { data: routes = [], refetch } = useQuery({
     queryKey: ["routes", selectedDate, selectedPeriod],
@@ -247,6 +252,70 @@ const Dashboard = () => {
     }
   };
 
+  const handleOpenMap = async () => {
+    if (filteredRoutes.length === 0) {
+      toast({ title: "Nenhuma rota para exibir no mapa", variant: "destructive" });
+      return;
+    }
+
+    setMapOpen(true);
+    setIsLoadingMap(true);
+
+    try {
+      const routeData = filteredRoutes.map(r => ({
+        id: r.id,
+        client: r.client,
+        address: r.address || "",
+        neighborhood: r.neighborhood,
+        cep: r.cep || "",
+      }));
+
+      const { data, error } = await supabase.functions.invoke("optimize-route-order", {
+        body: { routes: routeData, includeCoordinates: true },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Group by driver with coordinates
+      const coordMap = new Map<string, { lat: number; lng: number }>();
+      (data.coordinates || []).forEach((c: any) => coordMap.set(c.id, { lat: c.lat, lng: c.lng }));
+
+      const orderedIds: string[] = data.orderedIds || [];
+      const driverGroupsMap = new Map<string, any>();
+
+      orderedIds.forEach((id, index) => {
+        const route = filteredRoutes.find(r => r.id === id);
+        if (!route) return;
+        const coord = coordMap.get(id);
+        if (!coord) return;
+
+        const driverName = route.driver?.name || "Sem motorista";
+        const color = route.driver?.color || "#6b7280";
+
+        if (!driverGroupsMap.has(driverName)) {
+          driverGroupsMap.set(driverName, { driverName, color, coordinates: [] });
+        }
+
+        driverGroupsMap.get(driverName).coordinates.push({
+          id,
+          lat: coord.lat,
+          lng: coord.lng,
+          client: route.client,
+          address: `${route.address || ""} - ${route.neighborhood}`,
+          order: index + 1,
+        });
+      });
+
+      setMapData(Array.from(driverGroupsMap.values()));
+    } catch (err: any) {
+      console.error("Map error:", err);
+      toast({ title: "Erro ao carregar mapa", description: err.message, variant: "destructive" });
+      setMapOpen(false);
+    } finally {
+      setIsLoadingMap(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -350,6 +419,16 @@ const Dashboard = () => {
                     Sugerir Ordem
                   </Button>
                 )}
+                <Button
+                  onClick={handleOpenMap}
+                  disabled={isLoadingMap || filteredRoutes.length === 0}
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 whitespace-nowrap"
+                >
+                  {isLoadingMap ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                  Ver Mapa
+                </Button>
               </div>
             </div>
 
@@ -425,6 +504,44 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Map Dialog */}
+      <Dialog open={mapOpen} onOpenChange={(open) => { setMapOpen(open); if (!open) setMapData(null); }}>
+        <DialogContent className="max-w-[95vw] w-full h-[85vh] p-0 gap-0">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary" />
+              Mapa de Rotas - {format(selectedDate, "dd/MM/yyyy")} - {selectedPeriod}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 px-4 pb-4 min-h-0">
+            {isLoadingMap ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-3">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                  <p className="text-sm text-muted-foreground">Calculando coordenadas com IA...</p>
+                </div>
+              </div>
+            ) : mapData ? (
+              <RouteMap driverGroups={mapData} />
+            ) : null}
+          </div>
+          {mapData && (
+            <div className="px-4 pb-3 flex flex-wrap gap-3 border-t border-border pt-3">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-black rounded-full flex items-center justify-center text-[8px] text-white">🏠</div>
+                <span className="text-xs text-muted-foreground">Base</span>
+              </div>
+              {mapData.map((g: any) => (
+                <div key={g.driverName} className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: g.color }} />
+                  <span className="text-xs text-muted-foreground">{g.driverName} ({g.coordinates.length})</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
