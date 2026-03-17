@@ -504,6 +504,44 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Map Dialog */}
+      <Dialog open={mapOpen} onOpenChange={(open) => { setMapOpen(open); if (!open) setMapData(null); }}>
+        <DialogContent className="max-w-[95vw] w-full h-[85vh] p-0 gap-0">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary" />
+              Mapa de Rotas - {format(selectedDate, "dd/MM/yyyy")} - {selectedPeriod}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 px-4 pb-4 min-h-0">
+            {isLoadingMap ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-3">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                  <p className="text-sm text-muted-foreground">Calculando coordenadas com IA...</p>
+                </div>
+              </div>
+            ) : mapData ? (
+              <RouteMap driverGroups={mapData} />
+            ) : null}
+          </div>
+          {mapData && (
+            <div className="px-4 pb-3 flex flex-wrap gap-3 border-t border-border pt-3">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-black rounded-full flex items-center justify-center text-[8px] text-white">🏠</div>
+                <span className="text-xs text-muted-foreground">Base</span>
+              </div>
+              {mapData.map((g: any) => (
+                <div key={g.driverName} className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: g.color }} />
+                  <span className="text-xs text-muted-foreground">{g.driverName} ({g.coordinates.length})</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
