@@ -252,6 +252,70 @@ const Dashboard = () => {
     }
   };
 
+  const handleOpenMap = async () => {
+    if (filteredRoutes.length === 0) {
+      toast({ title: "Nenhuma rota para exibir no mapa", variant: "destructive" });
+      return;
+    }
+
+    setMapOpen(true);
+    setIsLoadingMap(true);
+
+    try {
+      const routeData = filteredRoutes.map(r => ({
+        id: r.id,
+        client: r.client,
+        address: r.address || "",
+        neighborhood: r.neighborhood,
+        cep: r.cep || "",
+      }));
+
+      const { data, error } = await supabase.functions.invoke("optimize-route-order", {
+        body: { routes: routeData, includeCoordinates: true },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Group by driver with coordinates
+      const coordMap = new Map<string, { lat: number; lng: number }>();
+      (data.coordinates || []).forEach((c: any) => coordMap.set(c.id, { lat: c.lat, lng: c.lng }));
+
+      const orderedIds: string[] = data.orderedIds || [];
+      const driverGroupsMap = new Map<string, any>();
+
+      orderedIds.forEach((id, index) => {
+        const route = filteredRoutes.find(r => r.id === id);
+        if (!route) return;
+        const coord = coordMap.get(id);
+        if (!coord) return;
+
+        const driverName = route.driver?.name || "Sem motorista";
+        const color = route.driver?.color || "#6b7280";
+
+        if (!driverGroupsMap.has(driverName)) {
+          driverGroupsMap.set(driverName, { driverName, color, coordinates: [] });
+        }
+
+        driverGroupsMap.get(driverName).coordinates.push({
+          id,
+          lat: coord.lat,
+          lng: coord.lng,
+          client: route.client,
+          address: `${route.address || ""} - ${route.neighborhood}`,
+          order: index + 1,
+        });
+      });
+
+      setMapData(Array.from(driverGroupsMap.values()));
+    } catch (err: any) {
+      console.error("Map error:", err);
+      toast({ title: "Erro ao carregar mapa", description: err.message, variant: "destructive" });
+      setMapOpen(false);
+    } finally {
+      setIsLoadingMap(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
