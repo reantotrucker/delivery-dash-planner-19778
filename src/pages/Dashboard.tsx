@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { RouteForm } from "@/components/routes/RouteForm";
 import { RouteTable } from "@/components/routes/RouteTable";
+import { RouteMap } from "@/components/routes/RouteMap";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp, Route, Loader2 } from "lucide-react";
+import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp, Route, Loader2, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,6 +16,7 @@ import { StatsCards } from "@/components/dashboard/StatsCards";
 import { PerformanceCharts } from "@/components/dashboard/PerformanceCharts";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Dashboard = () => {
   const { toast } = useToast();
