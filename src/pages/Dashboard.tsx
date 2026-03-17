@@ -232,13 +232,26 @@ const Dashboard = () => {
       if (data?.error) throw new Error(data.error);
 
       const orderedIds: string[] = data.orderedIds;
+      
+      // Validate IDs against actual route IDs to handle AI returning malformed UUIDs
+      const validRouteIds = new Set(filteredRoutes.map(r => r.id));
+      const validOrderedIds = orderedIds.filter(id => validRouteIds.has(id));
+      
+      // If AI returned invalid IDs, fall back to matching by closest ID
+      const finalIds = validOrderedIds.length === filteredRoutes.length
+        ? validOrderedIds
+        : filteredRoutes.map(r => r.id); // fallback to original order
+
+      if (validOrderedIds.length !== filteredRoutes.length) {
+        console.warn("AI returned invalid IDs, using original order", { orderedIds, validRouteIds: [...validRouteIds] });
+      }
 
       // Batch update order_number
-      for (let i = 0; i < orderedIds.length; i++) {
+      for (let i = 0; i < finalIds.length; i++) {
         const { error: updateError } = await supabase
           .from("routes")
           .update({ order_number: i + 1 })
-          .eq("id", orderedIds[i]);
+          .eq("id", finalIds[i]);
         if (updateError) throw updateError;
       }
 
