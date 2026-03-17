@@ -419,6 +419,16 @@ const Dashboard = () => {
                     Sugerir Ordem
                   </Button>
                 )}
+                <Button
+                  onClick={handleOpenMap}
+                  disabled={isLoadingMap || filteredRoutes.length === 0}
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 whitespace-nowrap"
+                >
+                  {isLoadingMap ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                  Ver Mapa
+                </Button>
               </div>
             </div>
 
