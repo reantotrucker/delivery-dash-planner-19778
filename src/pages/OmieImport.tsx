@@ -820,6 +820,27 @@ export default function OmieImport() {
 
               <div className="space-y-3">
                 <div className="space-y-1">
+                  <Label>Data da Rota</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {format(dialogDate, "dd/MM/yyyy", { locale: ptBR })}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dialogDate}
+                        onSelect={(d) => d && setDialogDate(d)}
+                        locale={ptBR}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-1">
                   <Label>Período de Entrega</Label>
                   <Select value={dialogPeriod} onValueChange={(v) => setDialogPeriod(v as 'MANHA' | 'TARDE')}>
                     <SelectTrigger>
