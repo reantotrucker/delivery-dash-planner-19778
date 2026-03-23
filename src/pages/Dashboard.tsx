@@ -421,7 +421,7 @@ const Dashboard = () => {
                     className="pl-9 bg-secondary border-border w-full sm:w-64"
                   />
                 </div>
-                {canManageRoutes && selectedDriverFilter !== "all" && (
+                {(canManageRoutes || isMotorista) && selectedDriverFilter !== "all" && (
                   <Button
                     onClick={handleOptimizeOrder}
                     disabled={isOptimizing || filteredRoutes.length < 2}
