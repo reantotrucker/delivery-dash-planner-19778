@@ -92,6 +92,7 @@ export default function OmieImport() {
   const [dialogPaymentMethodId, setDialogPaymentMethodId] = useState<string>('');
   const [productsInvoice, setProductsInvoice] = useState<OmieInvoice | null>(null);
   const [dialogUrgent, setDialogUrgent] = useState(false);
+  const [dialogDate, setDialogDate] = useState<Date>(new Date());
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedData, setExtractedData] = useState<any>(null);
