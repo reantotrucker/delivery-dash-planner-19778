@@ -92,6 +92,7 @@ export default function OmieImport() {
   const [dialogPaymentMethodId, setDialogPaymentMethodId] = useState<string>('');
   const [productsInvoice, setProductsInvoice] = useState<OmieInvoice | null>(null);
   const [dialogUrgent, setDialogUrgent] = useState(false);
+  const [dialogDate, setDialogDate] = useState<Date>(new Date());
   const [createdInvoices, setCreatedInvoices] = useState<Set<string | number>>(new Set());
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedData, setExtractedData] = useState<any>(null);
@@ -242,10 +243,10 @@ export default function OmieImport() {
   }, [data?.invoices, startDate, endDate, searchTerm]);
 
   const createRoutesMutation = useMutation({
-    mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId, urgent, period }: { 
-      invoice: OmieInvoice; driverId: string; vehicleId: string; consultantId: string; paymentMethodId: string; urgent: boolean; period: 'MANHA' | 'TARDE';
+    mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId, urgent, period, routeDateParam }: { 
+      invoice: OmieInvoice; driverId: string; vehicleId: string; consultantId: string; paymentMethodId: string; urgent: boolean; period: 'MANHA' | 'TARDE'; routeDateParam: Date;
     }) => {
-      const today = format(new Date(), 'yyyy-MM-dd');
+      const routeDate = format(routeDateParam, 'yyyy-MM-dd');
       
       const routeToCreate = {
         client: invoice.clientName || `Cliente ${invoice.clientId}`,
@@ -255,7 +256,7 @@ export default function OmieImport() {
           : null,
         cep: invoice.address?.cep || null,
         observation: `NF ${invoice.number}${invoice.orderObservation ? ' - ' + invoice.orderObservation : ''}`,
-        date: today,
+        date: routeDate,
         period: period,
         order_number: 1,
         status: 'NAO_ENTREGUE' as const,
@@ -344,6 +345,7 @@ export default function OmieImport() {
     const autoPaymentId = resolvePaymentMethodId(invoice.paymentMethod);
     setDialogPaymentMethodId(autoPaymentId || '');
     setDialogUrgent(false);
+    setDialogDate(new Date());
     // Auto-detect period based on current time
     const currentHour = new Date().getHours();
     setDialogPeriod(currentHour < 12 ? 'MANHA' : 'TARDE');
@@ -360,6 +362,7 @@ export default function OmieImport() {
       paymentMethodId: dialogPaymentMethodId,
       urgent: dialogUrgent,
       period: dialogPeriod,
+      routeDateParam: dialogDate,
     });
   };
 
@@ -816,6 +819,27 @@ export default function OmieImport() {
               </div>
 
               <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label>Data da Rota</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {format(dialogDate, "dd/MM/yyyy", { locale: ptBR })}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dialogDate}
+                        onSelect={(d) => d && setDialogDate(d)}
+                        locale={ptBR}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
                 <div className="space-y-1">
                   <Label>Período de Entrega</Label>
                   <Select value={dialogPeriod} onValueChange={(v) => setDialogPeriod(v as 'MANHA' | 'TARDE')}>
