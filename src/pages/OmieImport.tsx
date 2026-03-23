@@ -48,6 +48,7 @@ interface OmieInvoice {
   number: string | number;
   series: string;
   emissionDate: string;
+  emissionTime?: string | null;
   clientId: number;
   clientName: string;
   clientCpfCnpj: string;
@@ -698,7 +699,7 @@ export default function OmieImport() {
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Emitida em {invoice.emissionDate}
+                            Emitida em {invoice.emissionDate}{invoice.emissionTime ? ` às ${invoice.emissionTime}` : ''}
                           </p>
                           <p className="text-lg font-semibold text-primary">
                             R$ {invoice.totalValue?.toFixed(2) || '0,00'}
