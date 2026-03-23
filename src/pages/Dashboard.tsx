@@ -310,13 +310,14 @@ const Dashboard = () => {
           driverGroupsMap.set(driverName, { driverName, color, coordinates: [] });
         }
 
-        driverGroupsMap.get(driverName).coordinates.push({
+        const group = driverGroupsMap.get(driverName);
+        group.coordinates.push({
           id,
           lat: coord.lat,
           lng: coord.lng,
           client: route.client,
           address: `${route.address || ""} - ${route.neighborhood}`,
-          order: index + 1,
+          order: group.coordinates.length + 1,
         });
       });
 
