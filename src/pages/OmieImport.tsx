@@ -155,14 +155,17 @@ export default function OmieImport() {
     },
   });
 
+  // Normalize NF number: strip leading zeros for consistent comparison
+  const normalizeNfNumber = (n: string | number) => String(n).replace(/^0+/, '') || '0';
+
   // Extract NF numbers from existing routes
   const importedNfNumbers = useMemo(() => {
     const set = new Set<string>();
     existingRoutes?.forEach((r) => {
       const match = r.observation?.match(/^NF\s+(\S+)/);
-      if (match) set.add(match[1]);
+      if (match) set.add(normalizeNfNumber(match[1]));
     });
-    createdInvoices.forEach(id => set.add(String(id)));
+    createdInvoices.forEach(id => set.add(normalizeNfNumber(id)));
     return set;
   }, [existingRoutes, createdInvoices]);
 
@@ -298,7 +301,7 @@ export default function OmieImport() {
       toast.success(`Rota criada com sucesso!`);
       setCreatedInvoices(prev => {
         const next = new Set(prev);
-        next.add(String(invoice.number));
+        next.add(normalizeNfNumber(invoice.number));
         return next;
       });
       setDialogInvoice(null);
@@ -335,7 +338,7 @@ export default function OmieImport() {
   }, [consultants]);
 
   const handleOpenInvoiceDialog = (invoice: OmieInvoice) => {
-    if (importedNfNumbers.has(String(invoice.number))) return;
+    if (importedNfNumbers.has(normalizeNfNumber(invoice.number))) return;
     setDialogDriverId('');
     setDialogVehicleId('');
     // Auto-fill consultant from Omie vendedor
@@ -674,7 +677,7 @@ export default function OmieImport() {
                   <div
                     key={invoice.id}
                     className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                      importedNfNumbers.has(String(invoice.number))
+                      importedNfNumbers.has(normalizeNfNumber(invoice.number))
                         ? 'border-green-500 bg-green-500/10 cursor-default'
                         : 'border-border hover:border-primary/50 hover:bg-primary/5'
                     }`}
@@ -690,7 +693,7 @@ export default function OmieImport() {
                             <span className="font-medium">
                               {activeTab === 'nfe' ? 'NF-e' : 'NFC-e'} #{invoice.number}
                             </span>
-                            {importedNfNumbers.has(String(invoice.number)) && (
+                            {importedNfNumbers.has(normalizeNfNumber(invoice.number)) && (
                               <Badge className="text-xs bg-green-500 text-white">
                                 ✓ Rota criada
                               </Badge>
