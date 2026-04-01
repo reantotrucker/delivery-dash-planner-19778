@@ -301,7 +301,7 @@ export default function OmieImport() {
       toast.success(`Rota criada com sucesso!`);
       setCreatedInvoices(prev => {
         const next = new Set(prev);
-        next.add(String(invoice.number));
+        next.add(normalizeNfNumber(invoice.number));
         return next;
       });
       setDialogInvoice(null);
