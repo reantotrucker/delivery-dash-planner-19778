@@ -155,14 +155,17 @@ export default function OmieImport() {
     },
   });
 
+  // Normalize NF number: strip leading zeros for consistent comparison
+  const normalizeNfNumber = (n: string | number) => String(n).replace(/^0+/, '') || '0';
+
   // Extract NF numbers from existing routes
   const importedNfNumbers = useMemo(() => {
     const set = new Set<string>();
     existingRoutes?.forEach((r) => {
       const match = r.observation?.match(/^NF\s+(\S+)/);
-      if (match) set.add(match[1]);
+      if (match) set.add(normalizeNfNumber(match[1]));
     });
-    createdInvoices.forEach(id => set.add(String(id)));
+    createdInvoices.forEach(id => set.add(normalizeNfNumber(id)));
     return set;
   }, [existingRoutes, createdInvoices]);
 
