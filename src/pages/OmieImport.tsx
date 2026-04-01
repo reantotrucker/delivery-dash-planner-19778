@@ -693,7 +693,7 @@ export default function OmieImport() {
                             <span className="font-medium">
                               {activeTab === 'nfe' ? 'NF-e' : 'NFC-e'} #{invoice.number}
                             </span>
-                            {importedNfNumbers.has(String(invoice.number)) && (
+                            {importedNfNumbers.has(normalizeNfNumber(invoice.number)) && (
                               <Badge className="text-xs bg-green-500 text-white">
                                 ✓ Rota criada
                               </Badge>
