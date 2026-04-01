@@ -677,7 +677,7 @@ export default function OmieImport() {
                   <div
                     key={invoice.id}
                     className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                      importedNfNumbers.has(String(invoice.number))
+                      importedNfNumbers.has(normalizeNfNumber(invoice.number))
                         ? 'border-green-500 bg-green-500/10 cursor-default'
                         : 'border-border hover:border-primary/50 hover:bg-primary/5'
                     }`}
