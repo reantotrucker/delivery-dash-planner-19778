@@ -338,7 +338,7 @@ export default function OmieImport() {
   }, [consultants]);
 
   const handleOpenInvoiceDialog = (invoice: OmieInvoice) => {
-    if (importedNfNumbers.has(String(invoice.number))) return;
+    if (importedNfNumbers.has(normalizeNfNumber(invoice.number))) return;
     setDialogDriverId('');
     setDialogVehicleId('');
     // Auto-fill consultant from Omie vendedor
