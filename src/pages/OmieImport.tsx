@@ -117,11 +117,23 @@ export default function OmieImport() {
   const { data: existingRoutes } = useQuery({
     queryKey: ['existing-route-nf-numbers'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('routes')
-        .select('observation')
-        .like('observation', 'NF %');
-      return data || [];
+      // Fetch only the NF numbers (not full observation) to stay within limits
+      // Use a broader approach: fetch all distinct NF numbers
+      const allObservations: { observation: string | null }[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data } = await supabase
+          .from('routes')
+          .select('observation')
+          .like('observation', 'NF %')
+          .range(from, from + pageSize - 1);
+        if (!data || data.length === 0) break;
+        allObservations.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return allObservations;
     },
   });
 
