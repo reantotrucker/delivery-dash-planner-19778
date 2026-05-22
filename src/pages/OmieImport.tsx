@@ -844,7 +844,7 @@ export default function OmieImport() {
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-muted/50 space-y-1 text-sm">
                 <p><span className="font-medium">Cliente:</span> {dialogInvoice.clientName || `Cliente ${dialogInvoice.clientId}`}</p>
-                <p><span className="font-medium">Valor:</span> R$ {dialogInvoice.totalValue?.toFixed(2)}</p>
+                <p><span className="font-medium">Valor:</span> {formatBRL(dialogInvoice.totalValue)}</p>
                 {dialogInvoice.address && (
                   <p><span className="font-medium">Endereço:</span> {formatAddress(dialogInvoice.address)}</p>
                 )}
