@@ -740,7 +740,7 @@ export default function OmieImport() {
                             Emitida em {invoice.emissionDate}{invoice.emissionTime ? ` às ${invoice.emissionTime}` : ''}
                           </p>
                           <p className="text-lg font-semibold text-primary">
-                            R$ {invoice.totalValue?.toFixed(2) || '0,00'}
+                            {formatBRL(invoice.totalValue)}
                           </p>
                           {invoice.paymentMethod && OMIE_PAYMENT_MAP[invoice.paymentMethod] && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
