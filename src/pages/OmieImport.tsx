@@ -254,8 +254,28 @@ export default function OmieImport() {
       });
     }
 
+    // Sort by emission date/time desc, then by NF number desc
+    result = [...result].sort((a, b) => {
+      const parseDT = (inv: OmieInvoice) => {
+        try {
+          const d = inv.emissionDate ? parse(inv.emissionDate, 'dd/MM/yyyy', new Date()) : new Date(0);
+          if (inv.emissionTime) {
+            const [h, m, s] = inv.emissionTime.split(':').map(Number);
+            d.setHours(h || 0, m || 0, s || 0, 0);
+          }
+          return d.getTime();
+        } catch { return 0; }
+      };
+      const diff = parseDT(b) - parseDT(a);
+      if (diff !== 0) return diff;
+      return Number(b.number) - Number(a.number);
+    });
+
     return result;
   }, [data?.invoices, startDate, endDate, searchTerm]);
+
+  const formatBRL = (value?: number | null) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0);
 
   const createRoutesMutation = useMutation({
     mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId, urgent, period, routeDateParam }: { 
@@ -720,7 +740,7 @@ export default function OmieImport() {
                             Emitida em {invoice.emissionDate}{invoice.emissionTime ? ` às ${invoice.emissionTime}` : ''}
                           </p>
                           <p className="text-lg font-semibold text-primary">
-                            R$ {invoice.totalValue?.toFixed(2) || '0,00'}
+                            {formatBRL(invoice.totalValue)}
                           </p>
                           {invoice.paymentMethod && OMIE_PAYMENT_MAP[invoice.paymentMethod] && (
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -824,7 +844,7 @@ export default function OmieImport() {
             <div className="space-y-4">
               <div className="p-3 rounded-lg bg-muted/50 space-y-1 text-sm">
                 <p><span className="font-medium">Cliente:</span> {dialogInvoice.clientName || `Cliente ${dialogInvoice.clientId}`}</p>
-                <p><span className="font-medium">Valor:</span> R$ {dialogInvoice.totalValue?.toFixed(2)}</p>
+                <p><span className="font-medium">Valor:</span> {formatBRL(dialogInvoice.totalValue)}</p>
                 {dialogInvoice.address && (
                   <p><span className="font-medium">Endereço:</span> {formatAddress(dialogInvoice.address)}</p>
                 )}
@@ -986,8 +1006,8 @@ export default function OmieImport() {
                       </div>
                       <div className="text-right shrink-0">
                         <span className="font-semibold text-sm">{product.quantity} {product.unit}</span>
-                        <span className="text-xs text-muted-foreground ml-2">R$ {product.unitValue?.toFixed(2)} un.</span>
-                        <span className="text-xs font-medium text-primary ml-2">R$ {product.totalValue?.toFixed(2)}</span>
+                        <span className="text-xs text-muted-foreground ml-2">{formatBRL(product.unitValue)} un.</span>
+                        <span className="text-xs font-medium text-primary ml-2">{formatBRL(product.totalValue)}</span>
                       </div>
                     </div>
                   </div>
@@ -1043,7 +1063,7 @@ export default function OmieImport() {
             <div className="p-3 rounded-lg bg-muted/50 space-y-1 text-sm">
               <p><span className="font-medium">Cliente:</span> {extractFormData.client || 'Não identificado'}</p>
               {extractedData?.total_value && (
-                <p><span className="font-medium">Valor:</span> R$ {Number(extractedData.total_value).toFixed(2)}</p>
+                <p><span className="font-medium">Valor:</span> {formatBRL(Number(extractedData.total_value))}</p>
               )}
               {extractFormData.address && (
                 <p><span className="font-medium">Endereço:</span> {extractFormData.address}{extractFormData.neighborhood ? ` - ${extractFormData.neighborhood}` : ''}{extractFormData.cep ? `, CEP: ${extractFormData.cep}` : ''}</p>
