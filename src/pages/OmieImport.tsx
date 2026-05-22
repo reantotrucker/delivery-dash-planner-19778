@@ -1006,8 +1006,8 @@ export default function OmieImport() {
                       </div>
                       <div className="text-right shrink-0">
                         <span className="font-semibold text-sm">{product.quantity} {product.unit}</span>
-                        <span className="text-xs text-muted-foreground ml-2">R$ {product.unitValue?.toFixed(2)} un.</span>
-                        <span className="text-xs font-medium text-primary ml-2">R$ {product.totalValue?.toFixed(2)}</span>
+                        <span className="text-xs text-muted-foreground ml-2">{formatBRL(product.unitValue)} un.</span>
+                        <span className="text-xs font-medium text-primary ml-2">{formatBRL(product.totalValue)}</span>
                       </div>
                     </div>
                   </div>
