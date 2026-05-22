@@ -254,8 +254,28 @@ export default function OmieImport() {
       });
     }
 
+    // Sort by emission date/time desc, then by NF number desc
+    result = [...result].sort((a, b) => {
+      const parseDT = (inv: OmieInvoice) => {
+        try {
+          const d = inv.emissionDate ? parse(inv.emissionDate, 'dd/MM/yyyy', new Date()) : new Date(0);
+          if (inv.emissionTime) {
+            const [h, m, s] = inv.emissionTime.split(':').map(Number);
+            d.setHours(h || 0, m || 0, s || 0, 0);
+          }
+          return d.getTime();
+        } catch { return 0; }
+      };
+      const diff = parseDT(b) - parseDT(a);
+      if (diff !== 0) return diff;
+      return Number(b.number) - Number(a.number);
+    });
+
     return result;
   }, [data?.invoices, startDate, endDate, searchTerm]);
+
+  const formatBRL = (value?: number | null) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value) || 0);
 
   const createRoutesMutation = useMutation({
     mutationFn: async ({ invoice, driverId, vehicleId, consultantId, paymentMethodId, urgent, period, routeDateParam }: { 
