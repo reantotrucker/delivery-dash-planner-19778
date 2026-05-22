@@ -1063,7 +1063,7 @@ export default function OmieImport() {
             <div className="p-3 rounded-lg bg-muted/50 space-y-1 text-sm">
               <p><span className="font-medium">Cliente:</span> {extractFormData.client || 'Não identificado'}</p>
               {extractedData?.total_value && (
-                <p><span className="font-medium">Valor:</span> R$ {Number(extractedData.total_value).toFixed(2)}</p>
+                <p><span className="font-medium">Valor:</span> {formatBRL(Number(extractedData.total_value))}</p>
               )}
               {extractFormData.address && (
                 <p><span className="font-medium">Endereço:</span> {extractFormData.address}{extractFormData.neighborhood ? ` - ${extractFormData.neighborhood}` : ''}{extractFormData.cep ? `, CEP: ${extractFormData.cep}` : ''}</p>
