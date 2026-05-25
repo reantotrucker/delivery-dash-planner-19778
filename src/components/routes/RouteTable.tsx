@@ -372,16 +372,16 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4 border-t border-border pt-3 mt-auto">
+                  <div className="flex items-center flex-wrap gap-x-4 gap-y-2 border-t border-border pt-3 mt-auto">
                     {mapsLink && (
                       <a
                         href={mapsLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider"
+                        className={`flex items-center gap-1.5 text-[10px] font-bold transition-colors uppercase tracking-wider ${hasExactLocation ? "text-emerald-500 hover:text-emerald-400" : "text-muted-foreground hover:text-foreground"}`}
                       >
-                        <MapPin className="w-3.5 h-3.5" />
-                        Google Maps
+                        {hasExactLocation ? <Crosshair className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
+                        {hasExactLocation ? "Local Exato" : "Google Maps"}
                       </a>
                     )}
                     {wazeLink && (
@@ -395,8 +395,62 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                         Waze
                       </a>
                     )}
+                    {canEditLocation && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            className={`flex items-center gap-1.5 text-[10px] font-bold transition-colors uppercase tracking-wider ${hasExactLocation ? "text-emerald-500 hover:text-emerald-400" : "text-primary hover:text-primary/80"}`}
+                          >
+                            <Crosshair className="w-3.5 h-3.5" />
+                            {hasExactLocation ? "Editar Local" : "Colar Localização"}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-3 space-y-2" align="start">
+                          <p className="text-xs font-semibold">Localização exata do cliente</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            Cole o link do Google Maps, Waze ou coordenadas (ex: -3.1019,-60.0250)
+                          </p>
+                          <Textarea
+                            rows={3}
+                            placeholder="https://maps.google.com/... ou -3.1019,-60.0250"
+                            value={locationDrafts[route.id] ?? route.location_link ?? ""}
+                            onChange={(e) => setLocationDrafts((p) => ({ ...p, [route.id]: e.target.value }))}
+                            className="text-xs"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-8 text-[11px] gap-1"
+                              onClick={() => pasteFromClipboard(route.id)}
+                            >
+                              <ClipboardPaste className="w-3 h-3" /> Colar
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="flex-1 h-8 text-[11px]"
+                              onClick={() => saveLocation(route.id)}
+                              disabled={savingLocationId === route.id}
+                            >
+                              {savingLocationId === route.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Salvar"}
+                            </Button>
+                          </div>
+                          {hasExactLocation && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="w-full h-7 text-[10px] text-destructive hover:text-destructive"
+                              onClick={() => clearLocation(route.id)}
+                            >
+                              Remover localização salva
+                            </Button>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </div>
                 </div>
+
 
                 {/* RIGHT: Logistics Details */}
                 <div className="p-4 bg-muted/20 md:w-72 shrink-0 flex flex-col justify-between gap-4">
