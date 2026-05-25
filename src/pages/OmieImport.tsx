@@ -734,10 +734,11 @@ export default function OmieImport() {
                         {/* Info da NF */}
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-medium">
-                              {activeTab === 'nfe' ? 'NF-e' : 'NFC-e'} #{invoice.number}
+                            <FileText className={`w-4 h-4 ${invoice.docType === 'nfce' ? 'text-blue-500' : 'text-red-500'}`} />
+                            <span className={`font-medium ${invoice.docType === 'nfce' ? 'text-blue-500' : 'text-red-500'}`}>
+                              {invoice.docType === 'nfce' ? 'NFC-e' : 'NF-e'} #{invoice.number}
                             </span>
+
                             {importedNfNumbers.has(normalizeNfNumber(invoice.number)) && (
                               <Badge className="text-xs bg-green-500 text-white">
                                 ✓ Rota criada
