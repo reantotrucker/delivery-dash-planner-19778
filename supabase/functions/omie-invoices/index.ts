@@ -606,11 +606,46 @@ serve(async (req) => {
   }
 
   try {
+    // Require authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const authClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: userData, error: userError } = await authClient.auth.getUser();
+    if (userError || !userData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    // Require admin or comercial role
+    const sb = getSupabase();
+    const { data: roles } = await sb
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userData.user.id);
+    const allowed = (roles ?? []).some((r: any) => ['admin', 'comercial'].includes(r.role));
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const OMIE_APP_KEY = Deno.env.get('OMIE_APP_KEY');
     const OMIE_APP_SECRET = Deno.env.get('OMIE_APP_SECRET');
 
     if (!OMIE_APP_KEY) throw new Error('OMIE_APP_KEY não configurada');
     if (!OMIE_APP_SECRET) throw new Error('OMIE_APP_SECRET não configurada');
+
 
     const { type, page = 1, fetchLastPage = false, forceRefresh = false } = await req.json();
 
