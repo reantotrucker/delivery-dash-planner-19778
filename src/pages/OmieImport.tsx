@@ -116,27 +116,25 @@ export default function OmieImport() {
   const [extractedProducts, setExtractedProducts] = useState<Array<{
     name: string; code: string | null; quantity: number; unit: string; unit_value: number | null; total_value: number | null;
   }>>([]);
-  // Query existing routes to find already-imported NF numbers
+  // Query existing routes to find already-imported NF numbers (with details for hover)
   const { data: existingRoutes } = useQuery({
     queryKey: ['existing-route-nf-numbers'],
     queryFn: async () => {
-      // Fetch only the NF numbers (not full observation) to stay within limits
-      // Use a broader approach: fetch all distinct NF numbers
-      const allObservations: { observation: string | null }[] = [];
+      const allRoutes: any[] = [];
       let from = 0;
       const pageSize = 1000;
       while (true) {
         const { data } = await supabase
           .from('routes')
-          .select('observation')
+          .select('observation, client, neighborhood, address, cep, period, date, driver_id, consultant_id, payment_method_id')
           .like('observation', 'NF %')
           .range(from, from + pageSize - 1);
         if (!data || data.length === 0) break;
-        allObservations.push(...data);
+        allRoutes.push(...data);
         if (data.length < pageSize) break;
         from += pageSize;
       }
-      return allObservations;
+      return allRoutes;
     },
   });
 
@@ -183,6 +181,21 @@ export default function OmieImport() {
     createdInvoices.forEach(id => set.add(normalizeNfNumber(id)));
     return set;
   }, [existingRoutes, createdInvoices]);
+
+  // Map NF number -> route details for hover
+  const importedRoutesByNf = useMemo(() => {
+    const map = new Map<string, any>();
+    existingRoutes?.forEach((r) => {
+      const match = r.observation?.match(/^NF\s+(\S+)/);
+      if (match) map.set(normalizeNfNumber(match[1]), r);
+    });
+    return map;
+  }, [existingRoutes]);
+
+  const driverName = (id?: string | null) => drivers?.find(d => d.id === id)?.name;
+  const consultantName = (id?: string | null) => consultants?.find(c => c.id === id)?.name;
+  const paymentName = (id?: string | null) => paymentMethods?.find(p => p.id === id)?.name;
+
 
   // Resolve payment method ID from Omie tPag code
   const resolvePaymentMethodId = useCallback((tPag?: string): string | null => {
