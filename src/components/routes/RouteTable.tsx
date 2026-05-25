@@ -514,34 +514,37 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                     )}
                   </div>
 
-                  {/* Action Bar */}
-                  <div className="flex flex-wrap gap-1.5">
+                  {/* Action Tiles 2x2 */}
+                  <div className="grid grid-cols-2 gap-2">
                     {productCount?.total > 0 && (
                       <Button
-                        variant="secondary"
-                        size="sm"
-                        className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 whitespace-nowrap"
+                        variant="ghost"
+                        className="group flex flex-col items-center justify-center gap-2 h-auto py-3 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
                         onClick={() => setChecklistRoute(route)}
                       >
-                        <Package className="w-3 h-3" />
-                        Produtos
+                        <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg group-hover:scale-110 transition-transform">
+                          <Package className="w-5 h-5" />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Produtos</span>
                       </Button>
                     )}
 
                     <Button
-                      variant={receiptCount > 0 ? "destructive" : "secondary"}
-                      size="sm"
-                      className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 whitespace-nowrap relative"
+                      variant="ghost"
+                      className="relative group flex flex-col items-center justify-center gap-2 h-auto py-3 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
                       onClick={() => setReceiptRoute(route)}
                     >
-                      <Camera className="w-3 h-3" />
-                      Canhoto
+                      <div className={`p-2 rounded-lg group-hover:scale-110 transition-transform ${receiptCount > 0 ? 'bg-destructive/15 text-destructive' : 'bg-muted/40 text-muted-foreground'}`}>
+                        <Camera className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Canhoto</span>
                       {receiptCount > 0 && (
-                        <span className="bg-white text-destructive text-[9px] rounded-full w-4 h-4 flex items-center justify-center font-black">
+                        <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-card shadow-lg">
                           {receiptCount}
                         </span>
                       )}
                     </Button>
+
 
 
                     {(isAdmin || canManageOccurrences) ? (
