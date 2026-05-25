@@ -109,6 +109,94 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
     enabled: routes.length > 0,
   });
 
+  const { data: receiptCounts = {}, refetch: refetchReceipts } = useQuery({
+    queryKey: ["route-receipt-counts", routes.map(r => r.id)],
+    queryFn: async () => {
+      if (routes.length === 0) return {} as Record<string, number>;
+      const { data, error } = await supabase
+        .from("route_receipts")
+        .select("route_id")
+        .in("route_id", routes.map(r => r.id));
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data as any[])?.forEach((r) => {
+        counts[r.route_id] = (counts[r.route_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: routes.length > 0,
+  });
+
+  const saveLocation = async (routeId: string) => {
+    const value = (locationDrafts[routeId] || "").trim();
+    if (!value) {
+      toast({ title: "Cole um link ou coordenadas", variant: "destructive" });
+      return;
+    }
+    setSavingLocationId(routeId);
+    const { error } = await supabase
+      .from("routes")
+      .update({ location_link: value })
+      .eq("id", routeId);
+    setSavingLocationId(null);
+    if (error) {
+      toast({ title: "Erro ao salvar localização", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Localização salva!" });
+      setLocationDrafts((p) => ({ ...p, [routeId]: "" }));
+      onUpdate();
+    }
+  };
+
+  const clearLocation = async (routeId: string) => {
+    const { error } = await supabase
+      .from("routes")
+      .update({ location_link: null })
+      .eq("id", routeId);
+    if (error) {
+      toast({ title: "Erro ao remover", variant: "destructive" });
+    } else {
+      toast({ title: "Localização removida" });
+      onUpdate();
+    }
+  };
+
+  const pasteFromClipboard = async (routeId: string) => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setLocationDrafts((p) => ({ ...p, [routeId]: text }));
+    } catch {
+      toast({ title: "Não foi possível acessar a área de transferência", variant: "destructive" });
+    }
+  };
+
+  // Build maps/waze links preferring saved exact location
+  const buildLocationLinks = (route: Route) => {
+    const loc = route.location_link?.trim();
+    if (loc) {
+      // If full URL, use it for Google Maps; build Waze from coords if possible
+      const coordsMatch = loc.match(/(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
+      if (loc.startsWith("http")) {
+        // If it's already a waze link, swap; else use as google maps
+        const isWaze = /waze\./i.test(loc);
+        const maps = isWaze ? (coordsMatch ? `https://www.google.com/maps/search/?api=1&query=${coordsMatch[1]},${coordsMatch[2]}` : null) : loc;
+        const waze = isWaze ? loc : (coordsMatch ? `https://waze.com/ul?ll=${coordsMatch[1]},${coordsMatch[2]}&navigate=yes` : null);
+        return { maps, waze };
+      }
+      if (coordsMatch) {
+        return {
+          maps: `https://www.google.com/maps/search/?api=1&query=${coordsMatch[1]},${coordsMatch[2]}`,
+          waze: `https://waze.com/ul?ll=${coordsMatch[1]},${coordsMatch[2]}&navigate=yes`,
+        };
+      }
+    }
+    return {
+      maps: generateGoogleMapsLink(route.address, route.cep, route.neighborhood),
+      waze: generateWazeLink(route.address, route.cep, route.neighborhood),
+    };
+  };
+
+
   const toggleStatus = async (routeId: string, currentStatus: string) => {
     const newStatus = currentStatus === "ENTREGUE" ? "NAO_ENTREGUE" : "ENTREGUE";
     const { error } = await supabase
