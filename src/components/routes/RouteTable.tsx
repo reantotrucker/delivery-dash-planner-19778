@@ -795,6 +795,19 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
           }}
         />
       )}
+
+      {receiptRoute && (
+        <RouteReceiptDialog
+          routeId={receiptRoute.id}
+          clientName={receiptRoute.client}
+          open={!!receiptRoute}
+          onOpenChange={(open) => {
+            if (!open) setReceiptRoute(null);
+          }}
+          canManage={canUploadReceipts}
+          onChange={refetchReceipts}
+        />
+      )}
     </>
   );
 };
