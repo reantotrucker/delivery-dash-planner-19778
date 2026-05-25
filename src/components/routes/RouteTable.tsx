@@ -514,147 +514,141 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                     )}
                   </div>
 
-                  {/* Action Tiles 2x2 */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {productCount?.total > 0 && (
-                      <Button
-                        variant="ghost"
-                        className="group flex flex-col items-center justify-center gap-2 h-auto py-2 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
-                        onClick={() => setChecklistRoute(route)}
-                      >
-                        <div className="p-1.5 bg-blue-500/10 text-blue-400 rounded-md group-hover:scale-110 transition-transform">
+                  {/* Action Bar: Primary + Secondary */}
+                  <div className="space-y-2">
+                    {/* Primary row: Produtos + Canhoto */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {productCount?.total > 0 ? (
+                        <Button
+                          className="flex items-center justify-center gap-2 h-10 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider shadow-md shadow-blue-900/20 active:scale-95 transition-all"
+                          onClick={() => setChecklistRoute(route)}
+                        >
                           <Package className="w-4 h-4" />
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Produtos</span>
-                      </Button>
-                    )}
-
-                    <Button
-                      variant="ghost"
-                      className="relative group flex flex-col items-center justify-center gap-2 h-auto py-2 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
-                      onClick={() => setReceiptRoute(route)}
-                    >
-                      <div className={`p-2 rounded-md group-hover:scale-110 transition-transform ${receiptCount > 0 ? 'bg-destructive/15 text-destructive p-1.5' : 'bg-muted/40 text-muted-foreground'}`}>
-                        <Camera className="w-4 h-4" />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Canhoto</span>
-                      {receiptCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-card shadow-lg">
-                          {receiptCount}
-                        </span>
+                          Produtos
+                        </Button>
+                      ) : (
+                        <div />
                       )}
-                    </Button>
 
+                      <Button
+                        variant="secondary"
+                        className="relative flex items-center justify-center gap-2 h-10 px-3 rounded-xl font-bold text-[11px] uppercase tracking-wider active:scale-95 transition-all"
+                        onClick={() => setReceiptRoute(route)}
+                      >
+                        <Camera className={`w-4 h-4 ${receiptCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`} />
+                        Canhoto
+                        {receiptCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-card shadow-lg">
+                            {receiptCount}
+                          </span>
+                        )}
+                      </Button>
+                    </div>
 
-
-                    {(isAdmin || canManageOccurrences) ? (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="relative group flex flex-col items-center justify-center gap-2 h-auto py-2 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
-                          >
-                            <div className="p-1.5 bg-muted/40 text-muted-foreground rounded-md group-hover:scale-110 transition-transform">
-                              <FileText className="w-4 h-4" />
-                            </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Ocorr.</span>
-                            {routeOccurrences.length > 0 && (
-                              <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-card shadow-lg">
-                                {routeOccurrences.length}
-                              </span>
+                    {/* Secondary row: Ocorrência + Reagendar */}
+                    <div className="flex items-center gap-2">
+                      {(isAdmin || canManageOccurrences) ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="relative flex-1 flex items-center justify-center gap-2 h-9 px-3 rounded-lg font-semibold text-[11px] uppercase tracking-wider text-foreground/80 active:scale-95 transition-all"
+                            >
+                              <FileText className="w-4 h-4 text-muted-foreground" />
+                              Ocorrência
+                              {routeOccurrences.length > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-card shadow-lg">
+                                  {routeOccurrences.length}
+                                </span>
+                              )}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {(mapsLink || wazeLink) && (
+                              <>
+                                {mapsLink && (
+                                  <DropdownMenuItem asChild>
+                                    <a href={mapsLink} target="_blank" rel="noopener noreferrer">
+                                      <MapPin className="w-4 h-4 mr-2" />
+                                      Google Maps
+                                    </a>
+                                  </DropdownMenuItem>
+                                )}
+                                {wazeLink && (
+                                  <DropdownMenuItem asChild>
+                                    <a href={wazeLink} target="_blank" rel="noopener noreferrer">
+                                      <Navigation className="w-4 h-4 mr-2" />
+                                      Waze
+                                    </a>
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                              </>
                             )}
-                          </Button>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setOccurrenceRoute(route);
+                                setEditingOccurrence(null);
+                                setOccurrenceDialogOpen(true);
+                              }}
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Nova Ocorrência
+                            </DropdownMenuItem>
+                            {routeOccurrences.length > 0 && (
+                              <>
+                                <DropdownMenuSeparator />
+                                {routeOccurrences.map((occ, idx) => (
+                                  <div key={occ.id}>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setOccurrenceRoute(route);
+                                        setEditingOccurrence(occ);
+                                        setOccurrenceDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="w-4 h-4 mr-2" />
+                                      Editar Ocorrência {idx + 1}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => setDeleteOccurrenceId(occ.id)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <X className="w-4 h-4 mr-2" />
+                                      Excluir Ocorrência {idx + 1}
+                                    </DropdownMenuItem>
+                                  </div>
+                                ))}
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        routeOccurrences.length > 0 && (
+                          <Badge variant="outline" className="text-[10px] gap-1 h-9 px-2 flex-1 justify-center">
+                            <FileText className="w-3 h-3" />
+                            {routeOccurrences.length}
+                          </Badge>
+                        )
+                      )}
 
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {(mapsLink || wazeLink) && (
-                            <>
-                              {mapsLink && (
-                                <DropdownMenuItem asChild>
-                                  <a href={mapsLink} target="_blank" rel="noopener noreferrer">
-                                    <MapPin className="w-4 h-4 mr-2" />
-                                    Google Maps
-                                  </a>
-                                </DropdownMenuItem>
-                              )}
-                              {wazeLink && (
-                                <DropdownMenuItem asChild>
-                                  <a href={wazeLink} target="_blank" rel="noopener noreferrer">
-                                    <Navigation className="w-4 h-4 mr-2" />
-                                    Waze
-                                  </a>
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                            </>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setOccurrenceRoute(route);
-                              setEditingOccurrence(null);
-                              setOccurrenceDialogOpen(true);
-                            }}
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Nova Ocorrência
-                          </DropdownMenuItem>
-                          {routeOccurrences.length > 0 && (
-                            <>
-                              <DropdownMenuSeparator />
-                              {routeOccurrences.map((occ, idx) => (
-                                <div key={occ.id}>
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setOccurrenceRoute(route);
-                                      setEditingOccurrence(occ);
-                                      setOccurrenceDialogOpen(true);
-                                    }}
-                                  >
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Editar Ocorrência {idx + 1}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => setDeleteOccurrenceId(occ.id)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <X className="w-4 h-4 mr-2" />
-                                    Excluir Ocorrência {idx + 1}
-                                  </DropdownMenuItem>
-                                </div>
-                              ))}
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      routeOccurrences.length > 0 && (
-                        <Badge variant="outline" className="text-[10px] gap-1 h-8 px-2">
-                          <FileText className="w-3 h-3" />
-                          {routeOccurrences.length}
-                        </Badge>
-                      )
-                    )}
-
-                    {(isAdmin || canManageOccurrences) && route.status !== "ENTREGUE" && (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="group flex flex-col items-center justify-center gap-2 h-auto py-2 px-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all active:scale-95"
-                            disabled={reschedulingId === route.id}
-                          >
-                            <div className="p-1.5 text-amber-500 group-hover:scale-110 transition-transform">
+                      {(isAdmin || canManageOccurrences) && route.status !== "ENTREGUE" && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              className="flex-1 flex items-center justify-center gap-2 h-9 px-3 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 rounded-lg font-semibold text-[11px] uppercase tracking-wider active:scale-95 transition-all"
+                              disabled={reschedulingId === route.id}
+                            >
                               {reschedulingId === route.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
                                 <RotateCcw className="w-4 h-4" />
                               )}
-                            </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Reagendar</span>
-                          </Button>
+                              Reagendar
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3 space-y-3" align="end">
 
-                        </PopoverTrigger>
-                        <PopoverContent className="w-64 p-3 space-y-3" align="end">
                           <p className="text-xs font-medium text-foreground">Reagendar rota para:</p>
                           <div className="space-y-2">
                             <div>
@@ -690,6 +684,9 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                         </PopoverContent>
                       </Popover>
                     )}
+                    </div>
+
+
 
                     {isAdmin && (
                       <div className="flex w-full gap-1.5 mt-0.5">
