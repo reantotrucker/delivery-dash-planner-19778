@@ -551,18 +551,20 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
-                            variant="secondary"
-                            size="sm"
-                            className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 whitespace-nowrap relative"
+                            variant="ghost"
+                            className="relative group flex flex-col items-center justify-center gap-2 h-auto py-3 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
                           >
-                            <FileText className="w-3 h-3" />
-                            Ocorr.
+                            <div className="p-2 bg-muted/40 text-muted-foreground rounded-lg group-hover:scale-110 transition-transform">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Ocorr.</span>
                             {routeOccurrences.length > 0 && (
-                              <span className="bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center">
+                              <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-card shadow-lg">
                                 {routeOccurrences.length}
                               </span>
                             )}
                           </Button>
+
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {(mapsLink || wazeLink) && (
