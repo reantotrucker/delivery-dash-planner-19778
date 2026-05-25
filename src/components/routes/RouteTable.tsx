@@ -2,7 +2,9 @@ import { Route, generateGoogleMapsLink, generateWazeLink } from "./types";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2 } from "lucide-react";
+import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2, Camera, ClipboardPaste, Crosshair, ExternalLink } from "lucide-react";
+import { RouteReceiptDialog } from "./RouteReceiptDialog";
+import { Textarea } from "@/components/ui/textarea";
 import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
 import { ProductChecklistDialog } from "./ProductChecklistDialog";
 import { RouteEditDialog } from "./RouteEditDialog";
@@ -49,10 +51,17 @@ interface RouteTableProps {
   routes: Route[];
   onUpdate: () => void;
   isAdmin: boolean;
+  isMotorista?: boolean;
+  isComercial?: boolean;
   canManageOccurrences?: boolean;
 }
 
-export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = false }: RouteTableProps) => {
+export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isComercial = false, canManageOccurrences = false }: RouteTableProps) => {
+  const [receiptRoute, setReceiptRoute] = useState<Route | null>(null);
+  const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
+  const [savingLocationId, setSavingLocationId] = useState<string | null>(null);
+  const canEditLocation = isAdmin || isComercial;
+  const canUploadReceipts = isAdmin || isMotorista;
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [occurrenceRoute, setOccurrenceRoute] = useState<Route | null>(null);
   const [editingOccurrence, setEditingOccurrence] = useState<Occurrence | null>(null);
@@ -99,6 +108,94 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
     },
     enabled: routes.length > 0,
   });
+
+  const { data: receiptCounts = {}, refetch: refetchReceipts } = useQuery({
+    queryKey: ["route-receipt-counts", routes.map(r => r.id)],
+    queryFn: async () => {
+      if (routes.length === 0) return {} as Record<string, number>;
+      const { data, error } = await supabase
+        .from("route_receipts")
+        .select("route_id")
+        .in("route_id", routes.map(r => r.id));
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data as any[])?.forEach((r) => {
+        counts[r.route_id] = (counts[r.route_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: routes.length > 0,
+  });
+
+  const saveLocation = async (routeId: string) => {
+    const value = (locationDrafts[routeId] || "").trim();
+    if (!value) {
+      toast({ title: "Cole um link ou coordenadas", variant: "destructive" });
+      return;
+    }
+    setSavingLocationId(routeId);
+    const { error } = await supabase
+      .from("routes")
+      .update({ location_link: value })
+      .eq("id", routeId);
+    setSavingLocationId(null);
+    if (error) {
+      toast({ title: "Erro ao salvar localização", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Localização salva!" });
+      setLocationDrafts((p) => ({ ...p, [routeId]: "" }));
+      onUpdate();
+    }
+  };
+
+  const clearLocation = async (routeId: string) => {
+    const { error } = await supabase
+      .from("routes")
+      .update({ location_link: null })
+      .eq("id", routeId);
+    if (error) {
+      toast({ title: "Erro ao remover", variant: "destructive" });
+    } else {
+      toast({ title: "Localização removida" });
+      onUpdate();
+    }
+  };
+
+  const pasteFromClipboard = async (routeId: string) => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setLocationDrafts((p) => ({ ...p, [routeId]: text }));
+    } catch {
+      toast({ title: "Não foi possível acessar a área de transferência", variant: "destructive" });
+    }
+  };
+
+  // Build maps/waze links preferring saved exact location
+  const buildLocationLinks = (route: Route) => {
+    const loc = route.location_link?.trim();
+    if (loc) {
+      // If full URL, use it for Google Maps; build Waze from coords if possible
+      const coordsMatch = loc.match(/(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
+      if (loc.startsWith("http")) {
+        // If it's already a waze link, swap; else use as google maps
+        const isWaze = /waze\./i.test(loc);
+        const maps = isWaze ? (coordsMatch ? `https://www.google.com/maps/search/?api=1&query=${coordsMatch[1]},${coordsMatch[2]}` : null) : loc;
+        const waze = isWaze ? loc : (coordsMatch ? `https://waze.com/ul?ll=${coordsMatch[1]},${coordsMatch[2]}&navigate=yes` : null);
+        return { maps, waze };
+      }
+      if (coordsMatch) {
+        return {
+          maps: `https://www.google.com/maps/search/?api=1&query=${coordsMatch[1]},${coordsMatch[2]}`,
+          waze: `https://waze.com/ul?ll=${coordsMatch[1]},${coordsMatch[2]}&navigate=yes`,
+        };
+      }
+    }
+    return {
+      maps: generateGoogleMapsLink(route.address, route.cep, route.neighborhood),
+      waze: generateWazeLink(route.address, route.cep, route.neighborhood),
+    };
+  };
+
 
   const toggleStatus = async (routeId: string, currentStatus: string) => {
     const newStatus = currentStatus === "ENTREGUE" ? "NAO_ENTREGUE" : "ENTREGUE";
@@ -195,8 +292,9 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
           const productCount = routeProductCounts[route.id];
           const paymentStyle = getPaymentBadgeStyle(route.payment_method?.name);
           const driverColor = route.driver?.color;
-          const mapsLink = generateGoogleMapsLink(route.address, route.cep, route.neighborhood);
-          const wazeLink = generateWazeLink(route.address, route.cep, route.neighborhood);
+          const { maps: mapsLink, waze: wazeLink } = buildLocationLinks(route);
+          const hasExactLocation = !!route.location_link?.trim();
+          const receiptCount = receiptCounts[route.id] || 0;
 
           return (
             <Card
@@ -274,16 +372,16 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4 border-t border-border pt-3 mt-auto">
+                  <div className="flex items-center flex-wrap gap-x-4 gap-y-2 border-t border-border pt-3 mt-auto">
                     {mapsLink && (
                       <a
                         href={mapsLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider"
+                        className={`flex items-center gap-1.5 text-[10px] font-bold transition-colors uppercase tracking-wider ${hasExactLocation ? "text-emerald-500 hover:text-emerald-400" : "text-muted-foreground hover:text-foreground"}`}
                       >
-                        <MapPin className="w-3.5 h-3.5" />
-                        Google Maps
+                        {hasExactLocation ? <Crosshair className="w-3.5 h-3.5" /> : <MapPin className="w-3.5 h-3.5" />}
+                        {hasExactLocation ? "Local Exato" : "Google Maps"}
                       </a>
                     )}
                     {wazeLink && (
@@ -297,8 +395,62 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                         Waze
                       </a>
                     )}
+                    {canEditLocation && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            className={`flex items-center gap-1.5 text-[10px] font-bold transition-colors uppercase tracking-wider ${hasExactLocation ? "text-emerald-500 hover:text-emerald-400" : "text-primary hover:text-primary/80"}`}
+                          >
+                            <Crosshair className="w-3.5 h-3.5" />
+                            {hasExactLocation ? "Editar Local" : "Colar Localização"}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-3 space-y-2" align="start">
+                          <p className="text-xs font-semibold">Localização exata do cliente</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            Cole o link do Google Maps, Waze ou coordenadas (ex: -3.1019,-60.0250)
+                          </p>
+                          <Textarea
+                            rows={3}
+                            placeholder="https://maps.google.com/... ou -3.1019,-60.0250"
+                            value={locationDrafts[route.id] ?? route.location_link ?? ""}
+                            onChange={(e) => setLocationDrafts((p) => ({ ...p, [route.id]: e.target.value }))}
+                            className="text-xs"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-8 text-[11px] gap-1"
+                              onClick={() => pasteFromClipboard(route.id)}
+                            >
+                              <ClipboardPaste className="w-3 h-3" /> Colar
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="flex-1 h-8 text-[11px]"
+                              onClick={() => saveLocation(route.id)}
+                              disabled={savingLocationId === route.id}
+                            >
+                              {savingLocationId === route.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Salvar"}
+                            </Button>
+                          </div>
+                          {hasExactLocation && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="w-full h-7 text-[10px] text-destructive hover:text-destructive"
+                              onClick={() => clearLocation(route.id)}
+                            >
+                              Remover localização salva
+                            </Button>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </div>
                 </div>
+
 
                 {/* RIGHT: Logistics Details */}
                 <div className="p-4 bg-muted/20 md:w-72 shrink-0 flex flex-col justify-between gap-4">
@@ -375,6 +527,22 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
                         Produtos
                       </Button>
                     )}
+
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 relative"
+                      onClick={() => setReceiptRoute(route)}
+                    >
+                      <Camera className="w-3 h-3" />
+                      Canhoto
+                      {receiptCount > 0 && (
+                        <span className="bg-emerald-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center">
+                          {receiptCount}
+                        </span>
+                      )}
+                    </Button>
+
 
                     {(isAdmin || canManageOccurrences) ? (
                       <DropdownMenu>
@@ -625,6 +793,19 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
           onOpenChange={(open) => {
             if (!open) setChecklistRoute(null);
           }}
+        />
+      )}
+
+      {receiptRoute && (
+        <RouteReceiptDialog
+          routeId={receiptRoute.id}
+          clientName={receiptRoute.client}
+          open={!!receiptRoute}
+          onOpenChange={(open) => {
+            if (!open) setReceiptRoute(null);
+          }}
+          canManage={canUploadReceipts}
+          onChange={refetchReceipts}
         />
       )}
     </>
