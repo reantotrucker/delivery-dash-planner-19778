@@ -18,6 +18,7 @@ export interface Route {
   period: "MANHA" | "TARDE";
   order_number: number;
   urgent?: boolean;
+  location_link?: string | null;
 }
 
 export const generateGoogleMapsLink = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {
