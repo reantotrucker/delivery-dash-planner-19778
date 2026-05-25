@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { title: "Rotas", url: "/", icon: Home, adminOnly: false },
@@ -91,6 +92,7 @@ export function AppSidebar() {
             {getRoleLabel()}
           </Badge>
         )}
+        <ThemeToggle collapsed={collapsed} />
         <Button
           variant="ghost"
           size="sm"
