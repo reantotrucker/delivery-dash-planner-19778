@@ -519,10 +519,10 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                     {productCount?.total > 0 && (
                       <Button
                         variant="ghost"
-                        className="group flex flex-col items-center justify-center gap-2 h-auto py-3 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
+                        className="group flex flex-col items-center justify-center gap-2 h-auto py-2 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
                         onClick={() => setChecklistRoute(route)}
                       >
-                        <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg group-hover:scale-110 transition-transform">
+                        <div className="p-1.5 bg-blue-500/10 text-blue-400 rounded-md group-hover:scale-110 transition-transform">
                           <Package className="w-5 h-5" />
                         </div>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Produtos</span>
@@ -531,10 +531,10 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
 
                     <Button
                       variant="ghost"
-                      className="relative group flex flex-col items-center justify-center gap-2 h-auto py-3 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
+                      className="relative group flex flex-col items-center justify-center gap-2 h-auto py-2 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
                       onClick={() => setReceiptRoute(route)}
                     >
-                      <div className={`p-2 rounded-lg group-hover:scale-110 transition-transform ${receiptCount > 0 ? 'bg-destructive/15 text-destructive' : 'bg-muted/40 text-muted-foreground'}`}>
+                      <div className={`p-2 rounded-md group-hover:scale-110 transition-transform ${receiptCount > 0 ? 'bg-destructive/15 text-destructive p-1.5' : 'bg-muted/40 text-muted-foreground'}`}>
                         <Camera className="w-5 h-5" />
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Canhoto</span>
@@ -552,9 +552,9 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
-                            className="relative group flex flex-col items-center justify-center gap-2 h-auto py-3 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
+                            className="relative group flex flex-col items-center justify-center gap-2 h-auto py-2 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
                           >
-                            <div className="p-2 bg-muted/40 text-muted-foreground rounded-lg group-hover:scale-110 transition-transform">
+                            <div className="p-1.5 bg-muted/40 text-muted-foreground rounded-md group-hover:scale-110 transition-transform">
                               <FileText className="w-5 h-5" />
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Ocorr.</span>
@@ -640,10 +640,10 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                         <PopoverTrigger asChild>
                           <Button
                             variant="ghost"
-                            className="group flex flex-col items-center justify-center gap-2 h-auto py-3 px-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all active:scale-95"
+                            className="group flex flex-col items-center justify-center gap-2 h-auto py-2 px-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all active:scale-95"
                             disabled={reschedulingId === route.id}
                           >
-                            <div className="p-2 text-amber-500 group-hover:scale-110 transition-transform">
+                            <div className="p-1.5 text-amber-500 group-hover:scale-110 transition-transform">
                               {reschedulingId === route.id ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
                               ) : (
