@@ -85,8 +85,8 @@ interface OmieResponse {
 
 export default function OmieImport() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'nfe' | 'nfce'>('nfe');
   const [currentPage, setCurrentPage] = useState<number | null>(null);
+
   const [dialogPeriod, setDialogPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
   const [dialogInvoice, setDialogInvoice] = useState<OmieInvoice | null>(null);
   const [dialogDriverId, setDialogDriverId] = useState<string>('');
