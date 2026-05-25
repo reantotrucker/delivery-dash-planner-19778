@@ -262,6 +262,12 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
               </div>
             )}
           </div>
+
+          <div className="flex justify-end pt-4 border-t mt-2">
+            <Button onClick={() => onOpenChange(false)} disabled={uploading}>
+              Salvar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
