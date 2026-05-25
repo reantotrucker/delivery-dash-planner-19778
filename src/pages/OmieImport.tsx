@@ -21,6 +21,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+
 
 // Omie tPag fiscal codes mapped to local payment method names
 const OMIE_PAYMENT_MAP: Record<string, string> = {
@@ -116,27 +118,25 @@ export default function OmieImport() {
   const [extractedProducts, setExtractedProducts] = useState<Array<{
     name: string; code: string | null; quantity: number; unit: string; unit_value: number | null; total_value: number | null;
   }>>([]);
-  // Query existing routes to find already-imported NF numbers
+  // Query existing routes to find already-imported NF numbers (with details for hover)
   const { data: existingRoutes } = useQuery({
     queryKey: ['existing-route-nf-numbers'],
     queryFn: async () => {
-      // Fetch only the NF numbers (not full observation) to stay within limits
-      // Use a broader approach: fetch all distinct NF numbers
-      const allObservations: { observation: string | null }[] = [];
+      const allRoutes: any[] = [];
       let from = 0;
       const pageSize = 1000;
       while (true) {
         const { data } = await supabase
           .from('routes')
-          .select('observation')
+          .select('observation, client, neighborhood, address, cep, period, date, driver_id, consultant_id, payment_method_id')
           .like('observation', 'NF %')
           .range(from, from + pageSize - 1);
         if (!data || data.length === 0) break;
-        allObservations.push(...data);
+        allRoutes.push(...data);
         if (data.length < pageSize) break;
         from += pageSize;
       }
-      return allObservations;
+      return allRoutes;
     },
   });
 
@@ -183,6 +183,21 @@ export default function OmieImport() {
     createdInvoices.forEach(id => set.add(normalizeNfNumber(id)));
     return set;
   }, [existingRoutes, createdInvoices]);
+
+  // Map NF number -> route details for hover
+  const importedRoutesByNf = useMemo(() => {
+    const map = new Map<string, any>();
+    existingRoutes?.forEach((r) => {
+      const match = r.observation?.match(/^NF\s+(\S+)/);
+      if (match) map.set(normalizeNfNumber(match[1]), r);
+    });
+    return map;
+  }, [existingRoutes]);
+
+  const driverName = (id?: string | null) => drivers?.find(d => d.id === id)?.name;
+  const consultantName = (id?: string | null) => consultants?.find(c => c.id === id)?.name;
+  const paymentName = (id?: string | null) => paymentMethods?.find(p => p.id === id)?.name;
+
 
   // Resolve payment method ID from Omie tPag code
   const resolvePaymentMethodId = useCallback((tPag?: string): string | null => {
@@ -739,11 +754,34 @@ export default function OmieImport() {
                               {invoice.docType === 'nfce' ? 'NFC-e' : 'NF-e'} #{invoice.number}
                             </span>
 
-                            {importedNfNumbers.has(normalizeNfNumber(invoice.number)) && (
-                              <Badge className="text-xs bg-green-500 text-white">
-                                ✓ Rota criada
-                              </Badge>
-                            )}
+                            {importedNfNumbers.has(normalizeNfNumber(invoice.number)) && (() => {
+                              const r = importedRoutesByNf.get(normalizeNfNumber(invoice.number));
+                              const badge = (
+                                <Badge className="text-xs bg-green-500 text-white">
+                                  ✓ Rota criada
+                                </Badge>
+                              );
+                              if (!r) return badge;
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <span>{badge}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs text-xs space-y-1">
+                                    <p><strong>Cliente:</strong> {r.client}</p>
+                                    {r.neighborhood && <p><strong>Bairro:</strong> {r.neighborhood}</p>}
+                                    {r.address && <p><strong>Endereço:</strong> {r.address}</p>}
+                                    {r.cep && <p><strong>CEP:</strong> {r.cep}</p>}
+                                    {driverName(r.driver_id) && <p><strong>Motorista:</strong> {driverName(r.driver_id)}</p>}
+                                    {consultantName(r.consultant_id) && <p><strong>Consultor:</strong> {consultantName(r.consultant_id)}</p>}
+                                    {paymentName(r.payment_method_id) && <p><strong>Pagamento:</strong> {paymentName(r.payment_method_id)}</p>}
+                                    {r.period && <p><strong>Período:</strong> {r.period}</p>}
+                                    {r.date && <p><strong>Data:</strong> {r.date}</p>}
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })()}
+
                             {invoice.series && (
                               <Badge variant="outline" className="text-xs">
                                 Série {invoice.series}
