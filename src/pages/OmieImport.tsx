@@ -752,11 +752,34 @@ export default function OmieImport() {
                               {invoice.docType === 'nfce' ? 'NFC-e' : 'NF-e'} #{invoice.number}
                             </span>
 
-                            {importedNfNumbers.has(normalizeNfNumber(invoice.number)) && (
-                              <Badge className="text-xs bg-green-500 text-white">
-                                ✓ Rota criada
-                              </Badge>
-                            )}
+                            {importedNfNumbers.has(normalizeNfNumber(invoice.number)) && (() => {
+                              const r = importedRoutesByNf.get(normalizeNfNumber(invoice.number));
+                              const badge = (
+                                <Badge className="text-xs bg-green-500 text-white">
+                                  ✓ Rota criada
+                                </Badge>
+                              );
+                              if (!r) return badge;
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <span>{badge}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-xs text-xs space-y-1">
+                                    <p><strong>Cliente:</strong> {r.client}</p>
+                                    {r.neighborhood && <p><strong>Bairro:</strong> {r.neighborhood}</p>}
+                                    {r.address && <p><strong>Endereço:</strong> {r.address}</p>}
+                                    {r.cep && <p><strong>CEP:</strong> {r.cep}</p>}
+                                    {driverName(r.driver_id) && <p><strong>Motorista:</strong> {driverName(r.driver_id)}</p>}
+                                    {consultantName(r.consultant_id) && <p><strong>Consultor:</strong> {consultantName(r.consultant_id)}</p>}
+                                    {paymentName(r.payment_method_id) && <p><strong>Pagamento:</strong> {paymentName(r.payment_method_id)}</p>}
+                                    {r.period && <p><strong>Período:</strong> {r.period}</p>}
+                                    {r.date && <p><strong>Data:</strong> {r.date}</p>}
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })()}
+
                             {invoice.series && (
                               <Badge variant="outline" className="text-xs">
                                 Série {invoice.series}
