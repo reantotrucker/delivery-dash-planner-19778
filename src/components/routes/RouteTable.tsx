@@ -189,330 +189,378 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = f
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {routes.map((route, index) => {
           const routeOccurrences = occurrences.filter(o => o.route_id === route.id);
           const productCount = routeProductCounts[route.id];
           const paymentStyle = getPaymentBadgeStyle(route.payment_method?.name);
           const driverColor = route.driver?.color;
+          const mapsLink = generateGoogleMapsLink(route.address, route.cep, route.neighborhood);
+          const wazeLink = generateWazeLink(route.address, route.cep, route.neighborhood);
 
           return (
             <Card
               key={route.id}
-              className={`relative overflow-hidden transition-all hover:shadow-md ${route.urgent ? "ring-2 ring-red-500/50" : ""}`}
-              style={{
-                borderLeft: `5px solid ${driverColor || 'hsl(var(--border))'}`,
-                backgroundColor: driverColor ? `${driverColor}08` : undefined,
-              }}
+              className={`relative overflow-hidden flex transition-all hover:border-border/80 ${route.urgent ? "ring-2 ring-red-500/50" : ""}`}
             >
+              {/* Driver color accent bar */}
+              <div
+                className="w-2 shrink-0"
+                style={{ backgroundColor: driverColor || 'hsl(var(--border))' }}
+              />
+
               {/* Urgent indicator */}
               {route.urgent && (
-                <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-md">
+                <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-md z-10">
                   URGENTE
                 </div>
               )}
 
-              {/* Header: # + Client + Status */}
-              <div className="flex items-start justify-between p-3 pb-1.5">
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <span className="text-xs font-bold text-muted-foreground shrink-0">#{index + 1}</span>
-                  <h3 className="font-bold text-sm sm:text-base text-foreground truncate">{route.client}</h3>
-                </div>
-                <button
-                  onClick={() => toggleStatus(route.id, route.status)}
-                  disabled={!isAdmin && !canManageOccurrences}
-                  className="focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ml-2"
-                >
-                  {route.status === "ENTREGUE" ? (
-                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] sm:text-xs font-bold px-2 py-1 gap-1 cursor-pointer hover:bg-emerald-500/30 transition-colors">
-                      <CheckCircle2 className="w-3 h-3" />
-                      OK
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-[10px] sm:text-xs font-bold px-2 py-1 gap-1 cursor-pointer hover:bg-red-500/30 transition-colors">
-                      <AlertCircle className="w-3 h-3" />
-                      PEND
-                    </Badge>
-                  )}
-                </button>
-              </div>
+              <div className="flex flex-col md:flex-row flex-1 min-w-0">
+                {/* LEFT: Routing Info */}
+                <div className="p-4 flex-1 min-w-0 flex flex-col justify-between md:border-r border-dashed border-border">
+                  <div className="flex justify-between items-start gap-2 mb-3">
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
+                        Rota
+                      </span>
+                      <h2 className="text-2xl font-black text-foreground leading-none tracking-tight font-mono">
+                        #{index + 1}
+                      </h2>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <button
+                        onClick={() => toggleStatus(route.id, route.status)}
+                        disabled={!isAdmin && !canManageOccurrences}
+                        className="focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {route.status === "ENTREGUE" ? (
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider gap-1 cursor-pointer hover:bg-emerald-500/20 transition-colors">
+                            <CheckCircle2 className="w-3 h-3" />
+                            OK
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider gap-1 cursor-pointer hover:bg-amber-500/20 transition-colors">
+                            <AlertCircle className="w-3 h-3" />
+                            PEND
+                          </Badge>
+                        )}
+                      </button>
+                      {route.consultant?.name && (
+                        <div className="text-right">
+                          <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            Consultor
+                          </span>
+                          <span className="text-xs text-foreground/80 font-medium">{route.consultant.name}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-              {/* Info rows */}
-              <div className="px-3 pb-2 space-y-1">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                  <span><span className="font-medium">Bairro:</span> {route.neighborhood}</span>
-                  {route.consultant?.name && (
-                    <span className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      {route.consultant.name}
-                    </span>
-                  )}
-                </div>
+                  <div className="space-y-1 mb-4">
+                    <h3 className="text-base font-extrabold text-foreground uppercase break-words leading-tight">
+                      {route.client}
+                    </h3>
+                    <p
+                      className="text-xs font-bold uppercase tracking-wide"
+                      style={{ color: driverColor || 'hsl(var(--primary))' }}
+                    >
+                      Bairro: {route.neighborhood}
+                    </p>
+                    {route.address && (
+                      <p className="text-sm text-muted-foreground leading-snug italic break-words">
+                        {route.address}
+                      </p>
+                    )}
+                  </div>
 
-                {route.address && (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="truncate">{route.address}</span>
-                    {generateGoogleMapsLink(route.address, route.cep, route.neighborhood) && (
+                  <div className="flex items-center gap-4 border-t border-border pt-3 mt-auto">
+                    {mapsLink && (
                       <a
-                        href={generateGoogleMapsLink(route.address, route.cep, route.neighborhood)!}
+                        href={mapsLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="shrink-0 text-[10px] font-medium text-primary hover:text-primary/80 bg-primary/10 rounded px-1.5 py-0.5"
+                        className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider"
                       >
-                        Maps
+                        <MapPin className="w-3.5 h-3.5" />
+                        Google Maps
                       </a>
                     )}
-                    {generateWazeLink(route.address, route.cep, route.neighborhood) && (
+                    {wazeLink && (
                       <a
-                        href={generateWazeLink(route.address, route.cep, route.neighborhood)!}
+                        href={wazeLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="shrink-0 text-[10px] font-medium text-blue-400 hover:text-blue-300 bg-blue-500/10 rounded px-1.5 py-0.5"
+                        className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider"
                       >
+                        <Navigation className="w-3.5 h-3.5" />
                         Waze
                       </a>
                     )}
                   </div>
-                )}
+                </div>
 
-                {route.observation && (
-                  <p className="text-[10px] text-muted-foreground/70 italic break-words">Obs: {route.observation}</p>
-                )}
-              </div>
-
-              <Separator className="opacity-50" />
-
-              {/* Driver / Vehicle / Payment */}
-              <div className="px-3 py-2 flex flex-wrap items-center gap-1.5">
-                {route.driver?.name && (
-                  <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 font-normal">
-                    <Truck className="w-3 h-3" />
-                    {route.driver.name}
-                  </Badge>
-                )}
-                {route.vehicle?.plate && (
-                  <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 font-normal">
-                    <Car className="w-3 h-3" />
-                    {route.vehicle.plate}
-                  </Badge>
-                )}
-                <Badge className={`${paymentStyle.className} text-[10px] sm:text-xs font-semibold px-2 py-0.5`}>
-                  {paymentStyle.label}
-                </Badge>
-              </div>
-
-              <Separator className="opacity-50" />
-
-              {/* Actions */}
-              <div className="px-3 py-2 flex flex-wrap items-center gap-1.5">
-                {/* Products */}
-                {productCount?.total > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[10px] sm:text-xs gap-1 px-2"
-                    onClick={() => setChecklistRoute(route)}
-                  >
-                    <Package className="w-3 h-3" />
-                    Produtos
-                    <span className={`ml-0.5 text-[9px] font-bold ${productCount.checked === productCount.total ? "text-green-500" : "text-orange-400"}`}>
-                      {productCount.checked}/{productCount.total}
-                    </span>
-                    <span className={`text-[9px] font-bold ${productCount.checked2 === productCount.total ? "text-blue-500" : "text-orange-400"}`}>
-                      {productCount.checked2}/{productCount.total}
-                    </span>
-                  </Button>
-                )}
-
-                {/* Occurrences */}
-                {(isAdmin || canManageOccurrences) ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-[10px] sm:text-xs gap-1 px-2 relative"
-                      >
-                        <FileText className="w-3 h-3" />
-                        Ocorr.
-                        {routeOccurrences.length > 0 && (
-                          <span className="bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center ml-0.5">
-                            {routeOccurrences.length}
-                          </span>
-                        )}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      {(generateGoogleMapsLink(route.address, route.cep, route.neighborhood) || generateWazeLink(route.address, route.cep, route.neighborhood)) && (
-                        <>
-                          {generateGoogleMapsLink(route.address, route.cep, route.neighborhood) && (
-                            <DropdownMenuItem asChild>
-                              <a href={generateGoogleMapsLink(route.address, route.cep, route.neighborhood)!} target="_blank" rel="noopener noreferrer">
-                                <MapPin className="w-4 h-4 mr-2" />
-                                Google Maps
-                              </a>
-                            </DropdownMenuItem>
-                          )}
-                          {generateWazeLink(route.address, route.cep, route.neighborhood) && (
-                            <DropdownMenuItem asChild>
-                              <a href={generateWazeLink(route.address, route.cep, route.neighborhood)!} target="_blank" rel="noopener noreferrer">
-                                <Navigation className="w-4 h-4 mr-2" />
-                                Waze
-                              </a>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                        </>
-                      )}
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setOccurrenceRoute(route);
-                          setEditingOccurrence(null);
-                          setOccurrenceDialogOpen(true);
-                        }}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Nova Ocorrência
-                      </DropdownMenuItem>
-                      {routeOccurrences.length > 0 && (
-                        <>
-                          <DropdownMenuSeparator />
-                          {routeOccurrences.map((occ, idx) => (
-                            <div key={occ.id}>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setOccurrenceRoute(route);
-                                  setEditingOccurrence(occ);
-                                  setOccurrenceDialogOpen(true);
-                                }}
-                              >
-                                <Edit className="w-4 h-4 mr-2" />
-                                Editar Ocorrência {idx + 1}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => setDeleteOccurrenceId(occ.id)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <X className="w-4 h-4 mr-2" />
-                                Excluir Ocorrência {idx + 1}
-                              </DropdownMenuItem>
-                            </div>
-                          ))}
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  routeOccurrences.length > 0 && (
-                    <Badge variant="outline" className="text-[10px] sm:text-xs gap-1">
-                      <FileText className="w-3 h-3" />
-                      {routeOccurrences.length} ocorr.
-                    </Badge>
-                  )
-                )}
-
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* Reschedule (for pending routes) */}
-                {(isAdmin || canManageOccurrences) && route.status !== "ENTREGUE" && (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-[10px] sm:text-xs gap-1 px-2 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
-                        disabled={reschedulingId === route.id}
-                      >
-                        {reschedulingId === route.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <RotateCcw className="w-3 h-3" />
-                        )}
-                        Reagendar
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-64 p-3 space-y-3" align="end">
-                      <p className="text-xs font-medium text-foreground">Reagendar rota para:</p>
-                      <div className="space-y-2">
-                        <div>
-                          <Label className="text-[10px]">Data</Label>
-                          <Input
-                            type="date"
-                            className="h-8 text-xs"
-                            value={rescheduleDate}
-                            onChange={(e) => setRescheduleDate(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-[10px]">Período</Label>
-                          <Select value={reschedulePeriod} onValueChange={(v) => setReschedulePeriod(v as "MANHA" | "TARDE")}>
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="MANHA">MANHÃ</SelectItem>
-                              <SelectItem value="TARDE">TARDE</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                {/* RIGHT: Logistics Details */}
+                <div className="p-4 bg-muted/20 md:w-72 shrink-0 flex flex-col justify-between gap-4">
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-2">
+                    {route.driver?.name && (
+                      <div className="min-w-0">
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          Motorista
+                        </span>
+                        <span className="text-xs text-foreground font-semibold truncate block">
+                          {route.driver.name}
+                        </span>
                       </div>
-                      <Button
-                        size="sm"
-                        className="w-full h-8 text-xs"
-                        onClick={() => rescheduleRoute(route)}
-                        disabled={reschedulingId === route.id}
-                      >
-                        Confirmar
-                      </Button>
-                    </PopoverContent>
-                  </Popover>
-                )}
-
-                {/* Edit & Delete */}
-                {isAdmin && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-[10px] sm:text-xs gap-1 px-2 hover:bg-primary/10"
-                      onClick={() => {
-                        setEditingRoute(route);
-                        setEditDialogOpen(true);
-                      }}
-                    >
-                      <Pencil className="w-3 h-3" />
-                      Editar
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-[10px] sm:text-xs gap-1 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          disabled={deletingId === route.id}
+                    )}
+                    {route.vehicle?.plate && (
+                      <div className="min-w-0">
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          Placa
+                        </span>
+                        <span
+                          className="text-xs font-bold tracking-tight font-mono truncate block"
+                          style={{ color: driverColor || 'hsl(var(--primary))' }}
                         >
-                          <Trash2 className="w-3 h-3" />
-                          Excluir
+                          {route.vehicle.plate}
+                        </span>
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        Pagamento
+                      </span>
+                      <Badge className={`${paymentStyle.className} text-[10px] font-bold px-1.5 py-0 mt-0.5`}>
+                        {paymentStyle.label}
+                      </Badge>
+                    </div>
+                    {productCount?.total > 0 && (
+                      <div className="min-w-0">
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          Produtos
+                        </span>
+                        <span className="text-xs font-bold">
+                          <span className={productCount.checked === productCount.total ? "text-green-500" : "text-orange-400"}>
+                            {productCount.checked}/{productCount.total}
+                          </span>
+                          {" · "}
+                          <span className={productCount.checked2 === productCount.total ? "text-blue-500" : "text-orange-400"}>
+                            {productCount.checked2}/{productCount.total}
+                          </span>
+                        </span>
+                      </div>
+                    )}
+                    {route.observation && (
+                      <div className="col-span-2 bg-background/40 p-2 rounded border border-border/50">
+                        <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
+                          Observação
+                        </span>
+                        <p className="text-[11px] text-foreground/80 leading-relaxed italic break-words">
+                          {route.observation}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Bar */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {productCount?.total > 0 && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0"
+                        onClick={() => setChecklistRoute(route)}
+                      >
+                        <Package className="w-3 h-3" />
+                        Produtos
+                      </Button>
+                    )}
+
+                    {(isAdmin || canManageOccurrences) ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 relative"
+                          >
+                            <FileText className="w-3 h-3" />
+                            Ocorr.
+                            {routeOccurrences.length > 0 && (
+                              <span className="bg-red-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center">
+                                {routeOccurrences.length}
+                              </span>
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {(mapsLink || wazeLink) && (
+                            <>
+                              {mapsLink && (
+                                <DropdownMenuItem asChild>
+                                  <a href={mapsLink} target="_blank" rel="noopener noreferrer">
+                                    <MapPin className="w-4 h-4 mr-2" />
+                                    Google Maps
+                                  </a>
+                                </DropdownMenuItem>
+                              )}
+                              {wazeLink && (
+                                <DropdownMenuItem asChild>
+                                  <a href={wazeLink} target="_blank" rel="noopener noreferrer">
+                                    <Navigation className="w-4 h-4 mr-2" />
+                                    Waze
+                                  </a>
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setOccurrenceRoute(route);
+                              setEditingOccurrence(null);
+                              setOccurrenceDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Nova Ocorrência
+                          </DropdownMenuItem>
+                          {routeOccurrences.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator />
+                              {routeOccurrences.map((occ, idx) => (
+                                <div key={occ.id}>
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setOccurrenceRoute(route);
+                                      setEditingOccurrence(occ);
+                                      setOccurrenceDialogOpen(true);
+                                    }}
+                                  >
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Editar Ocorrência {idx + 1}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => setDeleteOccurrenceId(occ.id)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <X className="w-4 h-4 mr-2" />
+                                    Excluir Ocorrência {idx + 1}
+                                  </DropdownMenuItem>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      routeOccurrences.length > 0 && (
+                        <Badge variant="outline" className="text-[10px] gap-1 h-8 px-2">
+                          <FileText className="w-3 h-3" />
+                          {routeOccurrences.length}
+                        </Badge>
+                      )
+                    )}
+
+                    {(isAdmin || canManageOccurrences) && route.status !== "ENTREGUE" && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 text-amber-400 hover:text-amber-300"
+                            disabled={reschedulingId === route.id}
+                          >
+                            {reschedulingId === route.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <RotateCcw className="w-3 h-3" />
+                            )}
+                            Reagendar
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-3 space-y-3" align="end">
+                          <p className="text-xs font-medium text-foreground">Reagendar rota para:</p>
+                          <div className="space-y-2">
+                            <div>
+                              <Label className="text-[10px]">Data</Label>
+                              <Input
+                                type="date"
+                                className="h-8 text-xs"
+                                value={rescheduleDate}
+                                onChange={(e) => setRescheduleDate(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-[10px]">Período</Label>
+                              <Select value={reschedulePeriod} onValueChange={(v) => setReschedulePeriod(v as "MANHA" | "TARDE")}>
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="MANHA">MANHÃ</SelectItem>
+                                  <SelectItem value="TARDE">TARDE</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="w-full h-8 text-xs"
+                            onClick={() => rescheduleRoute(route)}
+                            disabled={reschedulingId === route.id}
+                          >
+                            Confirmar
+                          </Button>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+
+                    {isAdmin && (
+                      <div className="flex w-full gap-1.5 mt-0.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 h-8 p-0"
+                          onClick={() => {
+                            setEditingRoute(route);
+                            setEditDialogOpen(true);
+                          }}
+                          title="Editar"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
                         </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja excluir a rota de {route.client}? Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteRoute(route.id)} className="bg-destructive hover:bg-destructive/90">
-                            Excluir
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </>
-                )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 h-8 p-0 border-red-900/30 text-red-500/80 hover:text-red-500 hover:bg-red-500/10"
+                              disabled={deletingId === route.id}
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir a rota de {route.client}? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteRoute(route.id)} className="bg-destructive hover:bg-destructive/90">
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </Card>
           );
