@@ -292,8 +292,9 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
           const productCount = routeProductCounts[route.id];
           const paymentStyle = getPaymentBadgeStyle(route.payment_method?.name);
           const driverColor = route.driver?.color;
-          const mapsLink = generateGoogleMapsLink(route.address, route.cep, route.neighborhood);
-          const wazeLink = generateWazeLink(route.address, route.cep, route.neighborhood);
+          const { maps: mapsLink, waze: wazeLink } = buildLocationLinks(route);
+          const hasExactLocation = !!route.location_link?.trim();
+          const receiptCount = receiptCounts[route.id] || 0;
 
           return (
             <Card
