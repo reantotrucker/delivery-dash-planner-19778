@@ -70,7 +70,9 @@ interface OmieInvoice {
   orderObservation?: string;
   vendedorName?: string | null;
   products?: OmieProduct[];
+  docType?: 'nfe' | 'nfce';
 }
+
 
 interface OmieResponse {
   type: 'nfe' | 'nfce';
