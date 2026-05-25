@@ -523,7 +523,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                         onClick={() => setChecklistRoute(route)}
                       >
                         <div className="p-1.5 bg-blue-500/10 text-blue-400 rounded-md group-hover:scale-110 transition-transform">
-                          <Package className="w-5 h-5" />
+                          <Package className="w-4 h-4" />
                         </div>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Produtos</span>
                       </Button>
@@ -535,7 +535,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                       onClick={() => setReceiptRoute(route)}
                     >
                       <div className={`p-2 rounded-md group-hover:scale-110 transition-transform ${receiptCount > 0 ? 'bg-destructive/15 text-destructive p-1.5' : 'bg-muted/40 text-muted-foreground'}`}>
-                        <Camera className="w-5 h-5" />
+                        <Camera className="w-4 h-4" />
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Canhoto</span>
                       {receiptCount > 0 && (
@@ -555,7 +555,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                             className="relative group flex flex-col items-center justify-center gap-2 h-auto py-2 px-2 bg-secondary/40 hover:bg-secondary border border-border/50 rounded-xl transition-all active:scale-95"
                           >
                             <div className="p-1.5 bg-muted/40 text-muted-foreground rounded-md group-hover:scale-110 transition-transform">
-                              <FileText className="w-5 h-5" />
+                              <FileText className="w-4 h-4" />
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-foreground/80">Ocorr.</span>
                             {routeOccurrences.length > 0 && (
@@ -645,9 +645,9 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                           >
                             <div className="p-1.5 text-amber-500 group-hover:scale-110 transition-transform">
                               {reschedulingId === route.id ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
-                                <RotateCcw className="w-5 h-5" />
+                                <RotateCcw className="w-4 h-4" />
                               )}
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Reagendar</span>
