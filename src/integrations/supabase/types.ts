@@ -269,6 +269,39 @@ export type Database = {
           },
         ]
       }
+      route_receipts: {
+        Row: {
+          created_at: string
+          expires_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          route_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          route_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          route_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       routes: {
         Row: {
           address: string | null
@@ -279,6 +312,7 @@ export type Database = {
           date: string
           driver_id: string | null
           id: string
+          location_link: string | null
           neighborhood: string
           observation: string | null
           order_number: number | null
@@ -298,6 +332,7 @@ export type Database = {
           date?: string
           driver_id?: string | null
           id?: string
+          location_link?: string | null
           neighborhood: string
           observation?: string | null
           order_number?: number | null
@@ -317,6 +352,7 @@ export type Database = {
           date?: string
           driver_id?: string | null
           id?: string
+          location_link?: string | null
           neighborhood?: string
           observation?: string | null
           order_number?: number | null
@@ -414,6 +450,7 @@ export type Database = {
     }
     Functions: {
       clean_omie_cache: { Args: never; Returns: undefined }
+      cleanup_expired_receipts: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
