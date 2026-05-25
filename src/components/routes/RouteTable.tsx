@@ -286,7 +286,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
 
   return (
     <>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {routes.map((route, index) => {
           const routeOccurrences = occurrences.filter(o => o.route_id === route.id);
           const productCount = routeProductCounts[route.id];
