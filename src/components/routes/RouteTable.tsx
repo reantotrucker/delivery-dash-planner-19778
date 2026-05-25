@@ -520,7 +520,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                       <Button
                         variant="secondary"
                         size="sm"
-                        className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0"
+                        className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 whitespace-nowrap"
                         onClick={() => setChecklistRoute(route)}
                       >
                         <Package className="w-3 h-3" />
@@ -531,7 +531,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                     <Button
                       variant={receiptCount > 0 ? "destructive" : "secondary"}
                       size="sm"
-                      className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 relative"
+                      className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 whitespace-nowrap relative"
                       onClick={() => setReceiptRoute(route)}
                     >
                       <Camera className="w-3 h-3" />
@@ -550,7 +550,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                           <Button
                             variant="secondary"
                             size="sm"
-                            className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 relative"
+                            className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 whitespace-nowrap relative"
                           >
                             <FileText className="w-3 h-3" />
                             Ocorr.
@@ -636,7 +636,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                           <Button
                             variant="secondary"
                             size="sm"
-                            className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 text-amber-400 hover:text-amber-300"
+                            className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 whitespace-nowrap text-amber-400 hover:text-amber-300"
                             disabled={reschedulingId === route.id}
                           >
                             {reschedulingId === route.id ? (
