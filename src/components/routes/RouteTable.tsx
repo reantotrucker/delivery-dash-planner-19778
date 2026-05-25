@@ -639,18 +639,20 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
-                            variant="secondary"
-                            size="sm"
-                            className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 whitespace-nowrap text-amber-400 hover:text-amber-300"
+                            variant="ghost"
+                            className="group flex flex-col items-center justify-center gap-2 h-auto py-3 px-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all active:scale-95"
                             disabled={reschedulingId === route.id}
                           >
-                            {reschedulingId === route.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <RotateCcw className="w-3 h-3" />
-                            )}
-                            Reagendar
+                            <div className="p-2 text-amber-500 group-hover:scale-110 transition-transform">
+                              {reschedulingId === route.id ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                <RotateCcw className="w-5 h-5" />
+                              )}
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Reagendar</span>
                           </Button>
+
                         </PopoverTrigger>
                         <PopoverContent className="w-64 p-3 space-y-3" align="end">
                           <p className="text-xs font-medium text-foreground">Reagendar rota para:</p>
