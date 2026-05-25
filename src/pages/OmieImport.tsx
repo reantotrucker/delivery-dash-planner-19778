@@ -198,25 +198,43 @@ export default function OmieImport() {
   const [searchTerm, setSearchTerm] = useState("");
   const [fetchCounter, setFetchCounter] = useState(0);
 
-  const { data, isLoading, error } = useQuery<OmieResponse>({
-    queryKey: ['omie-invoices', activeTab, currentPage, fetchCounter],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('omie-invoices', {
-        body: {
-          type: activeTab,
-          page: currentPage ?? 1,
-          fetchLastPage: currentPage === null,
-        },
-      });
-
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-      return data;
-    },
-    enabled: fetchCounter > 0,
-    staleTime: 10 * 60 * 1000, // 10 minutos - mantém cache ao navegar
-    gcTime: 30 * 60 * 1000, // 30 minutos - mantém no garbage collector
+  // Fetch NF-e and NFC-e in parallel and merge into a single list
+  const queries = useQueries({
+    queries: (['nfe', 'nfce'] as const).map((docType) => ({
+      queryKey: ['omie-invoices', docType, currentPage, fetchCounter],
+      queryFn: async () => {
+        const { data, error } = await supabase.functions.invoke('omie-invoices', {
+          body: {
+            type: docType,
+            page: currentPage ?? 1,
+            fetchLastPage: currentPage === null,
+          },
+        });
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+        return data as OmieResponse;
+      },
+      enabled: fetchCounter > 0,
+      staleTime: 10 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+    })),
   });
+  const nfeQuery = queries[0];
+  const nfceQuery = queries[1];
+  const isLoading = nfeQuery.isLoading || nfceQuery.isLoading;
+  const error = (nfeQuery.error || nfceQuery.error) as Error | null;
+  const data = useMemo(() => {
+    if (!nfeQuery.data && !nfceQuery.data) return null;
+    const nfeInvoices = (nfeQuery.data?.invoices ?? []).map(i => ({ ...i, docType: 'nfe' as const }));
+    const nfceInvoices = (nfceQuery.data?.invoices ?? []).map(i => ({ ...i, docType: 'nfce' as const }));
+    return {
+      invoices: [...nfeInvoices, ...nfceInvoices],
+      page: nfeQuery.data?.page ?? nfceQuery.data?.page ?? 1,
+      totalPages: Math.max(nfeQuery.data?.totalPages ?? 0, nfceQuery.data?.totalPages ?? 0),
+      totalRecords: (nfeQuery.data?.totalRecords ?? 0) + (nfceQuery.data?.totalRecords ?? 0),
+    };
+  }, [nfeQuery.data, nfceQuery.data]);
+
 
   // Filter invoices by date range and search term client-side
   const filteredInvoices = useMemo(() => {
