@@ -21,6 +21,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+
 
 // Omie tPag fiscal codes mapped to local payment method names
 const OMIE_PAYMENT_MAP: Record<string, string> = {
