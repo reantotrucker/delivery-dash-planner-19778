@@ -51,10 +51,17 @@ interface RouteTableProps {
   routes: Route[];
   onUpdate: () => void;
   isAdmin: boolean;
+  isMotorista?: boolean;
+  isComercial?: boolean;
   canManageOccurrences?: boolean;
 }
 
-export const RouteTable = ({ routes, onUpdate, isAdmin, canManageOccurrences = false }: RouteTableProps) => {
+export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isComercial = false, canManageOccurrences = false }: RouteTableProps) => {
+  const [receiptRoute, setReceiptRoute] = useState<Route | null>(null);
+  const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
+  const [savingLocationId, setSavingLocationId] = useState<string | null>(null);
+  const canEditLocation = isAdmin || isComercial;
+  const canUploadReceipts = isAdmin || isMotorista;
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [occurrenceRoute, setOccurrenceRoute] = useState<Route | null>(null);
   const [editingOccurrence, setEditingOccurrence] = useState<Occurrence | null>(null);
