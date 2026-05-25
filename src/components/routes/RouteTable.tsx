@@ -684,6 +684,9 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                         </PopoverContent>
                       </Popover>
                     )}
+                    </div>
+
+
 
                     {isAdmin && (
                       <div className="flex w-full gap-1.5 mt-0.5">
