@@ -1,35 +1,22 @@
-## Objetivo
+## Aplicar novo layout dos cards de rota
 
-Mostrar NF-e e NFC-e juntas em uma única lista no Omie Import, ordenadas por data/hora de emissão (depois pelo número), para facilitar a organização por horário.
+Refatorar `src/components/routes/RouteTable.tsx` para usar o layout escolhido (Blueprint logístico em 2 colunas).
 
-## Mudanças em `src/pages/OmieImport.tsx`
+### Estrutura do novo card
 
-1. **Remover o Tabs NF-e / NFC-e** (linhas ~581-586). Buscar sempre os dois tipos.
+- **Barra colorida vertical à esquerda** (cor do motorista, mantém identificação visual)
+- **Coluna esquerda — Roteirização** (`flex-1`):
+  - Topo: rótulo "Rota" + número grande em fonte mono (#1, #2…) | badge de status (PEND/OK, clicável) + Consultor à direita
+  - Meio: nome do cliente em destaque + bairro (cor do motorista) + endereço em itálico
+  - Rodapé: links Google Maps + Waze com ícones
+- **Coluna direita — Operacional** (largura fixa `md:w-72`, fundo `bg-muted/20`):
+  - Grid 2x2 com labels minúsculas: Motorista, Placa (fonte mono), Pagamento (badge), Produtos (X/Y · X/Y)
+  - Bloco de Observação em destaque (se houver)
+  - Barra de ações: Produtos, Ocorr., Reagendar (full width) + Editar/Excluir lado a lado como ícones
+- Preserva: indicador "URGENTE", ring vermelho, popover de reagendar, dropdown de ocorrências, dialogs.
+- Grid externo: `grid-cols-1 xl:grid-cols-2` (2 colunas só em telas grandes pois cada card agora é mais largo).
 
-2. **Buscar os dois em paralelo** usando `useQueries` (em vez de um `useQuery` único):
-   - Query 1: `omie-invoices` com `type: 'nfe'`, mesma `currentPage`.
-   - Query 2: `omie-invoices` com `type: 'nfce'`, mesma `currentPage`.
-   - `isLoading` = qualquer uma carregando; `error` = primeiro erro.
+### Fora de escopo
 
-3. **Merge das listas**: anotar cada invoice com `docType: 'nfe' | 'nfce'` e concatenar. Manter o sort já existente (data/hora desc, depois número desc).
-
-4. **Cor por tipo de documento** (linha ~726 e no card do item):
-   - NF-e → texto e badge em vermelho (`text-red-500`).
-   - NFC-e → texto e badge em azul (`text-blue-500`).
-   - Trocar o `activeTab === 'nfe' ? 'NF-e' : 'NFC-e'` por `invoice.docType === 'nfe' ? 'NF-e' : 'NFC-e'` com a classe de cor aplicada ao título da nota.
-
-5. **Contador de resultados** (linha ~683): somar os dois (`data1.totalRecords + data2.totalRecords`, `data1.invoices.length + data2.invoices.length`). Pagination mostra "Página X" comum às duas — manter a maior `totalPages` entre as duas.
-
-6. **Dialog de criação de rota** (já usa `dialogInvoice`): adicionar a mesma cor no título ao abrir.
-
-## Detalhes técnicos
-
-- O tipo `OmieInvoice` ganha um campo opcional `docType?: 'nfe' | 'nfce'` setado no merge (não vem do backend).
-- O state `activeTab` é removido; queryKey passa a usar `['omie-invoices-combined', currentPage, fetchCounter]` para cada tipo.
-- O badge "✓ Rota criada" continua usando `normalizeNfNumber` — sem mudança.
-- Edge function `omie-invoices` não muda.
-
-## Fora de escopo
-
-- Não alterar lógica de criação de rota, cache ou pagination interna do Omie.
-- Não mexer no formato BRL nem no destaque verde de rota criada.
+- Nenhuma mudança de lógica/backend
+- Sem mudanças em RouteForm, dialogs, ou outras páginas
