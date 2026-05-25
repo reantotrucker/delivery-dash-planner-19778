@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { format, parse, isWithinInterval, startOfDay, endOfDay, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -69,7 +70,9 @@ interface OmieInvoice {
   orderObservation?: string;
   vendedorName?: string | null;
   products?: OmieProduct[];
+  docType?: 'nfe' | 'nfce';
 }
+
 
 interface OmieResponse {
   type: 'nfe' | 'nfce';
@@ -82,8 +85,8 @@ interface OmieResponse {
 
 export default function OmieImport() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'nfe' | 'nfce'>('nfe');
   const [currentPage, setCurrentPage] = useState<number | null>(null);
+
   const [dialogPeriod, setDialogPeriod] = useState<'MANHA' | 'TARDE'>('MANHA');
   const [dialogInvoice, setDialogInvoice] = useState<OmieInvoice | null>(null);
   const [dialogDriverId, setDialogDriverId] = useState<string>('');
@@ -195,25 +198,43 @@ export default function OmieImport() {
   const [searchTerm, setSearchTerm] = useState("");
   const [fetchCounter, setFetchCounter] = useState(0);
 
-  const { data, isLoading, error } = useQuery<OmieResponse>({
-    queryKey: ['omie-invoices', activeTab, currentPage, fetchCounter],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('omie-invoices', {
-        body: {
-          type: activeTab,
-          page: currentPage ?? 1,
-          fetchLastPage: currentPage === null,
-        },
-      });
-
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-      return data;
-    },
-    enabled: fetchCounter > 0,
-    staleTime: 10 * 60 * 1000, // 10 minutos - mantém cache ao navegar
-    gcTime: 30 * 60 * 1000, // 30 minutos - mantém no garbage collector
+  // Fetch NF-e and NFC-e in parallel and merge into a single list
+  const queries = useQueries({
+    queries: (['nfe', 'nfce'] as const).map((docType) => ({
+      queryKey: ['omie-invoices', docType, currentPage, fetchCounter],
+      queryFn: async () => {
+        const { data, error } = await supabase.functions.invoke('omie-invoices', {
+          body: {
+            type: docType,
+            page: currentPage ?? 1,
+            fetchLastPage: currentPage === null,
+          },
+        });
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+        return data as OmieResponse;
+      },
+      enabled: fetchCounter > 0,
+      staleTime: 10 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+    })),
   });
+  const nfeQuery = queries[0];
+  const nfceQuery = queries[1];
+  const isLoading = nfeQuery.isLoading || nfceQuery.isLoading;
+  const error = (nfeQuery.error || nfceQuery.error) as Error | null;
+  const data = useMemo(() => {
+    if (!nfeQuery.data && !nfceQuery.data) return null;
+    const nfeInvoices = (nfeQuery.data?.invoices ?? []).map(i => ({ ...i, docType: 'nfe' as const }));
+    const nfceInvoices = (nfceQuery.data?.invoices ?? []).map(i => ({ ...i, docType: 'nfce' as const }));
+    return {
+      invoices: [...nfeInvoices, ...nfceInvoices],
+      page: nfeQuery.data?.page ?? nfceQuery.data?.page ?? 1,
+      totalPages: Math.max(nfeQuery.data?.totalPages ?? 0, nfceQuery.data?.totalPages ?? 0),
+      totalRecords: (nfeQuery.data?.totalRecords ?? 0) + (nfceQuery.data?.totalRecords ?? 0),
+    };
+  }, [nfeQuery.data, nfceQuery.data]);
+
 
   // Filter invoices by date range and search term client-side
   const filteredInvoices = useMemo(() => {
@@ -575,16 +596,8 @@ export default function OmieImport() {
           <CardTitle className="text-lg">Filtros de Busca</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de Documento</Label>
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'nfe' | 'nfce')}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="nfe">NF-e</TabsTrigger>
-                  <TabsTrigger value="nfce">NFC-e</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
 
             <div className="space-y-2">
               <Label>Data Inicial</Label>
@@ -721,10 +734,11 @@ export default function OmieImport() {
                         {/* Info da NF */}
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-medium">
-                              {activeTab === 'nfe' ? 'NF-e' : 'NFC-e'} #{invoice.number}
+                            <FileText className={`w-4 h-4 ${invoice.docType === 'nfce' ? 'text-blue-500' : 'text-red-500'}`} />
+                            <span className={`font-medium ${invoice.docType === 'nfce' ? 'text-blue-500' : 'text-red-500'}`}>
+                              {invoice.docType === 'nfce' ? 'NFC-e' : 'NF-e'} #{invoice.number}
                             </span>
+
                             {importedNfNumbers.has(normalizeNfNumber(invoice.number)) && (
                               <Badge className="text-xs bg-green-500 text-white">
                                 ✓ Rota criada
