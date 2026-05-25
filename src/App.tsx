@@ -90,6 +90,14 @@ const App = () => (
               </ProtectedWithLayout>
             }
           />
+          <Route
+            path="/locations"
+            element={
+              <ProtectedWithLayout>
+                <Locations />
+              </ProtectedWithLayout>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
