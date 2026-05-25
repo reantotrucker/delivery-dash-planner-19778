@@ -91,6 +91,7 @@ export function AppSidebar() {
             {getRoleLabel()}
           </Badge>
         )}
+        <ThemeToggle collapsed={collapsed} />
         <Button
           variant="ghost"
           size="sm"
