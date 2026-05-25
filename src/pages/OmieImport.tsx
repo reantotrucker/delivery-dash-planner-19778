@@ -596,16 +596,8 @@ export default function OmieImport() {
           <CardTitle className="text-lg">Filtros de Busca</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Tipo de Documento</Label>
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'nfe' | 'nfce')}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="nfe">NF-e</TabsTrigger>
-                  <TabsTrigger value="nfce">NFC-e</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
 
             <div className="space-y-2">
               <Label>Data Inicial</Label>
