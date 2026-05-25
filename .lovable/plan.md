@@ -1,65 +1,24 @@
-## Localização exata do cliente + Anexo de canhotos (NFe/NFCe)
+# Redesign da barra de ações do card de rota
 
-Duas features para o controle das rotas:
-1. Campo de **Localização exata** (coordenadas/link) preenchido pelo Comercial
-2. Anexo de **canhotos assinados** via câmera com auto-exclusão em 30 dias
+## O que muda visualmente
+Substituir a linha apertada de 4 botões (Produtos · Canhoto · Ocorr. · Reagendar) por uma **grade 2x2 de tiles** com ícone grande colorido em cima e label curto embaixo. Os botões de Editar/Excluir continuam como estão, abaixo da grade.
 
----
+Cada tile:
+- Fundo `bg-secondary/40`, borda sutil, cantos `rounded-xl`
+- Ícone dentro de um quadrado colorido tonal (azul para Produtos, vermelho para Canhoto, cinza para Ocorr., âmbar para Reagendar)
+- Label uppercase pequena (`text-[10px]`) embaixo
+- Badge de contagem flutuante no canto (Canhoto vermelho, Ocorr. vermelho)
+- Animação leve: `active:scale-95`, ícone cresce no hover
 
-### 1. Localização exata do cliente (Comercial)
+Tudo respeita o design system (tokens semânticos), sem cores fixas no JSX além das classes tonais já permitidas para destaque.
 
-**Backend**
-- Adicionar coluna `location_link` (text) na tabela `routes`
-- Atualizar RLS: permitir que Comercial faça UPDATE apenas desse campo (nova policy específica)
+## Onde mexer
+Arquivo: `src/components/routes/RouteTable.tsx`
 
-**Frontend**
-- Novo botão **"Colar Localização"** no card da rota (visível para Admin e Comercial)
-- Ao clicar, abre Popover com:
-  - Textarea para colar link do Google Maps / Waze / coordenadas (ex: `-3.1019,-60.0250`)
-  - Botão "Colar da área de transferência" (usa `navigator.clipboard.readText()`)
-  - Botão Salvar
-- Se já houver localização salva, o botão muda para **"Ver Localização"** (verde) e abre direto o link
-- O botão Google Maps/Waze existente passa a usar `location_link` quando disponível (mais preciso que endereço)
-- Adicionar também ao `RouteForm` e `RouteEditDialog` para edição completa
+- Trocar o container `flex flex-wrap gap-1.5` (linha ~518) por `grid grid-cols-2 gap-2`.
+- Reescrever os 4 botões (Produtos, Canhoto, Ocorr. trigger do DropdownMenu, Reagendar trigger do Popover) para o formato tile vertical (`flex-col`, ícone em caixa colorida, label embaixo). Conteúdo do DropdownMenu e do Popover permanece igual.
+- Manter `isAdmin`, `canManageOccurrences`, `receiptCount`, `productCount`, `routeOccurrences` e handlers existentes.
+- Bloco de Editar/Excluir (linhas 687–729) permanece intacto.
 
----
-
-### 2. Canhotos assinados (NFe/NFCe) via câmera
-
-**Backend**
-- Nova tabela `route_receipts`:
-  - `route_id` (FK)
-  - `file_path` (caminho no storage)
-  - `uploaded_by` (uuid)
-  - `expires_at` (default `now() + 30 dias`)
-- Bucket privado `route-receipts` no storage
-- Políticas RLS:
-  - Admin e Motorista: inserir, ver, excluir
-  - Comercial: visualizar
-- Limpeza automática via `pg_cron` (diário às 03:00): apaga registros + arquivos com `expires_at < now()`
-
-**Frontend**
-- Novo botão **"Canhoto"** no card da rota (ao lado de "Ocorr.", "Produtos")
-- Badge no botão com a contagem de canhotos anexados
-- Componente `RouteReceiptDialog.tsx`:
-  - Botão **"Tirar Foto"** usando `<input type="file" accept="image/*" capture="environment">` (câmera traseira no celular)
-  - Botão alternativo **"Escolher arquivo"** (desktop)
-  - Lista de canhotos anexados (thumbnails) com data de upload e dias restantes para expirar
-  - Visualizar em tamanho grande (lightbox)
-  - Excluir anexo (Admin/Motorista)
-
----
-
-### Detalhes técnicos
-
-- Upload via `supabase.storage.from('route-receipts').upload()` com path `{route_id}/{timestamp}.jpg`
-- URLs assinadas (1h) para visualização — bucket privado
-- Limite 10 MB por foto; compressão client-side via canvas se >2 MB
-- Atributo `capture="environment"` abre câmera traseira no mobile e cai no seletor padrão no desktop
-- Função SQL `cleanup_expired_receipts()` agendada via `pg_cron`
-
-### Fora do escopo
-- Edição/recorte de foto
-- OCR do canhoto
-- Notificação antes da expiração
-- Captura automática de GPS do navegador (apenas colar link/coords manualmente)
+## Nada de backend
+Mudança puramente visual no `RouteTable.tsx`. Sem migrações, sem novos componentes, sem alteração de dados.
