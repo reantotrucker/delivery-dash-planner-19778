@@ -494,6 +494,8 @@ const Dashboard = () => {
                 routes={filteredRoutes} 
                 onUpdate={refetch}
                 isAdmin={isAdmin}
+                isMotorista={isMotorista}
+                isComercial={isComercial}
                 canManageOccurrences={canManageOccurrences}
               />
             </div>
