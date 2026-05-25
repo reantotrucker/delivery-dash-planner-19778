@@ -528,6 +528,22 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                       </Button>
                     )}
 
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="flex-1 h-8 text-[10px] font-black uppercase gap-1 px-2 min-w-0 relative"
+                      onClick={() => setReceiptRoute(route)}
+                    >
+                      <Camera className="w-3 h-3" />
+                      Canhoto
+                      {receiptCount > 0 && (
+                        <span className="bg-emerald-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center">
+                          {receiptCount}
+                        </span>
+                      )}
+                    </Button>
+
+
                     {(isAdmin || canManageOccurrences) ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
