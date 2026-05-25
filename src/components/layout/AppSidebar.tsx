@@ -1,4 +1,4 @@
-import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown } from "lucide-react";
+import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 const navItems = [
   { title: "Rotas", url: "/", icon: Home, adminOnly: false },
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
+  { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },
   { title: "Configurações", url: "/settings", icon: Settings, adminOnly: true },
