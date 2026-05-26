@@ -75,6 +75,8 @@ async function compressImage(file: File): Promise<File> {
 
 export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, canManage, onChange }: Props) => {
   const queryClient = useQueryClient();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin";
   const [uploading, setUploading] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
