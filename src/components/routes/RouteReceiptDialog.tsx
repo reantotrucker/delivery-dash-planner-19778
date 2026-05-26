@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Receipt {
   id: string;
@@ -22,6 +23,7 @@ interface Receipt {
   file_name: string;
   created_at: string;
   expires_at: string;
+  uploaded_by: string | null;
 }
 
 interface Props {
