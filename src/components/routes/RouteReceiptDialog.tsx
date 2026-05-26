@@ -15,6 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Receipt {
   id: string;
@@ -22,6 +23,7 @@ interface Receipt {
   file_name: string;
   created_at: string;
   expires_at: string;
+  uploaded_by: string | null;
 }
 
 interface Props {
@@ -73,6 +75,8 @@ async function compressImage(file: File): Promise<File> {
 
 export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, canManage, onChange }: Props) => {
   const queryClient = useQueryClient();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin";
   const [uploading, setUploading] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -248,7 +252,7 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
                         <span>{new Date(r.created_at).toLocaleDateString("pt-BR")}</span>
                         <span className={days <= 5 ? "text-amber-500 font-semibold" : ""}>{days}d</span>
                       </div>
-                      {canManage && (
+                      {canManage && (isAdmin || r.uploaded_by === user?.id) && (
                         <button
                           onClick={() => setDeleteId(r.id)}
                           className="absolute top-1 right-1 bg-destructive/90 text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
