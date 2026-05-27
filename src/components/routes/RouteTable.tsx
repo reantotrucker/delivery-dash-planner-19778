@@ -521,7 +521,13 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                       {productCount?.total > 0 ? (
                         <Button
                           className="flex items-center justify-center gap-2 h-10 px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider shadow-md shadow-blue-900/20 active:scale-95 transition-all"
-                          onClick={() => setChecklistRoute(route)}
+                          onClick={() => {
+                            if (isComercial && !isAdmin) {
+                              toast({ title: "Acesso negado", description: "Você não tem acesso aos produtos.", variant: "destructive" });
+                              return;
+                            }
+                            setChecklistRoute(route);
+                          }}
                         >
                           <Package className="w-4 h-4" />
                           Produtos
