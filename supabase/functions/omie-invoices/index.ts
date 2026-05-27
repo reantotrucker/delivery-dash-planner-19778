@@ -444,6 +444,7 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
       address: clientId ? clientAddresses.get(clientId) || null : null,
       totalValue: nf.total?.ICMSTot?.vNF || 0,
       status: nf.ide?.cSitNFe,
+      canceled: nf.ide?.cSitNFe === 'C' || nf.ide?.cSitNFe === 'CANCELADA',
       paymentMethod: nf.pag?.[0]?.tPag,
       accessKey: nf.compl?.cChaveNFe,
       orderId,
