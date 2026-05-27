@@ -396,10 +396,8 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
   }
 
   const validInvoices = (data.nfCadastro || []).filter((nf: any) => {
-    const status = nf.ide?.cSitNFe;
-    const isNotCanceled = status !== 'C' && status !== 'CANCELADA';
     const isSaida = nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1;
-    return isNotCanceled && isSaida;
+    return isSaida;
   });
 
   const orderIdSet = new Set<number>();
