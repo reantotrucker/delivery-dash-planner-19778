@@ -66,6 +66,7 @@ interface OmieInvoice {
   } | null;
   totalValue: number;
   status?: string;
+  canceled?: boolean;
   paymentMethod?: string;
   accessKey?: string;
   orderId?: number;
@@ -736,13 +737,26 @@ export default function OmieImport() {
                 {filteredInvoices.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                      importedNfNumbers.has(normalizeNfNumber(invoice.number))
-                        ? 'border-green-500 bg-green-500/10 cursor-default'
-                        : 'border-border hover:border-primary/50 hover:bg-primary/5'
+                    className={`relative overflow-hidden p-4 rounded-lg border transition-colors ${
+                      invoice.canceled
+                        ? 'border-destructive bg-destructive/10 cursor-not-allowed'
+                        : importedNfNumbers.has(normalizeNfNumber(invoice.number))
+                          ? 'border-green-500 bg-green-500/10 cursor-default'
+                          : 'border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer'
                     }`}
-                    onClick={() => handleOpenInvoiceDialog(invoice)}
+                    onClick={() => {
+                      if (invoice.canceled) return;
+                      handleOpenInvoiceDialog(invoice);
+                    }}
                   >
+                    {invoice.canceled && (
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-10">
+                        <span className="text-destructive font-extrabold tracking-[0.3em] text-3xl md:text-5xl border-4 border-destructive px-6 py-2 rounded-md rotate-[-8deg] bg-background/70 shadow-lg">
+                          CANCELADO
+                        </span>
+                      </div>
+                    )}
+                    <div className={invoice.canceled ? 'opacity-40' : ''}>
                     <div className="flex items-start gap-4">
                       
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -839,7 +853,9 @@ export default function OmieImport() {
                         </div>
                       </div>
                     </div>
+                    </div>
                   </div>
+
                 ))}
               </div>
             )}
