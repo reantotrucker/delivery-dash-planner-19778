@@ -66,6 +66,7 @@ interface OmieInvoice {
   } | null;
   totalValue: number;
   status?: string;
+  canceled?: boolean;
   paymentMethod?: string;
   accessKey?: string;
   orderId?: number;
