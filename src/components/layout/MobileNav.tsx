@@ -21,7 +21,7 @@ export function MobileNav() {
   const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 safe-area-pb">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 safe-area-pb">
       <div className="flex items-center justify-around py-2">
         {filteredItems.map((item) => {
           const isActive = location.pathname === item.url;

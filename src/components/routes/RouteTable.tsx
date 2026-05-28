@@ -286,7 +286,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
         {routes.map((route, index) => {
           const routeOccurrences = occurrences.filter(o => o.route_id === route.id);
           const productCount = routeProductCounts[route.id];
@@ -314,9 +314,9 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                 </div>
               )}
 
-              <div className="flex flex-col md:flex-row flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row flex-1 min-w-0">
                 {/* LEFT: Routing Info */}
-                <div className="p-4 flex-1 min-w-0 flex flex-col justify-between md:border-r border-dashed border-border">
+                <div className="p-4 flex-1 min-w-0 flex flex-col justify-between sm:border-r border-dashed border-border">
                   <div className="flex justify-between items-start gap-2 mb-3">
                     <div className="min-w-0">
                       <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
