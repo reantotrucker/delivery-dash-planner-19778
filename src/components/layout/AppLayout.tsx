@@ -10,7 +10,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="flex min-h-screen w-full bg-background">
       <AppSidebar />
-      <main className="flex-1 pb-20 md:pb-0">
+      <main className="flex-1 pb-20 lg:pb-0">
         {children}
       </main>
       <MobileNav />
