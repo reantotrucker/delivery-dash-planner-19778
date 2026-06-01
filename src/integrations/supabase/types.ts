@@ -449,6 +449,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_profile_email: {
+        Args: { _email: string; _user_id: string }
+        Returns: undefined
+      }
       clean_omie_cache: { Args: never; Returns: undefined }
       cleanup_expired_receipts: { Args: never; Returns: undefined }
       has_role: {
