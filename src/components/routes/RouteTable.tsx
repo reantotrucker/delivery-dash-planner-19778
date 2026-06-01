@@ -507,7 +507,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                         <span className="block text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
                           Observação
                         </span>
-                        <p className="text-[11px] text-foreground/80 leading-relaxed italic break-words">
+                        <p className="text-[11px] text-foreground/80 leading-relaxed italic break-words max-h-24 overflow-y-auto pr-1">
                           {route.observation}
                         </p>
                       </div>
