@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Shield, User, ArrowLeft, Settings, Truck } from "lucide-react";
+import { Loader2, Shield, User, ArrowLeft, Settings, Truck, Pencil, Trash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -23,6 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Profile = {
   id: string;
@@ -33,10 +37,14 @@ type Profile = {
 };
 
 export default function UserManagement() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, user: currentUser, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const [editing, setEditing] = useState<Profile | null>(null);
+  const [editName, setEditName] = useState("");
+  const [deleting, setDeleting] = useState<Profile | null>(null);
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ['profiles'],
@@ -60,34 +68,53 @@ export default function UserManagement() {
 
   const toggleRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'admin' | 'user' | 'motorista' | 'comercial' }) => {
-      // Delete current role
       const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
         .eq('user_id', userId);
-
       if (deleteError) throw deleteError;
-
-      // Insert new role
       const { error: insertError } = await supabase
         .from('user_roles')
         .insert({ user_id: userId, role: newRole });
-
       if (insertError) throw insertError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
-      toast({
-        title: "Permissão atualizada",
-        description: "O nível de acesso do usuário foi alterado com sucesso.",
-      });
+      toast({ title: "Permissão atualizada", description: "O nível de acesso do usuário foi alterado com sucesso." });
     },
     onError: (error: any) => {
-      toast({
-        title: "Erro ao atualizar permissão",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao atualizar permissão", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async ({ userId, fullName }: { userId: string; fullName: string }) => {
+      const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast({ title: "Usuário atualizado" });
+      setEditing(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', { body: { userId } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast({ title: "Usuário excluído" });
+      setDeleting(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     },
   });
 
@@ -153,6 +180,7 @@ export default function UserManagement() {
                   const isCurrentAdmin = role === 'admin';
                   const isCurrentMotorista = role === 'motorista';
                   const isCurrentComercial = role === 'comercial';
+                  const isSelf = profile.id === currentUser?.id;
 
                   return (
                     <TableRow key={profile.id}>
@@ -175,45 +203,44 @@ export default function UserManagement() {
                         {new Date(profile.created_at).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Select
-                          value={role}
-                          onValueChange={(newRole) => {
-                            toggleRoleMutation.mutate({
-                              userId: profile.id,
-                              newRole: newRole as 'admin' | 'user' | 'motorista' | 'comercial',
-                            });
-                          }}
-                        >
-                          <SelectTrigger className="w-40">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">
-                              <div className="flex items-center">
-                                <Shield className="mr-2 h-4 w-4" />
-                                Administrador
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="motorista">
-                              <div className="flex items-center">
-                                <Truck className="mr-2 h-4 w-4" />
-                                Motorista
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="comercial">
-                              <div className="flex items-center">
-                                <User className="mr-2 h-4 w-4" />
-                                Comercial
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="user">
-                              <div className="flex items-center">
-                                <User className="mr-2 h-4 w-4" />
-                                Usuário
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center justify-end gap-2">
+                          <Select
+                            value={role}
+                            onValueChange={(newRole) => {
+                              toggleRoleMutation.mutate({
+                                userId: profile.id,
+                                newRole: newRole as 'admin' | 'user' | 'motorista' | 'comercial',
+                              });
+                            }}
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin"><div className="flex items-center"><Shield className="mr-2 h-4 w-4" />Administrador</div></SelectItem>
+                              <SelectItem value="motorista"><div className="flex items-center"><Truck className="mr-2 h-4 w-4" />Motorista</div></SelectItem>
+                              <SelectItem value="comercial"><div className="flex items-center"><User className="mr-2 h-4 w-4" />Comercial</div></SelectItem>
+                              <SelectItem value="user"><div className="flex items-center"><User className="mr-2 h-4 w-4" />Usuário</div></SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => { setEditing(profile); setEditName(profile.full_name); }}
+                            title="Editar nome"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setDeleting(profile)}
+                            disabled={isSelf}
+                            title={isSelf ? "Não é possível excluir o próprio usuário" : "Excluir usuário"}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -223,6 +250,56 @@ export default function UserManagement() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input value={editing?.email || ""} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label>Nome completo</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+            <Button
+              onClick={() => editing && editMutation.mutate({ userId: editing.id, fullName: editName })}
+              disabled={editMutation.isPending || !editName.trim()}
+            >
+              {editMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O usuário <strong>{deleting?.full_name}</strong> ({deleting?.email}) será permanentemente removido do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); deleting && deleteMutation.mutate(deleting.id); }}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
