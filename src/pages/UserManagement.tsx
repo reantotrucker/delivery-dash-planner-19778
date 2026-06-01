@@ -44,6 +44,7 @@ export default function UserManagement() {
 
   const [editing, setEditing] = useState<Profile | null>(null);
   const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [deleting, setDeleting] = useState<Profile | null>(null);
 
   const { data: profiles, isLoading } = useQuery({
