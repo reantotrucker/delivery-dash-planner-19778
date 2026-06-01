@@ -44,6 +44,7 @@ export default function UserManagement() {
 
   const [editing, setEditing] = useState<Profile | null>(null);
   const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [deleting, setDeleting] = useState<Profile | null>(null);
 
   const { data: profiles, isLoading } = useQuery({
@@ -88,9 +89,10 @@ export default function UserManagement() {
   });
 
   const editMutation = useMutation({
-    mutationFn: async ({ userId, fullName }: { userId: string; fullName: string }) => {
-      const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', userId);
+    mutationFn: async ({ userId, fullName, email }: { userId: string; fullName: string; email: string }) => {
+      const { data, error } = await supabase.functions.invoke('admin-update-user', { body: { userId, fullName, email } });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
@@ -226,7 +228,7 @@ export default function UserManagement() {
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => { setEditing(profile); setEditName(profile.full_name); }}
+                            onClick={() => { setEditing(profile); setEditName(profile.full_name); setEditEmail(profile.email); }}
                             title="Editar nome"
                           >
                             <Pencil className="h-4 w-4" />
@@ -259,7 +261,7 @@ export default function UserManagement() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Email</Label>
-              <Input value={editing?.email || ""} disabled />
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Nome completo</Label>
@@ -269,8 +271,8 @@ export default function UserManagement() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
             <Button
-              onClick={() => editing && editMutation.mutate({ userId: editing.id, fullName: editName })}
-              disabled={editMutation.isPending || !editName.trim()}
+              onClick={() => editing && editMutation.mutate({ userId: editing.id, fullName: editName, email: editEmail })}
+              disabled={editMutation.isPending || !editName.trim() || !editEmail.trim()}
             >
               {editMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Salvar
