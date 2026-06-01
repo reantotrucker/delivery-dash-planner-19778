@@ -89,9 +89,10 @@ export default function UserManagement() {
   });
 
   const editMutation = useMutation({
-    mutationFn: async ({ userId, fullName }: { userId: string; fullName: string }) => {
-      const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', userId);
+    mutationFn: async ({ userId, fullName, email }: { userId: string; fullName: string; email: string }) => {
+      const { data, error } = await supabase.functions.invoke('admin-update-user', { body: { userId, fullName, email } });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
