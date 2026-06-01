@@ -228,7 +228,7 @@ export default function UserManagement() {
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => { setEditing(profile); setEditName(profile.full_name); }}
+                            onClick={() => { setEditing(profile); setEditName(profile.full_name); setEditEmail(profile.email); }}
                             title="Editar nome"
                           >
                             <Pencil className="h-4 w-4" />
