@@ -35,10 +35,12 @@ const Dashboard = () => {
   const [isLoadingMap, setIsLoadingMap] = useState(false);
   const [mapData, setMapData] = useState<any>(null);
 
+  const isSearching = searchTerm.trim().length > 0;
+
   const { data: routes = [], refetch } = useQuery({
-    queryKey: ["routes", selectedDate, selectedPeriod],
+    queryKey: ["routes", selectedDate, selectedPeriod, isSearching],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("routes")
         .select(`
           *,
@@ -46,14 +48,28 @@ const Dashboard = () => {
           vehicle:vehicles(plate),
           consultant:consultants(name),
           payment_method:payment_methods(name)
-        `)
-        .eq("date", format(selectedDate, "yyyy-MM-dd"))
-        .eq("period", selectedPeriod)
-        .order("order_number", { ascending: true });
+        `);
 
+      if (isSearching) {
+        // Busca em todas as datas/períodos quando há termo de pesquisa
+        query = query
+          .order("date", { ascending: false })
+          .order("order_number", { ascending: true })
+          .limit(500);
+      } else {
+        query = query
+          .eq("date", format(selectedDate, "yyyy-MM-dd"))
+          .eq("period", selectedPeriod)
+          .order("order_number", { ascending: true });
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       
       const sortedData = (data || []).sort((a, b) => {
+        if (isSearching && a.date !== b.date) {
+          return a.date < b.date ? 1 : -1;
+        }
         const driverA = a.driver?.name || "";
         const driverB = b.driver?.name || "";
         return driverA.localeCompare(driverB);
