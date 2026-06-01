@@ -261,7 +261,7 @@ export default function UserManagement() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Email</Label>
-              <Input value={editing?.email || ""} disabled />
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Nome completo</Label>
@@ -271,8 +271,8 @@ export default function UserManagement() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
             <Button
-              onClick={() => editing && editMutation.mutate({ userId: editing.id, fullName: editName })}
-              disabled={editMutation.isPending || !editName.trim()}
+              onClick={() => editing && editMutation.mutate({ userId: editing.id, fullName: editName, email: editEmail })}
+              disabled={editMutation.isPending || !editName.trim() || !editEmail.trim()}
             >
               {editMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Salvar
