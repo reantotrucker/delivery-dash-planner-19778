@@ -24,7 +24,7 @@ const Dashboard = () => {
   const canManageRoutes = isAdmin;
   const canManageOccurrences = isAdmin || isMotorista || isComercial;
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedPeriod, setSelectedPeriod] = useState<"MANHA" | "TARDE">("MANHA");
+  const [selectedPeriod, setSelectedPeriod] = useState<"MANHA" | "TARDE">(new Date().getHours() >= 12 ? "TARDE" : "MANHA");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDriverFilter, setSelectedDriverFilter] = useState<string>("all");
   const [selectedDriverForPrint, setSelectedDriverForPrint] = useState<string>("all");
