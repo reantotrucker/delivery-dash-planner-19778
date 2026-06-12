@@ -1,24 +1,48 @@
-# Redesign da barra de ações do card de rota
+# Plano: Preparar projeto para migração via GitHub
 
-## O que muda visualmente
-Substituir a linha apertada de 4 botões (Produtos · Canhoto · Ocorr. · Reagendar) por uma **grade 2x2 de tiles** com ícone grande colorido em cima e label curto embaixo. Os botões de Editar/Excluir continuam como estão, abaixo da grade.
+Como você não precisa levar dados, o caminho é simples: garantir que **todo o código + estrutura do banco** esteja versionado no GitHub, para a outra conta clonar e subir um Cloud novo já com tudo pronto.
 
-Cada tile:
-- Fundo `bg-secondary/40`, borda sutil, cantos `rounded-xl`
-- Ícone dentro de um quadrado colorido tonal (azul para Produtos, vermelho para Canhoto, cinza para Ocorr., âmbar para Reagendar)
-- Label uppercase pequena (`text-[10px]`) embaixo
-- Badge de contagem flutuante no canto (Canhoto vermelho, Ocorr. vermelho)
-- Animação leve: `active:scale-95`, ícone cresce no hover
+## O que vou verificar e preparar
 
-Tudo respeita o design system (tokens semânticos), sem cores fixas no JSX além das classes tonais já permitidas para destaque.
+### 1. Auditoria de migrations
+- Conferir se `supabase/migrations/` contém TODAS as tabelas, funções, RLS, GRANTs e buckets atuais.
+- Itens críticos que precisam estar versionados:
+  - Enum `app_role`
+  - Tabelas: `profiles`, `user_roles`, `routes`, `route_products`, `route_occurrences`, `route_receipts`, `drivers`, `vehicles`, `consultants`, `payment_methods`, `omie_cache`, etc.
+  - Funções: `has_role`, `handle_new_user`, `update_updated_at`, `clean_omie_cache`, `cleanup_expired_receipts`, `prevent_profile_email_change`, `admin_set_profile_email`
+  - Trigger `on_auth_user_created` no `auth.users` (chama `handle_new_user`)
+  - Cron jobs `pg_cron` (limpeza de receipts e cache Omie)
+  - Buckets de Storage: `route-occurrences`, `route-receipts` + políticas
 
-## Onde mexer
-Arquivo: `src/components/routes/RouteTable.tsx`
+### 2. Criar migration "consolidação" se faltar algo
+Se qualquer item acima não estiver nas migrations existentes, vou criar **uma migration nova** que recria tudo via `CREATE ... IF NOT EXISTS`. Assim, ao subir o Cloud na outra conta, ela roda e deixa o banco idêntico.
 
-- Trocar o container `flex flex-wrap gap-1.5` (linha ~518) por `grid grid-cols-2 gap-2`.
-- Reescrever os 4 botões (Produtos, Canhoto, Ocorr. trigger do DropdownMenu, Reagendar trigger do Popover) para o formato tile vertical (`flex-col`, ícone em caixa colorida, label embaixo). Conteúdo do DropdownMenu e do Popover permanece igual.
-- Manter `isAdmin`, `canManageOccurrences`, `receiptCount`, `productCount`, `routeOccurrences` e handlers existentes.
-- Bloco de Editar/Excluir (linhas 687–729) permanece intacto.
+### 3. Documentar setup pós-migração (README_MIGRACAO.md)
+Criar um arquivo na raiz com checklist do que fazer na nova conta:
+- Ligar Lovable Cloud
+- Adicionar secrets: `OMIE_APP_KEY`, `OMIE_APP_SECRET`
+- Ativar Google OAuth (se quiser manter login Google) + credenciais
+- Criar primeiro usuário admin (email `renato@stock360.com.br` vira admin automático via trigger)
+- Cadastrar motoristas/comercial em `/users`
+- Cadastrar dados mestre em `/settings` (motoristas, veículos, consultores, formas de pagamento)
 
-## Nada de backend
-Mudança puramente visual no `RouteTable.tsx`. Sem migrações, sem novos componentes, sem alteração de dados.
+### 4. Conectar este projeto ao GitHub
+Você faz manualmente (eu não tenho permissão):
+- Botão **+** no chat (canto inferior esquerdo) → **GitHub** → **Connect project** → **Create Repository**
+- Depois é só dar acesso ao repo para a outra conta (ou tornar público) e na outra conta criar projeto novo conectado ao mesmo repo.
+
+## Resultado final
+
+Outra conta vai:
+1. Criar projeto Lovable em branco
+2. Conectar ao mesmo repo GitHub
+3. Ligar Cloud → migrations rodam → banco pronto
+4. Adicionar 2 secrets do Omie
+5. Configurar Google OAuth
+6. Publicar
+
+Sem dados antigos, sem usuários antigos — sistema limpo pronto para uso.
+
+---
+
+**Aprovar para eu começar?** Vou auditar as migrations, criar a consolidação se necessário, e gerar o `README_MIGRACAO.md`.
