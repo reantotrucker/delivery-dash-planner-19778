@@ -232,7 +232,14 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
 
             <div className="space-y-2">
               <Label htmlFor="edit-driver" className="text-xs">MOTORISTA</Label>
-              <Select value={formData.driver_id} onValueChange={(v) => setFormData({ ...formData, driver_id: v })}>
+              <Select
+                value={formData.driver_id}
+                onValueChange={(v) => {
+                  const linkedVehicle = (drivers as { id: string; default_vehicle_id?: string | null }[])
+                    .find((d) => d.id === v)?.default_vehicle_id;
+                  setFormData((prev) => ({ ...prev, driver_id: v, vehicle_id: linkedVehicle || prev.vehicle_id }));
+                }}
+              >
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
