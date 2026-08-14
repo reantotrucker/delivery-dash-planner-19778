@@ -218,7 +218,14 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
 
         <div className="space-y-1">
           <Label htmlFor="driver" className="text-xs">MOTORISTA</Label>
-          <Select value={formData.driver_id} onValueChange={(v) => setFormData({ ...formData, driver_id: v })}>
+          <Select
+            value={formData.driver_id}
+            onValueChange={(v) => {
+              const linkedVehicle = (drivers as { id: string; default_vehicle_id?: string | null }[])
+                .find((d) => d.id === v)?.default_vehicle_id;
+              setFormData({ ...formData, driver_id: v, vehicle_id: linkedVehicle || formData.vehicle_id });
+            }}
+          >
             <SelectTrigger className="h-9 text-sm">
               <SelectValue placeholder="Selecione..." />
             </SelectTrigger>

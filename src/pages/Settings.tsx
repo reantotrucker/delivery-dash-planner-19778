@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import {
   driverSchema, 
@@ -61,7 +62,7 @@ const Settings = () => {
 const DriversSettings = () => {
   const [newDriver, setNewDriver] = useState({ name: "", color: "#FF6B00" });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState({ name: "", color: "" });
+  const [editData, setEditData] = useState({ name: "", color: "", default_vehicle_id: "" });
 
   const { data: drivers = [], refetch } = useQuery({
     queryKey: ["drivers"],
@@ -71,6 +72,16 @@ const DriversSettings = () => {
       return data;
     },
   });
+
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ["vehicles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("vehicles").select("*").order("plate");
+      if (error) throw error;
+      return data;
+    },
+  });
+
 
   const addDriver = async () => {
     try {
@@ -93,21 +104,21 @@ const DriversSettings = () => {
     refetch();
   };
 
-  const startEdit = (driver: { id: string; name: string; color: string }) => {
+  const startEdit = (driver: { id: string; name: string; color: string; default_vehicle_id?: string | null }) => {
     setEditingId(driver.id);
-    setEditData({ name: driver.name, color: driver.color });
+    setEditData({ name: driver.name, color: driver.color, default_vehicle_id: driver.default_vehicle_id || "" });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditData({ name: "", color: "" });
+    setEditData({ name: "", color: "", default_vehicle_id: "" });
   };
 
   const saveEdit = async () => {
     if (!editingId) return;
 
     try {
-      driverSchema.parse(editData);
+      driverSchema.parse({ name: editData.name, color: editData.color });
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
@@ -117,7 +128,11 @@ const DriversSettings = () => {
 
     const { error } = await supabase
       .from("drivers")
-      .update(editData)
+      .update({
+        name: editData.name,
+        color: editData.color,
+        default_vehicle_id: editData.default_vehicle_id || null,
+      })
       .eq("id", editingId);
 
     if (error) {
@@ -127,7 +142,7 @@ const DriversSettings = () => {
 
     toast.success("Motorista atualizado");
     setEditingId(null);
-    setEditData({ name: "", color: "" });
+    setEditData({ name: "", color: "", default_vehicle_id: "" });
     refetch();
   };
 
@@ -189,6 +204,20 @@ const DriversSettings = () => {
                     onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                     className="flex-1"
                   />
+                  <Select
+                    value={editData.default_vehicle_id || "none"}
+                    onValueChange={(v) => setEditData({ ...editData, default_vehicle_id: v === "none" ? "" : v })}
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Veículo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem veículo</SelectItem>
+                      {vehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>{v.plate}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
@@ -197,6 +226,11 @@ const DriversSettings = () => {
                     style={{ backgroundColor: driver.color }}
                   />
                   <span className="font-medium">{driver.name}</span>
+                  {driver.default_vehicle_id && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-secondary text-muted-foreground font-mono">
+                      {vehicles.find((v) => v.id === driver.default_vehicle_id)?.plate}
+                    </span>
+                  )}
                 </div>
               )}
               <div className="flex gap-2">

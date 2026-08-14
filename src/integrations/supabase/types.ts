@@ -39,6 +39,7 @@ export type Database = {
         Row: {
           color: string
           created_at: string | null
+          default_vehicle_id: string | null
           id: string
           name: string
           updated_at: string | null
@@ -46,6 +47,7 @@ export type Database = {
         Insert: {
           color: string
           created_at?: string | null
+          default_vehicle_id?: string | null
           id?: string
           name: string
           updated_at?: string | null
@@ -53,11 +55,20 @@ export type Database = {
         Update: {
           color?: string
           created_at?: string | null
+          default_vehicle_id?: string | null
           id?: string
           name?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "drivers_default_vehicle_id_fkey"
+            columns: ["default_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       omie_cache: {
         Row: {
