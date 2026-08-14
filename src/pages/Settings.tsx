@@ -190,6 +190,20 @@ const DriversSettings = () => {
                     onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                     className="flex-1"
                   />
+                  <Select
+                    value={editData.default_vehicle_id || "none"}
+                    onValueChange={(v) => setEditData({ ...editData, default_vehicle_id: v === "none" ? "" : v })}
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Veículo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem veículo</SelectItem>
+                      {vehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>{v.plate}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
@@ -198,6 +212,11 @@ const DriversSettings = () => {
                     style={{ backgroundColor: driver.color }}
                   />
                   <span className="font-medium">{driver.name}</span>
+                  {driver.default_vehicle_id && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-secondary text-muted-foreground font-mono">
+                      {vehicles.find((v) => v.id === driver.default_vehicle_id)?.plate}
+                    </span>
+                  )}
                 </div>
               )}
               <div className="flex gap-2">
