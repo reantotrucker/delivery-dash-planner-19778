@@ -62,7 +62,7 @@ const Settings = () => {
 const DriversSettings = () => {
   const [newDriver, setNewDriver] = useState({ name: "", color: "#FF6B00" });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState({ name: "", color: "" });
+  const [editData, setEditData] = useState({ name: "", color: "", default_vehicle_id: "" });
 
   const { data: drivers = [], refetch } = useQuery({
     queryKey: ["drivers"],
@@ -72,6 +72,16 @@ const DriversSettings = () => {
       return data;
     },
   });
+
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ["vehicles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("vehicles").select("*").order("plate");
+      if (error) throw error;
+      return data;
+    },
+  });
+
 
   const addDriver = async () => {
     try {
