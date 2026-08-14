@@ -104,21 +104,21 @@ const DriversSettings = () => {
     refetch();
   };
 
-  const startEdit = (driver: { id: string; name: string; color: string }) => {
+  const startEdit = (driver: { id: string; name: string; color: string; default_vehicle_id?: string | null }) => {
     setEditingId(driver.id);
-    setEditData({ name: driver.name, color: driver.color });
+    setEditData({ name: driver.name, color: driver.color, default_vehicle_id: driver.default_vehicle_id || "" });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditData({ name: "", color: "" });
+    setEditData({ name: "", color: "", default_vehicle_id: "" });
   };
 
   const saveEdit = async () => {
     if (!editingId) return;
 
     try {
-      driverSchema.parse(editData);
+      driverSchema.parse({ name: editData.name, color: editData.color });
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
@@ -128,7 +128,11 @@ const DriversSettings = () => {
 
     const { error } = await supabase
       .from("drivers")
-      .update(editData)
+      .update({
+        name: editData.name,
+        color: editData.color,
+        default_vehicle_id: editData.default_vehicle_id || null,
+      })
       .eq("id", editingId);
 
     if (error) {
@@ -138,7 +142,7 @@ const DriversSettings = () => {
 
     toast.success("Motorista atualizado");
     setEditingId(null);
-    setEditData({ name: "", color: "" });
+    setEditData({ name: "", color: "", default_vehicle_id: "" });
     refetch();
   };
 
