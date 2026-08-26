@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -93,15 +93,35 @@ export default function TvPanel() {
     };
   }, [companyId, queryClient]);
 
-  // Pendentes: aguardando e sem nenhuma ação de conferência (ordem de chegada)
+  // Pendentes: só saem da tela quando o expedidor confirma Balcão ou Rota (ordem de chegada)
   const pending = useMemo(
     () =>
       orders
-        .filter((o) => o.status === "AGUARDANDO" && !o.checked_by)
+        .filter((o) => o.status === "AGUARDANDO")
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [orders]
   );
   const done = useMemo(() => orders.filter((o) => o.status !== "AGUARDANDO").slice(0, 8), [orders]);
+
+  // Cards que acabaram de ser finalizados: ficam em tela desintegrando
+  const prevPending = useRef<TvOrder[]>([]);
+  const [leaving, setLeaving] = useState<TvOrder[]>([]);
+  useEffect(() => {
+    const ids = new Set(pending.map((o) => o.id));
+    const gone = prevPending.current.filter((o) => !ids.has(o.id));
+    prevPending.current = pending;
+    if (gone.length) {
+      setLeaving((l) => [...l, ...gone]);
+      const goneIds = new Set(gone.map((g) => g.id));
+      setTimeout(() => setLeaving((l) => l.filter((o) => !goneIds.has(o.id))), 1400);
+    }
+  }, [pending]);
+
+  const display = useMemo(() => {
+    const ids = new Set(pending.map((o) => o.id));
+    return [...pending, ...leaving.filter((o) => !ids.has(o.id))];
+  }, [pending, leaving]);
+
 
   useEffect(() => {
     if (lastCount !== null && pending.length > lastCount && sound) beep();
@@ -145,30 +165,42 @@ export default function TvPanel() {
         </div>
       </header>
 
-      {pending.length === 0 ? (
+      {display.length === 0 ? (
         <div className="flex items-center justify-center h-[50vh] text-4xl font-bold text-muted-foreground">
           Nenhum pedido aguardando separação
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {pending.map((o, idx) => (
-            <div
-              key={o.id}
-              className={cn(
-                "rounded-2xl border-4 border-primary bg-card p-5",
-                idx === 0 && "animate-pulse"
-              )}
-            >
-              <p className="text-sm font-semibold text-muted-foreground">
-                {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
-              </p>
-              <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
-              {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
-              <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
-            </div>
-          ))}
+          {display.map((o) => {
+            const isLeaving = !pending.some((p) => p.id === o.id);
+            const inConference = !!o.checked_by;
+            return (
+              <div
+                key={o.id}
+                className={cn(
+                  "rounded-2xl border-4 bg-card p-5 transition-colors duration-500",
+                  inConference ? "border-success bg-success/10" : "border-primary",
+                  !inConference && !isLeaving && o.id === pending[0]?.id && "animate-pulse",
+                  isLeaving && "tv-disintegrate"
+                )}
+              >
+                <p className="text-sm font-semibold text-muted-foreground">
+                  {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
+                </p>
+                <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
+                {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
+                <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
+                {inConference && (
+                  <p className="mt-3 inline-flex items-center gap-2 text-lg font-bold text-success">
+                    <PackageCheck className="w-5 h-5" /> EM CONFERÊNCIA
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
+
 
       {done.length > 0 && (
         <section className="mt-8">
