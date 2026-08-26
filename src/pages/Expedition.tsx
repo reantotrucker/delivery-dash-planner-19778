@@ -491,15 +491,6 @@ export default function Expedition() {
             </DialogTitle>
           </DialogHeader>
 
-          {openOrder?.checked_by && (
-            <p className="text-sm text-muted-foreground">
-              Conferente:{" "}
-              <strong className="text-foreground">
-                {conferenteName(openOrder.checked_by) || "—"}
-              </strong>
-            </p>
-          )}
-
           <div className="max-h-[45vh] overflow-y-auto space-y-2">
             {items.length === 0 && (
               <p className="text-sm text-muted-foreground">Nenhum item registrado nesta venda.</p>
