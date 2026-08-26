@@ -467,7 +467,36 @@ export default function Expedition() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+          <Input
+            type="date"
+            className="w-[150px]"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+          <span className="text-muted-foreground text-sm">até</span>
+          <Input
+            type="date"
+            className="w-[150px]"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+          {(dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+            >
+              Limpar
+            </Button>
+          )}
+        </div>
       </div>
+
 
       {isLoading ? (
         <div className="flex justify-center py-10">
