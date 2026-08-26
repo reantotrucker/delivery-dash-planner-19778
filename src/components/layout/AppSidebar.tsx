@@ -9,7 +9,16 @@ import { useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CompanySwitcher } from "@/components/layout/CompanySwitcher";
 
-const navItems = [
+type NavItem = {
+  title: string;
+  url: string;
+  icon: typeof Home;
+  adminOnly: boolean;
+  expeditionOnly?: boolean;
+  hideWhenExpedition?: boolean;
+};
+
+const navItems: NavItem[] = [
   { title: "Rotas", url: "/", icon: Home, adminOnly: false },
   { title: "Expedição", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
