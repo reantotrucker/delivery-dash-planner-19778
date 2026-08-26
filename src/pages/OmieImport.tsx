@@ -525,6 +525,7 @@ export default function OmieImport() {
   const handleCreateRouteFromExtract = async () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const routeToCreate = {
+      company_id: getActiveCompanyId(),
       client: extractFormData.client || 'Cliente não identificado',
       neighborhood: extractFormData.neighborhood || 'N/A',
       address: extractFormData.address || null,
