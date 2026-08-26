@@ -41,10 +41,23 @@ const beep = () => {
 };
 
 export default function TvPanel() {
-  const { companyId, company, hasExpedition } = useCompany();
+  const { companies, companyId: activeCompanyId, selectCompany } = useCompany();
+  const [searchParams] = useSearchParams();
+  const urlCompanyId = searchParams.get("company") || "";
   const queryClient = useQueryClient();
   const [sound, setSound] = useState(true);
   const [lastCount, setLastCount] = useState<number | null>(null);
+
+  // A empresa pode vir pela URL (painel aberto em nova aba)
+  useEffect(() => {
+    if (urlCompanyId && urlCompanyId !== activeCompanyId && companies.some((c) => c.id === urlCompanyId)) {
+      selectCompany(urlCompanyId);
+    }
+  }, [urlCompanyId, activeCompanyId, companies, selectCompany]);
+
+  const companyId = urlCompanyId || activeCompanyId;
+  const company = companies.find((c) => c.id === companyId) || null;
+  const hasExpedition = !!company?.has_expedition;
 
   const { data: orders = [] } = useQuery({
     queryKey: ["tv-orders", companyId],
