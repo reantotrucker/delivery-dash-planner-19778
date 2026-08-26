@@ -93,15 +93,35 @@ export default function TvPanel() {
     };
   }, [companyId, queryClient]);
 
-  // Pendentes: aguardando e sem nenhuma ação de conferência (ordem de chegada)
+  // Pendentes: só saem da tela quando o expedidor confirma Balcão ou Rota (ordem de chegada)
   const pending = useMemo(
     () =>
       orders
-        .filter((o) => o.status === "AGUARDANDO" && !o.checked_by)
+        .filter((o) => o.status === "AGUARDANDO")
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [orders]
   );
   const done = useMemo(() => orders.filter((o) => o.status !== "AGUARDANDO").slice(0, 8), [orders]);
+
+  // Cards que acabaram de ser finalizados: ficam em tela desintegrando
+  const prevPending = useRef<TvOrder[]>([]);
+  const [leaving, setLeaving] = useState<TvOrder[]>([]);
+  useEffect(() => {
+    const ids = new Set(pending.map((o) => o.id));
+    const gone = prevPending.current.filter((o) => !ids.has(o.id));
+    prevPending.current = pending;
+    if (gone.length) {
+      setLeaving((l) => [...l, ...gone]);
+      const goneIds = new Set(gone.map((g) => g.id));
+      setTimeout(() => setLeaving((l) => l.filter((o) => !goneIds.has(o.id))), 1400);
+    }
+  }, [pending]);
+
+  const display = useMemo(() => {
+    const ids = new Set(pending.map((o) => o.id));
+    return [...pending, ...leaving.filter((o) => !ids.has(o.id))];
+  }, [pending, leaving]);
+
 
   useEffect(() => {
     if (lastCount !== null && pending.length > lastCount && sound) beep();
