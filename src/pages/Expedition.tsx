@@ -464,10 +464,11 @@ export default function Expedition() {
                   size="sm"
                   variant={o.status === "AGUARDANDO" ? "default" : "outline"}
                   className="w-full"
-                  onClick={() => setOpenOrder(o)}
+                  onClick={() => openConference(o)}
                 >
                   {o.status === "AGUARDANDO" ? "Conferir" : "Ver itens"}
                 </Button>
+
               </CardContent>
             </Card>
           ))}
