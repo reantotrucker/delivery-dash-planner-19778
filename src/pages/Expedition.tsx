@@ -32,6 +32,11 @@ import {
   Clock,
   Tv,
   RotateCcw,
+  Calendar as CalendarIcon,
+  FileText,
+  Hash,
+  Home,
+
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +58,9 @@ interface ExpeditionOrder {
   checked_at: string | null;
   checked_by: string | null;
   route_id: string | null;
+  order_number: string | null;
+  created_at: string | null;
+  observation: string | null;
 }
 
 interface ExpeditionItem {
@@ -82,13 +90,15 @@ export default function Expedition() {
   const [syncing, setSyncing] = useState(false);
   const [openOrder, setOpenOrder] = useState<ExpeditionOrder | null>(null);
   const [saving, setSaving] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [autoSync, setAutoSync] = useState(
     () => localStorage.getItem("expedition-auto-sync") === "1"
   );
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["expedition-orders", companyId, statusFilter],
+    queryKey: ["expedition-orders", companyId, statusFilter, dateFrom, dateTo],
     enabled: !!companyId && hasExpedition,
     refetchInterval: 20000,
     queryFn: async () => {
@@ -100,11 +110,14 @@ export default function Expedition() {
         .order("created_at", { ascending: true })
         .limit(300);
       if (statusFilter !== "TODOS") q = q.eq("status", statusFilter);
+      if (dateFrom) q = q.gte("created_at", `${dateFrom}T00:00:00`);
+      if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59`);
       const { data, error } = await q;
       if (error) throw error;
       return (data || []) as ExpeditionOrder[];
     },
   });
+
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["expedition-profiles"],
@@ -459,7 +472,36 @@ export default function Expedition() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+          <Input
+            type="date"
+            className="w-[150px]"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+          <span className="text-muted-foreground text-sm">até</span>
+          <Input
+            type="date"
+            className="w-[150px]"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+          {(dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+            >
+              Limpar
+            </Button>
+          )}
+        </div>
       </div>
+
 
       {isLoading ? (
         <div className="flex justify-center py-10">
@@ -495,10 +537,38 @@ export default function Expedition() {
                   </Badge>
                 </div>
 
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  {o.order_number && (
+                    <span className="flex items-center gap-1">
+                      <Hash className="w-3 h-3" /> Pedido {o.order_number}
+                    </span>
+                  )}
+                  {o.issued_at && (
+                    <span className="flex items-center gap-1">
+                      <FileText className="w-3 h-3" /> Emissão{" "}
+                      {format(new Date(o.issued_at), "dd/MM/yyyy HH:mm")}
+                    </span>
+                  )}
+                  {o.created_at && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> Chegou{" "}
+                      {format(new Date(o.created_at), "dd/MM/yyyy HH:mm")}
+                    </span>
+                  )}
+                  {o.cep && (
+                    <span className="flex items-center gap-1">
+                      <Home className="w-3 h-3" /> CEP {o.cep}
+                    </span>
+                  )}
+                </div>
+
                 {o.neighborhood && (
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5" /> {o.neighborhood}
                   </p>
+                )}
+                {o.address && (
+                  <p className="text-xs text-muted-foreground leading-snug">{o.address}</p>
                 )}
                 {o.seller && (
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
@@ -508,10 +578,12 @@ export default function Expedition() {
                 <p className="text-sm font-semibold">{formatBRL(o.total_value)}</p>
                 {o.checked_at && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> {format(new Date(o.checked_at), "dd/MM HH:mm")}
-                    {conferenteName(o.checked_by) && <> · Conferente: {conferenteName(o.checked_by)}</>}
+                    <PackageCheck className="w-3 h-3" /> Conferido{" "}
+                    {format(new Date(o.checked_at), "dd/MM/yyyy HH:mm")}
+                    {conferenteName(o.checked_by) && <> · {conferenteName(o.checked_by)}</>}
                   </p>
                 )}
+
 
                 <Button
                   size="sm"
