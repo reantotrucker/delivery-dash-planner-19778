@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { getActiveCompanyId } from "@/lib/company";
 import { toast } from "@/components/ui/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -51,36 +52,36 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
   };
 
   const { data: drivers = [] } = useQuery({
-    queryKey: ["drivers"],
+    queryKey: ["drivers", getActiveCompanyId()],
     queryFn: async () => {
-      const { data, error } = await supabase.from("drivers").select("*").order("name");
+      const { data, error } = await supabase.from("drivers").select("*").eq("company_id", getActiveCompanyId()).order("name");
       if (error) throw error;
       return data;
     },
   });
 
   const { data: vehicles = [] } = useQuery({
-    queryKey: ["vehicles"],
+    queryKey: ["vehicles", getActiveCompanyId()],
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("*").order("plate");
+      const { data, error } = await supabase.from("vehicles").select("*").eq("company_id", getActiveCompanyId()).order("plate");
       if (error) throw error;
       return data;
     },
   });
 
   const { data: consultants = [] } = useQuery({
-    queryKey: ["consultants"],
+    queryKey: ["consultants", getActiveCompanyId()],
     queryFn: async () => {
-      const { data, error } = await supabase.from("consultants").select("*").order("name");
+      const { data, error } = await supabase.from("consultants").select("*").eq("company_id", getActiveCompanyId()).order("name");
       if (error) throw error;
       return data;
     },
   });
 
   const { data: paymentMethods = [] } = useQuery({
-    queryKey: ["payment_methods"],
+    queryKey: ["payment_methods", getActiveCompanyId()],
     queryFn: async () => {
-      const { data, error } = await supabase.from("payment_methods").select("*").order("name");
+      const { data, error } = await supabase.from("payment_methods").select("*").eq("company_id", getActiveCompanyId()).order("name");
       if (error) throw error;
       return data;
     },
@@ -105,6 +106,7 @@ export const RouteForm = ({ period, date, onSuccess }: RouteFormProps) => {
     try {
       const { error } = await supabase.from("routes").insert({
         ...formData,
+        company_id: getActiveCompanyId(),
         date: format(date, "yyyy-MM-dd"),
         period,
         address: formData.address || null,
