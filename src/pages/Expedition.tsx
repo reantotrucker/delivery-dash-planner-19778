@@ -28,6 +28,7 @@ import {
   MapPin,
   User,
   Clock,
+  Tv,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -301,10 +302,18 @@ export default function Expedition() {
           </h1>
           <p className="text-sm text-muted-foreground">{company?.name}</p>
         </div>
-        <Button onClick={syncFromOmie} disabled={syncing || !canOperate}>
-          {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-          Buscar vendas
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <a href="/tv" target="_blank" rel="noopener noreferrer">
+              <Tv className="w-4 h-4 mr-2" />
+              Abrir painel de TV
+            </a>
+          </Button>
+          <Button onClick={syncFromOmie} disabled={syncing || !canOperate}>
+            {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+            Buscar vendas
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

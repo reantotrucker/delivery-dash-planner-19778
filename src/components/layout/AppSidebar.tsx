@@ -1,4 +1,4 @@
-import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, PackageCheck, Tv } from "lucide-react";
+import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, PackageCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +12,6 @@ import { CompanySwitcher } from "@/components/layout/CompanySwitcher";
 const navItems = [
   { title: "Rotas", url: "/", icon: Home, adminOnly: false },
   { title: "Expedição", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
-  { title: "Painel TV", url: "/tv", icon: Tv, adminOnly: false, expeditionOnly: true },
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true },
