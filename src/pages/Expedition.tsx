@@ -62,6 +62,8 @@ interface ExpeditionItem {
   unit_value: number | null;
   total_value: number | null;
   checked: boolean;
+  checked_at: string | null;
+  checked_by: string | null;
 }
 
 const formatBRL = (v?: number | null) =>
@@ -217,6 +219,7 @@ export default function Expedition() {
       .update({
         checked: !item.checked,
         checked_at: !item.checked ? new Date().toISOString() : null,
+        checked_by: !item.checked ? (user?.id ?? null) : null,
       })
       .eq("id", item.id);
     if (error) {
@@ -518,6 +521,12 @@ export default function Expedition() {
                   <p className="text-xs text-muted-foreground">
                     {i.quantity} {i.unit || "UN"} · {formatBRL(i.total_value)}
                   </p>
+                  {i.checked && i.checked_by && (
+                    <p className="text-xs text-primary font-medium">
+                      Conferido por {conferenteName(i.checked_by) || "—"}
+                      {i.checked_at && ` · ${format(new Date(i.checked_at), "dd/MM HH:mm")}`}
+                    </p>
+                  )}
                 </div>
               </label>
             ))}
