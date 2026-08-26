@@ -411,17 +411,33 @@ export default function Expedition() {
           </h1>
           <p className="text-sm text-muted-foreground">{company?.name}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 rounded-md border border-border px-3 py-2">
+            <Switch
+              id="auto-sync"
+              checked={autoSync}
+              onCheckedChange={setAutoSync}
+              disabled={!canOperate}
+            />
+            <Label htmlFor="auto-sync" className="text-sm cursor-pointer">
+              Automático (60s)
+            </Label>
+          </div>
           <Button variant="outline" asChild>
             <a href={`/tv?company=${companyId}`} target="_blank" rel="noopener noreferrer">
               <Tv className="w-4 h-4 mr-2" />
               Abrir painel de TV
             </a>
           </Button>
-          <Button onClick={syncFromOmie} disabled={syncing || !canOperate}>
+          <Button onClick={() => syncFromOmie(false)} disabled={syncing || !canOperate}>
             {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Buscar vendas
           </Button>
+          {lastSync && (
+            <span className="text-xs text-muted-foreground">
+              Última: {format(lastSync, "HH:mm:ss")}
+            </span>
+          )}
         </div>
       </div>
 
