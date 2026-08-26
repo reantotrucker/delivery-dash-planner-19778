@@ -113,7 +113,7 @@ export default function TvPanel() {
     if (gone.length) {
       setLeaving((l) => [...l, ...gone]);
       const goneIds = new Set(gone.map((g) => g.id));
-      setTimeout(() => setLeaving((l) => l.filter((o) => !goneIds.has(o.id))), 1400);
+      setTimeout(() => setLeaving((l) => l.filter((o) => !goneIds.has(o.id))), 3400);
     }
   }, [pending]);
 
