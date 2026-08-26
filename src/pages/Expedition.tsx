@@ -29,6 +29,7 @@ import {
   User,
   Clock,
   Tv,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
