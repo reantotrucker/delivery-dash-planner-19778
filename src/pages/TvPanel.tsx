@@ -19,6 +19,7 @@ interface TvOrder {
   status: "AGUARDANDO" | "BALCAO" | "ROTA";
   created_at: string;
   checked_at: string | null;
+  checked_by: string | null;
 }
 
 const formatBRL = (v?: number | null) =>
@@ -66,10 +67,11 @@ export default function TvPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expedition_orders")
-        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at")
+        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at, checked_by")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(60);
+
       if (error) throw error;
       return (data || []) as TvOrder[];
     },
@@ -91,7 +93,14 @@ export default function TvPanel() {
     };
   }, [companyId, queryClient]);
 
-  const pending = useMemo(() => orders.filter((o) => o.status === "AGUARDANDO"), [orders]);
+  // Pendentes: aguardando e sem nenhuma ação de conferência (ordem de chegada)
+  const pending = useMemo(
+    () =>
+      orders
+        .filter((o) => o.status === "AGUARDANDO" && !o.checked_by)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [orders]
+  );
   const done = useMemo(() => orders.filter((o) => o.status !== "AGUARDANDO").slice(0, 8), [orders]);
 
   useEffect(() => {
