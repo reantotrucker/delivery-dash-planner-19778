@@ -211,14 +211,29 @@ export default function Expedition() {
           }
         }
       }
-      toast.success(created > 0 ? `${created} nova(s) venda(s) na expedição` : "Nenhuma venda nova");
+      setLastSync(new Date());
+      if (!silent || created > 0) {
+        toast.success(created > 0 ? `${created} nova(s) venda(s) na expedição` : "Nenhuma venda nova");
+      }
       queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
     } catch (e: any) {
-      toast.error(e.message || "Erro ao buscar vendas");
+      if (!silent) toast.error(e.message || "Erro ao buscar vendas");
     } finally {
       setSyncing(false);
     }
   };
+
+  // Sincronização automática a cada 60s (intervalo ágil e seguro para a API Omie)
+  const syncRef = useRef(syncFromOmie);
+  syncRef.current = syncFromOmie;
+
+  useEffect(() => {
+    localStorage.setItem("expedition-auto-sync", autoSync ? "1" : "0");
+    if (!autoSync || !hasExpedition || !companyId || !canOperate) return;
+    syncRef.current(true);
+    const id = setInterval(() => syncRef.current(true), 60000);
+    return () => clearInterval(id);
+  }, [autoSync, hasExpedition, companyId, canOperate]);
 
   // Ao abrir o card, marca que está em conferência (fica verde no painel de TV)
   const openConference = async (order: ExpeditionOrder) => {
