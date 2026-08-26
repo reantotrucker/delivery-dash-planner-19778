@@ -1,6 +1,7 @@
 import { Route, generateGoogleMapsLink, generateWazeLink } from "./types";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { getActiveCompanyId } from "@/lib/company";
 import { toast } from "@/hooks/use-toast";
 import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2, Camera, ClipboardPaste, Crosshair, ExternalLink } from "lucide-react";
 import { RouteReceiptDialog } from "./RouteReceiptDialog";
@@ -251,6 +252,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
     try {
       setReschedulingId(route.id);
       const { error } = await supabase.from("routes").insert({
+        company_id: getActiveCompanyId(),
         client: route.client,
         neighborhood: route.neighborhood,
         address: route.address,

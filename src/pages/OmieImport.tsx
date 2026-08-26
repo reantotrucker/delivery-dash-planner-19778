@@ -4,6 +4,7 @@ import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/rea
 import { format, parse, isWithinInterval, startOfDay, endOfDay, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { getActiveCompanyId } from "@/lib/company";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -121,7 +122,7 @@ export default function OmieImport() {
   }>>([]);
   // Query existing routes to find already-imported NF numbers (with details for hover)
   const { data: existingRoutes } = useQuery({
-    queryKey: ['existing-route-nf-numbers'],
+    queryKey: ['existing-route-nf-numbers', getActiveCompanyId()],
     queryFn: async () => {
       const allRoutes: any[] = [];
       let from = 0;
@@ -130,6 +131,7 @@ export default function OmieImport() {
         const { data } = await supabase
           .from('routes')
           .select('observation, client, neighborhood, address, cep, period, date, driver_id, consultant_id, payment_method_id')
+          .eq('company_id', getActiveCompanyId())
           .like('observation', 'NF %')
           .range(from, from + pageSize - 1);
         if (!data || data.length === 0) break;
@@ -143,30 +145,30 @@ export default function OmieImport() {
 
   // Query master data for selectors
   const { data: drivers } = useQuery({
-    queryKey: ['drivers'],
+    queryKey: ['drivers', getActiveCompanyId()],
     queryFn: async () => {
-      const { data } = await supabase.from('drivers').select('id, name').order('name');
+      const { data } = await supabase.from('drivers').select('id, name').eq('company_id', getActiveCompanyId()).order('name');
       return data || [];
     },
   });
   const { data: vehicles } = useQuery({
-    queryKey: ['vehicles'],
+    queryKey: ['vehicles', getActiveCompanyId()],
     queryFn: async () => {
-      const { data } = await supabase.from('vehicles').select('id, plate').order('plate');
+      const { data } = await supabase.from('vehicles').select('id, plate').eq('company_id', getActiveCompanyId()).order('plate');
       return data || [];
     },
   });
   const { data: consultants } = useQuery({
-    queryKey: ['consultants'],
+    queryKey: ['consultants', getActiveCompanyId()],
     queryFn: async () => {
-      const { data } = await supabase.from('consultants').select('id, name').order('name');
+      const { data } = await supabase.from('consultants').select('id, name').eq('company_id', getActiveCompanyId()).order('name');
       return data || [];
     },
   });
   const { data: paymentMethods } = useQuery({
-    queryKey: ['payment-methods'],
+    queryKey: ['payment-methods', getActiveCompanyId()],
     queryFn: async () => {
-      const { data } = await supabase.from('payment_methods').select('id, name').order('name');
+      const { data } = await supabase.from('payment_methods').select('id, name').eq('company_id', getActiveCompanyId()).order('name');
       return data || [];
     },
   });
@@ -222,6 +224,7 @@ export default function OmieImport() {
         const { data, error } = await supabase.functions.invoke('omie-invoices', {
           body: {
             type: docType,
+            companyId: getActiveCompanyId(),
             page: currentPage ?? 1,
             fetchLastPage: currentPage === null,
           },
@@ -321,6 +324,7 @@ export default function OmieImport() {
       const routeDate = format(routeDateParam, 'yyyy-MM-dd');
       
       const routeToCreate = {
+        company_id: getActiveCompanyId(),
         client: invoice.clientName || `Cliente ${invoice.clientId}`,
         neighborhood: invoice.address?.neighborhood || 'N/A',
         address: invoice.address 
