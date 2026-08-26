@@ -4,7 +4,7 @@
 
 O sistema passa a operar duas empresas independentes: a atual (Stock 360) e a nova **Uniprint Manaus**, cada uma com sua própria chave de integração Omie. Os dados nunca se misturam: rotas, ocorrências, produtos, canhotos e localizações passam a pertencer a uma empresa.
 
-A Uniprint ganha uma etapa extra antes das rotas: a **Expedição**.
+A **Expedição e o painel de TV são exclusivos da Uniprint Manaus** (que tem venda balcão). A Stock 360 continua exatamente como está hoje, sem etapa de expedição e sem nenhuma mudança de fluxo.
 
 ```text
 Venda NF-e / NFC-e (Omie)
@@ -32,7 +32,7 @@ Venda NF-e / NFC-e (Omie)
 
 ## 3. Novo perfil: Expedição
 
-- Novo perfil de usuário **Expedição**, que vê apenas a fila de Expedição e o painel de TV.
+- Novo perfil de usuário **Expedição**, usado apenas na Uniprint, que vê somente a fila de Expedição e o painel de TV.
 - Admin também tem acesso total à Expedição.
 
 ## 4. Tela de Expedição (Uniprint)
@@ -48,7 +48,7 @@ Venda NF-e / NFC-e (Omie)
 ## 5. Painel de TV
 
 - Rota nova em tela cheia (`/tv`), pensada para televisão: fontes grandes, contraste alto, atualização automática em tempo real.
-- Seletor de empresa (Stock 360, Uniprint ou ambas) para escolher o que é exibido.
+- Exibe apenas vendas da Uniprint Manaus (a Stock 360 não usa expedição nem TV).
 - Mostra as vendas recém-emitidas aguardando separação, com destaque para novas entradas (animação + aviso sonoro opcional) e contador de pendentes.
 - Pedidos já conferidos saem da tela de chamadas e aparecem em uma faixa de "concluídos recentes" com a cor do destino.
 
