@@ -146,9 +146,9 @@ export default function Expedition() {
     );
   }, [orders, search]);
 
-  const syncFromOmie = async () => {
+  const syncFromOmie = async (silent = false) => {
     if (!canOperate) {
-      toast.error("Acesso negado");
+      if (!silent) toast.error("Acesso negado");
       return;
     }
     setSyncing(true);
