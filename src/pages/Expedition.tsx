@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -80,16 +82,22 @@ export default function Expedition() {
   const [syncing, setSyncing] = useState(false);
   const [openOrder, setOpenOrder] = useState<ExpeditionOrder | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoSync, setAutoSync] = useState(
+    () => localStorage.getItem("expedition-auto-sync") === "1"
+  );
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["expedition-orders", companyId, statusFilter],
     enabled: !!companyId && hasExpedition,
+    refetchInterval: 20000,
     queryFn: async () => {
       let q = supabase
         .from("expedition_orders")
         .select("*")
         .eq("company_id", companyId)
-        .order("created_at", { ascending: false })
+        // ordem de chegada: pedido mais antigo primeiro
+        .order("created_at", { ascending: true })
         .limit(300);
       if (statusFilter !== "TODOS") q = q.eq("status", statusFilter);
       const { data, error } = await q;
@@ -138,9 +146,9 @@ export default function Expedition() {
     );
   }, [orders, search]);
 
-  const syncFromOmie = async () => {
+  const syncFromOmie = async (silent = false) => {
     if (!canOperate) {
-      toast.error("Acesso negado");
+      if (!silent) toast.error("Acesso negado");
       return;
     }
     setSyncing(true);
@@ -203,14 +211,29 @@ export default function Expedition() {
           }
         }
       }
-      toast.success(created > 0 ? `${created} nova(s) venda(s) na expedição` : "Nenhuma venda nova");
+      setLastSync(new Date());
+      if (!silent || created > 0) {
+        toast.success(created > 0 ? `${created} nova(s) venda(s) na expedição` : "Nenhuma venda nova");
+      }
       queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
     } catch (e: any) {
-      toast.error(e.message || "Erro ao buscar vendas");
+      if (!silent) toast.error(e.message || "Erro ao buscar vendas");
     } finally {
       setSyncing(false);
     }
   };
+
+  // Sincronização automática a cada 60s (intervalo ágil e seguro para a API Omie)
+  const syncRef = useRef(syncFromOmie);
+  syncRef.current = syncFromOmie;
+
+  useEffect(() => {
+    localStorage.setItem("expedition-auto-sync", autoSync ? "1" : "0");
+    if (!autoSync || !hasExpedition || !companyId || !canOperate) return;
+    syncRef.current(true);
+    const id = setInterval(() => syncRef.current(true), 60000);
+    return () => clearInterval(id);
+  }, [autoSync, hasExpedition, companyId, canOperate]);
 
   // Ao abrir o card, marca que está em conferência (fica verde no painel de TV)
   const openConference = async (order: ExpeditionOrder) => {
@@ -388,17 +411,33 @@ export default function Expedition() {
           </h1>
           <p className="text-sm text-muted-foreground">{company?.name}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 rounded-md border border-border px-3 py-2">
+            <Switch
+              id="auto-sync"
+              checked={autoSync}
+              onCheckedChange={setAutoSync}
+              disabled={!canOperate}
+            />
+            <Label htmlFor="auto-sync" className="text-sm cursor-pointer">
+              Automático (60s)
+            </Label>
+          </div>
           <Button variant="outline" asChild>
             <a href={`/tv?company=${companyId}`} target="_blank" rel="noopener noreferrer">
               <Tv className="w-4 h-4 mr-2" />
               Abrir painel de TV
             </a>
           </Button>
-          <Button onClick={syncFromOmie} disabled={syncing || !canOperate}>
+          <Button onClick={() => syncFromOmie(false)} disabled={syncing || !canOperate}>
             {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Buscar vendas
           </Button>
+          {lastSync && (
+            <span className="text-xs text-muted-foreground">
+              Última: {format(lastSync, "HH:mm:ss")}
+            </span>
+          )}
         </div>
       </div>
 
