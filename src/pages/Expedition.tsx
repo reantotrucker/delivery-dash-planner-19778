@@ -82,16 +82,22 @@ export default function Expedition() {
   const [syncing, setSyncing] = useState(false);
   const [openOrder, setOpenOrder] = useState<ExpeditionOrder | null>(null);
   const [saving, setSaving] = useState(false);
+  const [autoSync, setAutoSync] = useState(
+    () => localStorage.getItem("expedition-auto-sync") === "1"
+  );
+  const [lastSync, setLastSync] = useState<Date | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["expedition-orders", companyId, statusFilter],
     enabled: !!companyId && hasExpedition,
+    refetchInterval: 20000,
     queryFn: async () => {
       let q = supabase
         .from("expedition_orders")
         .select("*")
         .eq("company_id", companyId)
-        .order("created_at", { ascending: false })
+        // ordem de chegada: pedido mais antigo primeiro
+        .order("created_at", { ascending: true })
         .limit(300);
       if (statusFilter !== "TODOS") q = q.eq("status", statusFilter);
       const { data, error } = await q;
