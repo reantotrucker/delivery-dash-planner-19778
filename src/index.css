@@ -92,3 +92,54 @@ All colors MUST be HSL.
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Painel de TV: desintegração do card ao finalizar o pedido */
+@keyframes tv-disintegrate {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+  20% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1.05);
+    box-shadow: 0 0 60px hsl(var(--success) / 0.7);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(16px);
+    transform: scale(0.72) translateY(-40px) rotate(2deg);
+  }
+}
+
+@keyframes tv-particles {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  25% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5) translateY(-60px);
+  }
+}
+
+.tv-disintegrate {
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+  animation: tv-disintegrate 1.3s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+.tv-disintegrate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: radial-gradient(circle, hsl(var(--foreground) / 0.85) 1.6px, transparent 2.2px);
+  background-size: 11px 11px;
+  animation: tv-particles 1.3s ease-out forwards;
+}
