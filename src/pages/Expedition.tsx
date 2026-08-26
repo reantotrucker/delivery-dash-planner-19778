@@ -312,6 +312,35 @@ export default function Expedition() {
     }
   };
 
+  const reopen = async () => {
+    if (!openOrder || !canOperate) return;
+    setSaving(true);
+    try {
+      if (openOrder.route_id) {
+        await supabase.from("route_products").delete().eq("route_id", openOrder.route_id);
+        await supabase.from("routes").delete().eq("id", openOrder.route_id);
+      }
+      const { error } = await supabase
+        .from("expedition_orders")
+        .update({ status: "AGUARDANDO", route_id: null, checked_at: null, checked_by: null })
+        .eq("id", openOrder.id);
+      if (error) throw error;
+      await supabase
+        .from("expedition_order_items")
+        .update({ checked: false, checked_at: null })
+        .eq("expedition_order_id", openOrder.id);
+
+      toast.success("Pedido retornou para Aguardando");
+      setOpenOrder(null);
+      queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao retornar pedido");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!hasExpedition) {
     return (
       <div className="p-6">
