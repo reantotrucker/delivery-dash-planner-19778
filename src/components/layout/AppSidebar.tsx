@@ -9,12 +9,21 @@ import { useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CompanySwitcher } from "@/components/layout/CompanySwitcher";
 
-const navItems = [
+type NavItem = {
+  title: string;
+  url: string;
+  icon: typeof Home;
+  adminOnly: boolean;
+  expeditionOnly?: boolean;
+  hideWhenExpedition?: boolean;
+};
+
+const navItems: NavItem[] = [
   { title: "Rotas", url: "/", icon: Home, adminOnly: false },
   { title: "Expedição", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
-  { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true },
+  { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true, hideWhenExpedition: true },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },
   { title: "Configurações", url: "/settings", icon: Settings, adminOnly: true },
   { title: "Usuários", url: "/admin/users", icon: Shield, adminOnly: true },
@@ -28,9 +37,18 @@ export function AppSidebar() {
 
   if (!user) return null;
 
-  const filteredItems = navItems.filter(
-    (item) => (!item.adminOnly || isAdmin) && (!item.expeditionOnly || hasExpedition)
-  );
+  const filteredItems = navItems
+    .filter(
+      (item) =>
+        (!item.adminOnly || isAdmin) &&
+        (!item.expeditionOnly || hasExpedition) &&
+        !(item.hideWhenExpedition && hasExpedition)
+    )
+    .map((item) =>
+      hasExpedition && item.url === "/"
+        ? { ...item, title: "Separação de rota" }
+        : item
+    );
 
   const handleLogout = async () => {
     await signOut();
