@@ -53,6 +53,9 @@ interface ExpeditionOrder {
   checked_at: string | null;
   checked_by: string | null;
   route_id: string | null;
+  order_number: string | null;
+  created_at: string | null;
+  observation: string | null;
 }
 
 interface ExpeditionItem {
