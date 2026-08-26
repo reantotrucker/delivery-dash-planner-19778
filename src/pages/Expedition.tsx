@@ -48,6 +48,7 @@ interface ExpeditionOrder {
   issued_at: string | null;
   status: Status;
   checked_at: string | null;
+  checked_by: string | null;
   route_id: string | null;
 }
 
@@ -93,6 +94,21 @@ export default function Expedition() {
       return (data || []) as ExpeditionOrder[];
     },
   });
+
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["expedition-profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("id, full_name, email");
+      if (error) return [];
+      return data || [];
+    },
+  });
+
+  const conferenteName = (userId: string | null) => {
+    if (!userId) return null;
+    const p: any = profiles.find((x: any) => x.id === userId);
+    return p?.full_name || p?.email || null;
+  };
 
   const { data: items = [] } = useQuery({
     queryKey: ["expedition-items", openOrder?.id],
@@ -384,6 +400,7 @@ export default function Expedition() {
                 {o.checked_at && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="w-3 h-3" /> {format(new Date(o.checked_at), "dd/MM HH:mm")}
+                    {conferenteName(o.checked_by) && <> · Conferente: {conferenteName(o.checked_by)}</>}
                   </p>
                 )}
 
@@ -408,6 +425,12 @@ export default function Expedition() {
               {openOrder?.client} — {openOrder?.doc_type} {openOrder?.doc_number}
             </DialogTitle>
           </DialogHeader>
+
+          {openOrder?.checked_by && conferenteName(openOrder.checked_by) && (
+            <p className="text-sm text-muted-foreground">
+              Conferente: <strong>{conferenteName(openOrder.checked_by)}</strong>
+            </p>
+          )}
 
           <div className="max-h-[45vh] overflow-y-auto space-y-2">
             {items.length === 0 && (
