@@ -28,9 +28,18 @@ export function AppSidebar() {
 
   if (!user) return null;
 
-  const filteredItems = navItems.filter(
-    (item) => (!item.adminOnly || isAdmin) && (!item.expeditionOnly || hasExpedition)
-  );
+  const filteredItems = navItems
+    .filter(
+      (item) =>
+        (!item.adminOnly || isAdmin) &&
+        (!item.expeditionOnly || hasExpedition) &&
+        !(item.hideWhenExpedition && hasExpedition)
+    )
+    .map((item) =>
+      hasExpedition && item.url === "/"
+        ? { ...item, title: "Separação de rota" }
+        : item
+    );
 
   const handleLogout = async () => {
     await signOut();
