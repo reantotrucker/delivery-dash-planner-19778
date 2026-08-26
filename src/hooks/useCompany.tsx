@@ -72,6 +72,14 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     [companies, companyId]
   );
 
+  // Tema por empresa: Uniprint usa vermelho, Stock 360 mantém laranja
+  useEffect(() => {
+    const root = document.documentElement;
+    if (company?.slug === "uniprint") root.classList.add("theme-uniprint");
+    else root.classList.remove("theme-uniprint");
+  }, [company?.slug]);
+
+
   return (
     <CompanyContext.Provider
       value={{
