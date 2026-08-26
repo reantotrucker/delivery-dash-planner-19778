@@ -104,22 +104,35 @@ export default function TvPanel() {
   const done = useMemo(() => orders.filter((o) => o.status !== "AGUARDANDO").slice(0, 8), [orders]);
 
   // Cards que acabaram de ser finalizados: ficam em tela desintegrando
-  const prevPending = useRef<TvOrder[]>([]);
+  const prevStatus = useRef<Map<string, string>>(new Map());
+  const prevOrders = useRef<TvOrder[]>([]);
   const [leaving, setLeaving] = useState<TvOrder[]>([]);
   useEffect(() => {
-    const ids = new Set(pending.map((o) => o.id));
-    const gone = prevPending.current.filter((o) => !ids.has(o.id));
-    prevPending.current = pending;
-    if (gone.length) {
-      setLeaving((l) => [...l, ...gone]);
-      const goneIds = new Set(gone.map((g) => g.id));
-      setTimeout(() => setLeaving((l) => l.filter((o) => !goneIds.has(o.id))), 3400);
+    if (!orders.length) return;
+    const gone: TvOrder[] = [];
+    for (const o of orders) {
+      const before = prevStatus.current.get(o.id);
+      if (before === "AGUARDANDO" && o.status !== "AGUARDANDO") gone.push(o);
     }
-  }, [pending]);
+    // pedidos que sumiram da consulta mas estavam aguardando
+    const currentIds = new Set(orders.map((o) => o.id));
+    prevOrders.current.forEach((o) => {
+      if (!currentIds.has(o.id) && o.status === "AGUARDANDO") gone.push(o);
+    });
+    prevOrders.current = orders;
+    prevStatus.current = new Map(orders.map((o) => [o.id, o.status]));
+    if (gone.length) {
+      setLeaving((l) => [...l, ...gone.filter((g) => !l.some((x) => x.id === g.id))]);
+      const goneIds = new Set(gone.map((g) => g.id));
+      setTimeout(() => setLeaving((l) => l.filter((o) => !goneIds.has(o.id))), 4200);
+    }
+  }, [orders]);
 
   const display = useMemo(() => {
     const ids = new Set(pending.map((o) => o.id));
-    return [...pending, ...leaving.filter((o) => !ids.has(o.id))];
+    return [...pending, ...leaving.filter((o) => !ids.has(o.id))].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
   }, [pending, leaving]);
 
 
@@ -190,7 +203,12 @@ export default function TvPanel() {
                 <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
                 {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
                 <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
-                {inConference && (
+                {isLeaving && (
+                  <p className="mt-3 text-3xl font-black text-success tracking-widest">
+                    {o.status === "BALCAO" ? "BALCÃO ✓" : "ROTA ✓"}
+                  </p>
+                )}
+                {!isLeaving && inConference && (
                   <p className="mt-3 inline-flex items-center gap-2 text-lg font-bold text-success">
                     <PackageCheck className="w-5 h-5" /> EM CONFERÊNCIA
                   </p>
