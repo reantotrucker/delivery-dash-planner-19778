@@ -538,6 +538,15 @@ export default function Expedition() {
               </Button>
             </DialogFooter>
           )}
+
+          {openOrder?.status !== "AGUARDANDO" && canOperate && (
+            <DialogFooter>
+              <Button variant="outline" onClick={reopen} disabled={saving} className="w-full">
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Retornar para aguardando
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>
