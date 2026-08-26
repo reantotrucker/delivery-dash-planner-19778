@@ -19,6 +19,7 @@ interface TvOrder {
   status: "AGUARDANDO" | "BALCAO" | "ROTA";
   created_at: string;
   checked_at: string | null;
+  checked_by: string | null;
 }
 
 const formatBRL = (v?: number | null) =>
