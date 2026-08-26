@@ -85,13 +85,15 @@ export default function Expedition() {
   const [syncing, setSyncing] = useState(false);
   const [openOrder, setOpenOrder] = useState<ExpeditionOrder | null>(null);
   const [saving, setSaving] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [autoSync, setAutoSync] = useState(
     () => localStorage.getItem("expedition-auto-sync") === "1"
   );
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["expedition-orders", companyId, statusFilter],
+    queryKey: ["expedition-orders", companyId, statusFilter, dateFrom, dateTo],
     enabled: !!companyId && hasExpedition,
     refetchInterval: 20000,
     queryFn: async () => {
@@ -103,11 +105,14 @@ export default function Expedition() {
         .order("created_at", { ascending: true })
         .limit(300);
       if (statusFilter !== "TODOS") q = q.eq("status", statusFilter);
+      if (dateFrom) q = q.gte("created_at", `${dateFrom}T00:00:00`);
+      if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59`);
       const { data, error } = await q;
       if (error) throw error;
       return (data || []) as ExpeditionOrder[];
     },
   });
+
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["expedition-profiles"],
