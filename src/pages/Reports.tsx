@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getActiveCompanyId } from "@/lib/company";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -23,6 +24,7 @@ const Reports = () => {
           order_number,
           driver:drivers(name, color)
         `)
+        .eq("company_id", getActiveCompanyId())
         .gte("date", startDate)
         .lte("date", endDate);
 

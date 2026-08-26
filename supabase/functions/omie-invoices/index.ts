@@ -8,6 +8,10 @@ const corsHeaders = {
 
 const OMIE_API_URL = 'https://app.omie.com.br/api/v1';
 
+// Per-company cache namespace (set per request)
+let CACHE_PREFIX = '';
+const pk = (key: string) => `${CACHE_PREFIX}${key}`;
+
 // Cache TTL for full listing results (10 minutes)
 const LISTING_CACHE_TTL_MINUTES = 10;
 
@@ -25,7 +29,7 @@ async function getCached(key: string): Promise<any | null> {
     const { data } = await sb
       .from('omie_cache')
       .select('cache_value, expires_at')
-      .eq('cache_key', key)
+      .eq('cache_key', pk(key))
       .maybeSingle();
     if (data && new Date(data.expires_at) > new Date()) {
       return data.cache_value;
@@ -42,7 +46,7 @@ async function getCachedWithMeta(key: string): Promise<{ value: any; expires_at:
     const { data } = await sb
       .from('omie_cache')
       .select('cache_value, expires_at, created_at')
-      .eq('cache_key', key)
+      .eq('cache_key', pk(key))
       .maybeSingle();
     if (data && new Date(data.expires_at) > new Date()) {
       return { value: data.cache_value, expires_at: data.expires_at, created_at: data.created_at };
@@ -59,7 +63,7 @@ async function setCache(key: string, value: any, ttlHours = 24): Promise<void> {
     const expires_at = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
     await sb
       .from('omie_cache')
-      .upsert({ cache_key: key, cache_value: value, expires_at }, { onConflict: 'cache_key' });
+      .upsert({ cache_key: pk(key), cache_value: value, expires_at }, { onConflict: 'cache_key' });
   } catch (e) {
     console.log('Cache write error:', e);
   }
@@ -71,7 +75,7 @@ async function setCacheMinutes(key: string, value: any, ttlMinutes: number): Pro
     const expires_at = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
     await sb
       .from('omie_cache')
-      .upsert({ cache_key: key, cache_value: value, expires_at }, { onConflict: 'cache_key' });
+      .upsert({ cache_key: pk(key), cache_value: value, expires_at }, { onConflict: 'cache_key' });
   } catch (e) {
     console.log('Cache write error:', e);
   }
@@ -85,11 +89,11 @@ async function getMultiCached(keys: string[]): Promise<Map<string, any>> {
     const { data } = await sb
       .from('omie_cache')
       .select('cache_key, cache_value, expires_at')
-      .in('cache_key', keys);
+      .in('cache_key', keys.map(pk));
     const now = new Date();
     data?.forEach((row: any) => {
       if (new Date(row.expires_at) > now) {
-        result.set(row.cache_key, row.cache_value);
+        result.set(String(row.cache_key).slice(CACHE_PREFIX.length), row.cache_value);
       }
     });
   } catch {
@@ -103,7 +107,7 @@ async function setMultiCache(entries: { key: string; value: any }[], ttlHours = 
   try {
     const sb = getSupabase();
     const expires_at = new Date(Date.now() + ttlHours * 60 * 60 * 1000).toISOString();
-    const rows = entries.map(e => ({ cache_key: e.key, cache_value: e.value, expires_at }));
+    const rows = entries.map(e => ({ cache_key: pk(e.key), cache_value: e.value, expires_at }));
     await sb.from('omie_cache').upsert(rows, { onConflict: 'cache_key' });
   } catch (e) {
     console.log('Cache multi-write error:', e);
@@ -631,7 +635,7 @@ serve(async (req) => {
       .from('user_roles')
       .select('role')
       .eq('user_id', userData.user.id);
-    const allowed = (roles ?? []).some((r: any) => ['admin', 'comercial'].includes(r.role));
+    const allowed = (roles ?? []).some((r: any) => ['admin', 'comercial', 'expedicao'].includes(r.role));
     if (!allowed) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403,
@@ -639,14 +643,44 @@ serve(async (req) => {
       });
     }
 
-    const OMIE_APP_KEY = Deno.env.get('OMIE_APP_KEY');
-    const OMIE_APP_SECRET = Deno.env.get('OMIE_APP_SECRET');
+    const { type, page = 1, fetchLastPage = false, forceRefresh = false, companyId } = await req.json();
 
-    if (!OMIE_APP_KEY) throw new Error('OMIE_APP_KEY não configurada');
-    if (!OMIE_APP_SECRET) throw new Error('OMIE_APP_SECRET não configurada');
+    // Resolve company (defaults to Stock 360) and check membership
+    let companySlug = 'stock360';
+    if (companyId) {
+      const { data: company } = await sb
+        .from('companies')
+        .select('id, slug')
+        .eq('id', companyId)
+        .maybeSingle();
+      if (!company) {
+        return new Response(JSON.stringify({ error: 'Empresa não encontrada' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: membership } = await sb
+        .from('user_companies')
+        .select('id')
+        .eq('user_id', userData.user.id)
+        .eq('company_id', company.id)
+        .maybeSingle();
+      if (!membership) {
+        return new Response(JSON.stringify({ error: 'Sem acesso a esta empresa' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      companySlug = company.slug;
+    }
 
+    // Per-company Omie credentials
+    const suffix = companySlug === 'stock360' ? '' : `_${companySlug.toUpperCase()}`;
+    const OMIE_APP_KEY = Deno.env.get(`OMIE_APP_KEY${suffix}`);
+    const OMIE_APP_SECRET = Deno.env.get(`OMIE_APP_SECRET${suffix}`);
 
-    const { type, page = 1, fetchLastPage = false, forceRefresh = false } = await req.json();
+    if (!OMIE_APP_KEY) throw new Error(`OMIE_APP_KEY${suffix} não configurada`);
+    if (!OMIE_APP_SECRET) throw new Error(`OMIE_APP_SECRET${suffix} não configurada`);
+
+    CACHE_PREFIX = `${companySlug}:`;
 
     if (!type || !['nfe', 'nfce'].includes(type)) {
       throw new Error('Tipo inválido. Use "nfe" ou "nfce".');

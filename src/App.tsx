@@ -13,9 +13,12 @@ import ResetPassword from "./pages/ResetPassword";
 import UserManagement from "./pages/UserManagement";
 import OmieImport from "./pages/OmieImport";
 import Locations from "./pages/Locations";
+import Expedition from "./pages/Expedition";
+import TvPanel from "./pages/TvPanel";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
 import { useAuth } from "./hooks/useAuth";
+import { CompanyProvider } from "./hooks/useCompany";
 
 const queryClient = new QueryClient();
 
@@ -39,67 +42,85 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedWithLayout>
-                <Dashboard />
-              </ProtectedWithLayout>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedWithLayout requireAdmin>
-                <Settings />
-              </ProtectedWithLayout>
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <ProtectedWithLayout>
-                <Reports />
-              </ProtectedWithLayout>
-            }
-          />
-          <Route
-            path="/occurrences"
-            element={
-              <ProtectedWithLayout>
-                <Occurrences />
-              </ProtectedWithLayout>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedWithLayout requireAdmin>
-                <UserManagement />
-              </ProtectedWithLayout>
-            }
-          />
-          <Route
-            path="/omie-import"
-            element={
-              <ProtectedWithLayout requireAdmin>
-                <OmieImport />
-              </ProtectedWithLayout>
-            }
-          />
-          <Route
-            path="/locations"
-            element={
-              <ProtectedWithLayout>
-                <Locations />
-              </ProtectedWithLayout>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <CompanyProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedWithLayout>
+                  <Dashboard />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedWithLayout requireAdmin>
+                  <Settings />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <ProtectedWithLayout>
+                  <Reports />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/occurrences"
+              element={
+                <ProtectedWithLayout>
+                  <Occurrences />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/expedition"
+              element={
+                <ProtectedWithLayout>
+                  <Expedition />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/tv"
+              element={
+                <ProtectedRoute>
+                  <TvPanel />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedWithLayout requireAdmin>
+                  <UserManagement />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/omie-import"
+              element={
+                <ProtectedWithLayout requireAdmin>
+                  <OmieImport />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/locations"
+              element={
+                <ProtectedWithLayout>
+                  <Locations />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </CompanyProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

@@ -1,0 +1,184 @@
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { format } from "date-fns";
+import { PackageCheck, Store, Truck, ArrowLeft, Volume2, VolumeX } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface TvOrder {
+  id: string;
+  doc_type: string;
+  doc_number: string | null;
+  client: string;
+  neighborhood: string | null;
+  total_value: number | null;
+  status: "AGUARDANDO" | "BALCAO" | "ROTA";
+  created_at: string;
+  checked_at: string | null;
+}
+
+const formatBRL = (v?: number | null) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
+
+const beep = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch {
+    /* ignore */
+  }
+};
+
+export default function TvPanel() {
+  const { companyId, company, hasExpedition } = useCompany();
+  const queryClient = useQueryClient();
+  const [sound, setSound] = useState(true);
+  const [lastCount, setLastCount] = useState<number | null>(null);
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ["tv-orders", companyId],
+    enabled: !!companyId && hasExpedition,
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("expedition_orders")
+        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at")
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false })
+        .limit(60);
+      if (error) throw error;
+      return (data || []) as TvOrder[];
+    },
+  });
+
+  // Realtime updates
+  useEffect(() => {
+    if (!companyId) return;
+    const channel = supabase
+      .channel("tv-expedition")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "expedition_orders" },
+        () => queryClient.invalidateQueries({ queryKey: ["tv-orders"] })
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [companyId, queryClient]);
+
+  const pending = useMemo(() => orders.filter((o) => o.status === "AGUARDANDO"), [orders]);
+  const done = useMemo(() => orders.filter((o) => o.status !== "AGUARDANDO").slice(0, 8), [orders]);
+
+  useEffect(() => {
+    if (lastCount !== null && pending.length > lastCount && sound) beep();
+    setLastCount(pending.length);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending.length]);
+
+  if (!hasExpedition) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background text-foreground">
+        <p className="text-xl text-muted-foreground">
+          A empresa {company?.name} não utiliza o painel de expedição.
+        </p>
+        <Button asChild variant="outline">
+          <Link to="/">Voltar</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background text-foreground p-6">
+      <header className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <PackageCheck className="w-10 h-10 text-primary" />
+          <div>
+            <h1 className="text-4xl font-black tracking-tight">SEPARAR PEDIDOS</h1>
+            <p className="text-lg text-muted-foreground">{company?.name}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge className="text-2xl px-5 py-2">{pending.length} pendente(s)</Badge>
+          <Button variant="outline" size="icon" onClick={() => setSound((s) => !s)} aria-label="Som">
+            {sound ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          </Button>
+          <Button variant="outline" size="icon" asChild aria-label="Voltar">
+            <Link to="/">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+          </Button>
+        </div>
+      </header>
+
+      {pending.length === 0 ? (
+        <div className="flex items-center justify-center h-[50vh] text-4xl font-bold text-muted-foreground">
+          Nenhum pedido aguardando separação
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {pending.map((o, idx) => (
+            <div
+              key={o.id}
+              className={cn(
+                "rounded-2xl border-4 border-primary bg-card p-5",
+                idx === 0 && "animate-pulse"
+              )}
+            >
+              <p className="text-sm font-semibold text-muted-foreground">
+                {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
+              </p>
+              <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
+              {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
+              <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {done.length > 0 && (
+        <section className="mt-8">
+          <h2 className="text-xl font-bold text-muted-foreground mb-3">Concluídos recentes</h2>
+          <div className="flex flex-wrap gap-3">
+            {done.map((o) => (
+              <div
+                key={o.id}
+                className={cn(
+                  "rounded-xl px-4 py-3 border-2",
+                  o.status === "BALCAO"
+                    ? "border-success bg-success/10"
+                    : "border-primary bg-primary/10"
+                )}
+              >
+                <p className="font-bold text-lg">{o.client}</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  {o.status === "BALCAO" ? (
+                    <>
+                      <Store className="w-4 h-4" /> Venda balcão
+                    </>
+                  ) : (
+                    <>
+                      <Truck className="w-4 h-4" /> Enviado para rota
+                    </>
+                  )}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}

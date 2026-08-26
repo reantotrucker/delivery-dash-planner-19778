@@ -1,10 +1,12 @@
-import { Home, BarChart3, Settings, Shield, LogOut, AlertTriangle, MapPin } from "lucide-react";
+import { Home, BarChart3, Settings, Shield, LogOut, AlertTriangle, MapPin, PackageCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
 
 const navItems = [
   { title: "Rotas", url: "/", icon: Home, adminOnly: false },
+  { title: "Exped.", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
   { title: "Ocorr.", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Locais", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },
@@ -14,15 +16,18 @@ const navItems = [
 
 export function MobileNav() {
   const { user, isAdmin, signOut } = useAuth();
+  const { hasExpedition } = useCompany();
   const location = useLocation();
 
   if (!user) return null;
 
-  const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  const filteredItems = navItems.filter(
+    (item) => (!item.adminOnly || isAdmin) && (!item.expeditionOnly || hasExpedition)
+  );
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 safe-area-pb">
-      <div className="flex items-center justify-around py-2">
+      <div className="flex items-center justify-around py-2 overflow-x-auto">
         {filteredItems.map((item) => {
           const isActive = location.pathname === item.url;
           return (

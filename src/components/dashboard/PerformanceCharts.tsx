@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getActiveCompanyId } from "@/lib/company";
 import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { TrendingUp, Users } from "lucide-react";
@@ -25,6 +26,7 @@ export function PerformanceCharts({ date, period }: PerformanceChartsProps) {
           status,
           driver:drivers(name, color)
         `)
+        .eq("company_id", getActiveCompanyId())
         .eq("date", format(date, "yyyy-MM-dd"))
         .eq("period", period);
 

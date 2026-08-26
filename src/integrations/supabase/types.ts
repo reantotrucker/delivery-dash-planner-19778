@@ -14,30 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      companies: {
+        Row: {
+          created_at: string
+          has_expedition: boolean
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          has_expedition?: boolean
+          id?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          has_expedition?: boolean
+          id?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       consultants: {
         Row: {
+          company_id: string
           created_at: string | null
           id: string
           name: string
           updated_at: string | null
         }
         Insert: {
+          company_id?: string
           created_at?: string | null
           id?: string
           name: string
           updated_at?: string | null
         }
         Update: {
+          company_id?: string
           created_at?: string | null
           id?: string
           name?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "consultants_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       drivers: {
         Row: {
           color: string
+          company_id: string
           created_at: string | null
           default_vehicle_id: string | null
           id: string
@@ -46,6 +85,7 @@ export type Database = {
         }
         Insert: {
           color: string
+          company_id?: string
           created_at?: string | null
           default_vehicle_id?: string | null
           id?: string
@@ -54,6 +94,7 @@ export type Database = {
         }
         Update: {
           color?: string
+          company_id?: string
           created_at?: string | null
           default_vehicle_id?: string | null
           id?: string
@@ -62,10 +103,154 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "drivers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "drivers_default_vehicle_id_fkey"
             columns: ["default_vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expedition_order_items: {
+        Row: {
+          checked: boolean
+          checked_at: string | null
+          checked_by: string | null
+          code: string | null
+          created_at: string
+          expedition_order_id: string
+          id: string
+          name: string
+          quantity: number
+          total_value: number | null
+          unit: string | null
+          unit_value: number | null
+        }
+        Insert: {
+          checked?: boolean
+          checked_at?: string | null
+          checked_by?: string | null
+          code?: string | null
+          created_at?: string
+          expedition_order_id: string
+          id?: string
+          name: string
+          quantity?: number
+          total_value?: number | null
+          unit?: string | null
+          unit_value?: number | null
+        }
+        Update: {
+          checked?: boolean
+          checked_at?: string | null
+          checked_by?: string | null
+          code?: string | null
+          created_at?: string
+          expedition_order_id?: string
+          id?: string
+          name?: string
+          quantity?: number
+          total_value?: number | null
+          unit?: string | null
+          unit_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expedition_order_items_expedition_order_id_fkey"
+            columns: ["expedition_order_id"]
+            isOneToOne: false
+            referencedRelation: "expedition_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expedition_orders: {
+        Row: {
+          address: string | null
+          cep: string | null
+          checked_at: string | null
+          checked_by: string | null
+          client: string
+          client_document: string | null
+          company_id: string
+          created_at: string
+          doc_number: string | null
+          doc_type: string
+          id: string
+          issued_at: string | null
+          neighborhood: string | null
+          observation: string | null
+          order_number: string | null
+          route_id: string | null
+          seller: string | null
+          status: string
+          total_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          cep?: string | null
+          checked_at?: string | null
+          checked_by?: string | null
+          client: string
+          client_document?: string | null
+          company_id: string
+          created_at?: string
+          doc_number?: string | null
+          doc_type?: string
+          id?: string
+          issued_at?: string | null
+          neighborhood?: string | null
+          observation?: string | null
+          order_number?: string | null
+          route_id?: string | null
+          seller?: string | null
+          status?: string
+          total_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          cep?: string | null
+          checked_at?: string | null
+          checked_by?: string | null
+          client?: string
+          client_document?: string | null
+          company_id?: string
+          created_at?: string
+          doc_number?: string | null
+          doc_type?: string
+          id?: string
+          issued_at?: string | null
+          neighborhood?: string | null
+          observation?: string | null
+          order_number?: string | null
+          route_id?: string | null
+          seller?: string | null
+          status?: string
+          total_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expedition_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expedition_orders_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
             referencedColumns: ["id"]
           },
         ]
@@ -93,24 +278,35 @@ export type Database = {
       }
       payment_methods: {
         Row: {
+          company_id: string
           created_at: string | null
           id: string
           name: string
           updated_at: string | null
         }
         Insert: {
+          company_id?: string
           created_at?: string | null
           id?: string
           name: string
           updated_at?: string | null
         }
         Update: {
+          company_id?: string
           created_at?: string | null
           id?: string
           name?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -318,6 +514,7 @@ export type Database = {
           address: string | null
           cep: string | null
           client: string
+          company_id: string
           consultant_id: string | null
           created_at: string | null
           date: string
@@ -338,6 +535,7 @@ export type Database = {
           address?: string | null
           cep?: string | null
           client: string
+          company_id?: string
           consultant_id?: string | null
           created_at?: string | null
           date?: string
@@ -358,6 +556,7 @@ export type Database = {
           address?: string | null
           cep?: string | null
           client?: string
+          company_id?: string
           consultant_id?: string | null
           created_at?: string | null
           date?: string
@@ -375,6 +574,13 @@ export type Database = {
           vehicle_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "routes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "routes_consultant_id_fkey"
             columns: ["consultant_id"]
@@ -401,6 +607,35 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_companies: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -436,24 +671,35 @@ export type Database = {
       }
       vehicles: {
         Row: {
+          company_id: string
           created_at: string | null
           id: string
           plate: string
           updated_at: string | null
         }
         Insert: {
+          company_id?: string
           created_at?: string | null
           id?: string
           plate: string
           updated_at?: string | null
         }
         Update: {
+          company_id?: string
           created_at?: string | null
           id?: string
           plate?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -466,6 +712,10 @@ export type Database = {
       }
       clean_omie_cache: { Args: never; Returns: undefined }
       cleanup_expired_receipts: { Args: never; Returns: undefined }
+      has_company_access: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -475,7 +725,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user" | "motorista" | "comercial"
+      app_role: "admin" | "user" | "motorista" | "comercial" | "expedicao"
       period_type: "MANHA" | "TARDE"
       status_type: "ENTREGUE" | "NAO_ENTREGUE"
     }
@@ -605,7 +855,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "motorista", "comercial"],
+      app_role: ["admin", "user", "motorista", "comercial", "expedicao"],
       period_type: ["MANHA", "TARDE"],
       status_type: ["ENTREGUE", "NAO_ENTREGUE"],
     },
