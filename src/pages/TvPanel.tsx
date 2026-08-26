@@ -165,30 +165,42 @@ export default function TvPanel() {
         </div>
       </header>
 
-      {pending.length === 0 ? (
+      {display.length === 0 ? (
         <div className="flex items-center justify-center h-[50vh] text-4xl font-bold text-muted-foreground">
           Nenhum pedido aguardando separação
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {pending.map((o, idx) => (
-            <div
-              key={o.id}
-              className={cn(
-                "rounded-2xl border-4 border-primary bg-card p-5",
-                idx === 0 && "animate-pulse"
-              )}
-            >
-              <p className="text-sm font-semibold text-muted-foreground">
-                {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
-              </p>
-              <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
-              {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
-              <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
-            </div>
-          ))}
+          {display.map((o) => {
+            const isLeaving = !pending.some((p) => p.id === o.id);
+            const inConference = !!o.checked_by;
+            return (
+              <div
+                key={o.id}
+                className={cn(
+                  "rounded-2xl border-4 bg-card p-5 transition-colors duration-500",
+                  inConference ? "border-success bg-success/10" : "border-primary",
+                  !inConference && !isLeaving && o.id === pending[0]?.id && "animate-pulse",
+                  isLeaving && "tv-disintegrate"
+                )}
+              >
+                <p className="text-sm font-semibold text-muted-foreground">
+                  {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
+                </p>
+                <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
+                {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
+                <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
+                {inConference && (
+                  <p className="mt-3 inline-flex items-center gap-2 text-lg font-bold text-success">
+                    <PackageCheck className="w-5 h-5" /> EM CONFERÊNCIA
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
+
 
       {done.length > 0 && (
         <section className="mt-8">
