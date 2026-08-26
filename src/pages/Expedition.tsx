@@ -212,8 +212,22 @@ export default function Expedition() {
     }
   };
 
+  // Ao abrir o card, marca que está em conferência (fica verde no painel de TV)
+  const openConference = async (order: ExpeditionOrder) => {
+    setOpenOrder(order);
+    if (order.status === "AGUARDANDO" && !order.checked_by && user?.id) {
+      await supabase
+        .from("expedition_orders")
+        .update({ checked_by: user.id })
+        .eq("id", order.id);
+      setOpenOrder({ ...order, checked_by: user.id });
+      queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+    }
+  };
+
   const toggleItem = async (item: ExpeditionItem) => {
     if (!canOperate) return;
+
     const { error } = await supabase
       .from("expedition_order_items")
       .update({
