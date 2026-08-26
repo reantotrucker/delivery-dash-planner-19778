@@ -458,13 +458,14 @@ export default function Expedition() {
             </DialogTitle>
           </DialogHeader>
 
-          <p className="text-sm text-muted-foreground">
-            Conferente:{" "}
-            <strong className="text-foreground">
-              {conferenteName(openOrder?.checked_by ?? null) ||
-                (openOrder?.status === "AGUARDANDO" ? conferenteName(user?.id ?? null) || user?.email : "—")}
-            </strong>
-          </p>
+          {openOrder?.checked_by && (
+            <p className="text-sm text-muted-foreground">
+              Conferente:{" "}
+              <strong className="text-foreground">
+                {conferenteName(openOrder.checked_by) || "—"}
+              </strong>
+            </p>
+          )}
 
           <div className="max-h-[45vh] overflow-y-auto space-y-2">
             {items.length === 0 && (
