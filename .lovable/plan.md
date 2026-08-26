@@ -48,7 +48,7 @@ Venda NF-e / NFC-e (Omie)
 ## 5. Painel de TV
 
 - Rota nova em tela cheia (`/tv`), pensada para televisão: fontes grandes, contraste alto, atualização automática em tempo real.
-- Seletor de empresa (Stock 360, Uniprint ou ambas) para escolher o que é exibido.
+- Exibe apenas vendas da Uniprint Manaus (a Stock 360 não usa expedição nem TV).
 - Mostra as vendas recém-emitidas aguardando separação, com destaque para novas entradas (animação + aviso sonoro opcional) e contador de pendentes.
 - Pedidos já conferidos saem da tela de chamadas e aparecem em uma faixa de "concluídos recentes" com a cor do destino.
 
