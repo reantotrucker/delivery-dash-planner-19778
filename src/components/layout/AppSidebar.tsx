@@ -14,7 +14,7 @@ const navItems = [
   { title: "Expedição", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
-  { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true },
+  { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true, hideWhenExpedition: true },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },
   { title: "Configurações", url: "/settings", icon: Settings, adminOnly: true },
   { title: "Usuários", url: "/admin/users", icon: Shield, adminOnly: true },
