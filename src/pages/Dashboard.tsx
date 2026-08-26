@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getActiveCompanyId } from "@/lib/company";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp, Route, Loader2, MapPin } from "lucide-react";
 import { format } from "date-fns";
@@ -38,7 +39,7 @@ const Dashboard = () => {
   const isSearching = searchTerm.trim().length > 0;
 
   const { data: routes = [], refetch } = useQuery({
-    queryKey: ["routes", selectedDate, selectedPeriod, isSearching],
+    queryKey: ["routes", getActiveCompanyId(), selectedDate, selectedPeriod, isSearching],
     queryFn: async () => {
       let query = supabase
         .from("routes")
@@ -48,7 +49,8 @@ const Dashboard = () => {
           vehicle:vehicles(plate),
           consultant:consultants(name),
           payment_method:payment_methods(name)
-        `);
+        `)
+        .eq("company_id", getActiveCompanyId());
 
       if (isSearching) {
         // Busca em todas as datas/períodos quando há termo de pesquisa
@@ -80,11 +82,12 @@ const Dashboard = () => {
   });
 
   const { data: drivers = [] } = useQuery({
-    queryKey: ["drivers"],
+    queryKey: ["drivers", getActiveCompanyId()],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("drivers")
         .select("*")
+        .eq("company_id", getActiveCompanyId())
         .order("name");
       if (error) throw error;
       return data || [];
@@ -123,6 +126,7 @@ const Dashboard = () => {
           consultant:consultants(name),
           payment_method:payment_methods(name)
         `)
+        .eq("company_id", getActiveCompanyId())
         .eq("date", format(selectedDate, "yyyy-MM-dd"))
         .order("period", { ascending: true })
         .order("order_number", { ascending: true });
