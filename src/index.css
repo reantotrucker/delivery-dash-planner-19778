@@ -153,3 +153,21 @@ All colors MUST be HSL.
   background-size: 11px 11px;
   animation: tv-particles 3.2s ease-out forwards;
 }
+
+/* Tema Uniprint Manaus: substitui o laranja por vermelho */
+.theme-uniprint {
+  --primary: 0 84% 48%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 0 84% 48%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 0 84% 48%;
+  --sidebar-primary: 0 84% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 0 84% 48%;
+}
+
+.theme-uniprint.dark,
+.dark .theme-uniprint,
+.theme-uniprint {
+  --primary: 0 84% 48%;
+}
