@@ -376,7 +376,7 @@ export default function Expedition() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" asChild>
-            <a href="/tv" target="_blank" rel="noopener noreferrer">
+            <a href={`/tv?company=${companyId}`} target="_blank" rel="noopener noreferrer">
               <Tv className="w-4 h-4 mr-2" />
               Abrir painel de TV
             </a>
