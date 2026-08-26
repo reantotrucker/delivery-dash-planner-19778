@@ -4,7 +4,7 @@
 
 O sistema passa a operar duas empresas independentes: a atual (Stock 360) e a nova **Uniprint Manaus**, cada uma com sua própria chave de integração Omie. Os dados nunca se misturam: rotas, ocorrências, produtos, canhotos e localizações passam a pertencer a uma empresa.
 
-A Uniprint ganha uma etapa extra antes das rotas: a **Expedição**.
+A **Expedição e o painel de TV são exclusivos da Uniprint Manaus** (que tem venda balcão). A Stock 360 continua exatamente como está hoje, sem etapa de expedição e sem nenhuma mudança de fluxo.
 
 ```text
 Venda NF-e / NFC-e (Omie)
