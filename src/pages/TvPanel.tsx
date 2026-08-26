@@ -67,10 +67,11 @@ export default function TvPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expedition_orders")
-        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at")
+        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at, checked_by")
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
         .limit(60);
+
       if (error) throw error;
       return (data || []) as TvOrder[];
     },
