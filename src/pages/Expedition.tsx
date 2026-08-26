@@ -32,6 +32,11 @@ import {
   Clock,
   Tv,
   RotateCcw,
+  Calendar as CalendarIcon,
+  FileText,
+  Hash,
+  Home,
+
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
