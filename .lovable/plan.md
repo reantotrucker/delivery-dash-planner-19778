@@ -1,48 +1,71 @@
-# Plano: Preparar projeto para migração via GitHub
+# Segunda empresa (Uniprint Manaus) + Expedição + Painel de TV
 
-Como você não precisa levar dados, o caminho é simples: garantir que **todo o código + estrutura do banco** esteja versionado no GitHub, para a outra conta clonar e subir um Cloud novo já com tudo pronto.
+## O que muda
 
-## O que vou verificar e preparar
+O sistema passa a operar duas empresas independentes: a atual (Stock 360) e a nova **Uniprint Manaus**, cada uma com sua própria chave de integração Omie. Os dados nunca se misturam: rotas, ocorrências, produtos, canhotos e localizações passam a pertencer a uma empresa.
 
-### 1. Auditoria de migrations
-- Conferir se `supabase/migrations/` contém TODAS as tabelas, funções, RLS, GRANTs e buckets atuais.
-- Itens críticos que precisam estar versionados:
-  - Enum `app_role`
-  - Tabelas: `profiles`, `user_roles`, `routes`, `route_products`, `route_occurrences`, `route_receipts`, `drivers`, `vehicles`, `consultants`, `payment_methods`, `omie_cache`, etc.
-  - Funções: `has_role`, `handle_new_user`, `update_updated_at`, `clean_omie_cache`, `cleanup_expired_receipts`, `prevent_profile_email_change`, `admin_set_profile_email`
-  - Trigger `on_auth_user_created` no `auth.users` (chama `handle_new_user`)
-  - Cron jobs `pg_cron` (limpeza de receipts e cache Omie)
-  - Buckets de Storage: `route-occurrences`, `route-receipts` + políticas
+A Uniprint ganha uma etapa extra antes das rotas: a **Expedição**.
 
-### 2. Criar migration "consolidação" se faltar algo
-Se qualquer item acima não estiver nas migrations existentes, vou criar **uma migration nova** que recria tudo via `CREATE ... IF NOT EXISTS`. Assim, ao subir o Cloud na outra conta, ela roda e deixa o banco idêntico.
+```text
+Venda NF-e / NFC-e (Omie)
+        |
+   Painel de TV  ->  avisa o pessoal para separar
+        |
+     EXPEDIÇÃO   ->  confere o pedido e decide:
+        |                 |
+   VENDA BALCÃO       ENVIAR PARA ROTA
+   (card verde)       (entra na separação de rotas normal)
+```
 
-### 3. Documentar setup pós-migração (README_MIGRACAO.md)
-Criar um arquivo na raiz com checklist do que fazer na nova conta:
-- Ligar Lovable Cloud
-- Adicionar secrets: `OMIE_APP_KEY`, `OMIE_APP_SECRET`
-- Ativar Google OAuth (se quiser manter login Google) + credenciais
-- Criar primeiro usuário admin (email `renato@stock360.com.br` vira admin automático via trigger)
-- Cadastrar motoristas/comercial em `/users`
-- Cadastrar dados mestre em `/settings` (motoristas, veículos, consultores, formas de pagamento)
+## 1. Empresas e acesso
 
-### 4. Conectar este projeto ao GitHub
-Você faz manualmente (eu não tenho permissão):
-- Botão **+** no chat (canto inferior esquerdo) → **GitHub** → **Connect project** → **Create Repository**
-- Depois é só dar acesso ao repo para a outra conta (ou tornar público) e na outra conta criar projeto novo conectado ao mesmo repo.
+- Cadastro de empresas: Stock 360 e Uniprint Manaus.
+- Um usuário pode participar de **várias** empresas; o admin define isso na tela de Usuários (checkbox por empresa).
+- Seletor de empresa no topo do app (sidebar/mobile). Todas as telas — Dashboard, Ocorrências, Localizações, Relatórios, Importação Omie, Configurações — passam a filtrar pela empresa ativa.
+- Cadastros próprios por empresa: motoristas, veículos, consultores, formas de pagamento.
 
-## Resultado final
+## 2. Chaves Omie
 
-Outra conta vai:
-1. Criar projeto Lovable em branco
-2. Conectar ao mesmo repo GitHub
-3. Ligar Cloud → migrations rodam → banco pronto
-4. Adicionar 2 secrets do Omie
-5. Configurar Google OAuth
-6. Publicar
+- As chaves atuais continuam servindo a Stock 360.
+- Serão solicitadas as chaves da Uniprint (App Key e App Secret) como novos segredos.
+- A importação Omie usa a chave da empresa ativa; o cache é separado por empresa.
 
-Sem dados antigos, sem usuários antigos — sistema limpo pronto para uso.
+## 3. Novo perfil: Expedição
 
----
+- Novo perfil de usuário **Expedição**, que vê apenas a fila de Expedição e o painel de TV.
+- Admin também tem acesso total à Expedição.
 
-**Aprovar para eu começar?** Vou auditar as migrations, criar a consolidação se necessário, e gerar o `README_MIGRACAO.md`.
+## 4. Tela de Expedição (Uniprint)
+
+- Fila com os pedidos vindos da NF-e/NFC-e ainda não conferidos.
+- Ao abrir um pedido: lista de itens para conferência (mesmo padrão do checklist de produtos já existente).
+- Dois botões de destino:
+  - **Venda balcão** — o card fica **verde**, marcado como venda balcão, e permanece no histórico da expedição.
+  - **Enviar para rota** — o card fica marcado como enviado para rota e cria a rota, entrando no fluxo de separação/entrega atual.
+- O card sempre mostra o destino escolhido (balcão ou rota), com data/hora e quem conferiu.
+- Filtros por data, status (aguardando / balcão / rota) e busca por cliente ou número da nota.
+
+## 5. Painel de TV
+
+- Rota nova em tela cheia (`/tv`), pensada para televisão: fontes grandes, contraste alto, atualização automática em tempo real.
+- Seletor de empresa (Stock 360, Uniprint ou ambas) para escolher o que é exibido.
+- Mostra as vendas recém-emitidas aguardando separação, com destaque para novas entradas (animação + aviso sonoro opcional) e contador de pendentes.
+- Pedidos já conferidos saem da tela de chamadas e aparecem em uma faixa de "concluídos recentes" com a cor do destino.
+
+## Detalhes técnicos
+
+- Tabelas novas: `companies`, `user_companies` (usuário ↔ empresa), `expedition_orders` (empresa, nota/pedido, cliente, valor, status `AGUARDANDO | BALCAO | ROTA`, conferido_por, conferido_em, `route_id`) e `expedition_order_items`.
+- Coluna `company_id` (NOT NULL, com backfill para a empresa atual) em `routes`, `drivers`, `vehicles`, `consultants`, `payment_methods`, `route_occurrences`, `route_products`, `route_receipts`; `omie_cache` recebe empresa na chave.
+- Novo valor `expedicao` no enum `app_role`; função `has_company_access(user_id, company_id)` SECURITY DEFINER; RLS de todas as tabelas passa a exigir empresa liberada para o usuário, com GRANTs correspondentes.
+- Segredos: `OMIE_APP_KEY_UNIPRINT` / `OMIE_APP_SECRET_UNIPRINT`; a função `omie-invoices` recebe `company_id` e resolve a chave correta.
+- Realtime habilitado em `expedition_orders` para alimentar o painel de TV.
+- Contexto React `CompanyProvider` (empresa ativa persistida) consumido pelas queries existentes.
+
+## Ordem de execução
+
+1. Migração de banco (empresas, vínculos, `company_id`, expedição, perfil, RLS).
+2. Chaves da Uniprint + ajuste da função Omie.
+3. Contexto de empresa + seletor + filtro nas telas atuais.
+4. Tela de Expedição e criação de rota a partir dela.
+5. Painel de TV.
+6. Vínculo usuário ↔ empresa na tela de Usuários.
