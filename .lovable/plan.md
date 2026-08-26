@@ -32,7 +32,7 @@ Venda NF-e / NFC-e (Omie)
 
 ## 3. Novo perfil: Expedição
 
-- Novo perfil de usuário **Expedição**, que vê apenas a fila de Expedição e o painel de TV.
+- Novo perfil de usuário **Expedição**, usado apenas na Uniprint, que vê somente a fila de Expedição e o painel de TV.
 - Admin também tem acesso total à Expedição.
 
 ## 4. Tela de Expedição (Uniprint)
