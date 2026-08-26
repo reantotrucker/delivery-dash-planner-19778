@@ -67,7 +67,7 @@ const formatBRL = (v?: number | null) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
 
 export default function Expedition() {
-  const { isAdmin, role } = useAuth();
+  const { isAdmin, role, user } = useAuth();
   const { companyId, company, hasExpedition } = useCompany();
   const queryClient = useQueryClient();
   const canOperate = isAdmin || role === "expedicao";
@@ -222,7 +222,30 @@ export default function Expedition() {
       toast.error("Erro ao conferir item");
       return;
     }
+    if (!item.checked && openOrder && openOrder.status === "AGUARDANDO" && user?.id) {
+      await supabase
+        .from("expedition_orders")
+        .update({ checked_by: user.id })
+        .eq("id", openOrder.id);
+      setOpenOrder({ ...openOrder, checked_by: user.id });
+      queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+    }
     queryClient.invalidateQueries({ queryKey: ["expedition-items", openOrder?.id] });
+  };
+
+  // Se fechar sem confirmar Balcão ou Rota, desmarca toda a conferência
+  const cancelConference = async (order: ExpeditionOrder) => {
+    if (order.status !== "AGUARDANDO") return;
+    await supabase
+      .from("expedition_order_items")
+      .update({ checked: false, checked_at: null })
+      .eq("expedition_order_id", order.id);
+    await supabase
+      .from("expedition_orders")
+      .update({ checked_by: null })
+      .eq("id", order.id);
+    queryClient.invalidateQueries({ queryKey: ["expedition-items", order.id] });
+    queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
   };
 
   const finish = async (destination: "BALCAO" | "ROTA") => {
@@ -273,7 +296,7 @@ export default function Expedition() {
           status: destination,
           route_id: routeId,
           checked_at: new Date().toISOString(),
-          checked_by: (await supabase.auth.getUser()).data.user?.id ?? null,
+          checked_by: user?.id ?? null,
         })
         .eq("id", openOrder.id);
       if (error) throw error;
@@ -418,7 +441,16 @@ export default function Expedition() {
         </div>
       )}
 
-      <Dialog open={!!openOrder} onOpenChange={(v) => !v && setOpenOrder(null)}>
+      <Dialog
+        open={!!openOrder}
+        onOpenChange={(v) => {
+          if (!v && openOrder) {
+            const order = openOrder;
+            setOpenOrder(null);
+            cancelConference(order);
+          }
+        }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -426,11 +458,13 @@ export default function Expedition() {
             </DialogTitle>
           </DialogHeader>
 
-          {openOrder?.checked_by && conferenteName(openOrder.checked_by) && (
-            <p className="text-sm text-muted-foreground">
-              Conferente: <strong>{conferenteName(openOrder.checked_by)}</strong>
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground">
+            Conferente:{" "}
+            <strong className="text-foreground">
+              {conferenteName(openOrder?.checked_by ?? null) ||
+                (openOrder?.status === "AGUARDANDO" ? conferenteName(user?.id ?? null) || user?.email : "—")}
+            </strong>
+          </p>
 
           <div className="max-h-[45vh] overflow-y-auto space-y-2">
             {items.length === 0 && (
