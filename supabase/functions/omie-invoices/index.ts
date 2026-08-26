@@ -658,13 +658,14 @@ serve(async (req) => {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      const isAdmin = (roles ?? []).some((r: any) => r.role === 'admin');
       const { data: membership } = await sb
         .from('user_companies')
         .select('id')
         .eq('user_id', userData.user.id)
         .eq('company_id', company.id)
         .maybeSingle();
-      if (!membership) {
+      if (!membership && !isAdmin) {
         return new Response(JSON.stringify({ error: 'Sem acesso a esta empresa' }), {
           status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
