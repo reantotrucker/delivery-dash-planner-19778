@@ -537,10 +537,38 @@ export default function Expedition() {
                   </Badge>
                 </div>
 
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  {o.order_number && (
+                    <span className="flex items-center gap-1">
+                      <Hash className="w-3 h-3" /> Pedido {o.order_number}
+                    </span>
+                  )}
+                  {o.issued_at && (
+                    <span className="flex items-center gap-1">
+                      <FileText className="w-3 h-3" /> Emissão{" "}
+                      {format(new Date(o.issued_at), "dd/MM/yyyy HH:mm")}
+                    </span>
+                  )}
+                  {o.created_at && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> Chegou{" "}
+                      {format(new Date(o.created_at), "dd/MM/yyyy HH:mm")}
+                    </span>
+                  )}
+                  {o.cep && (
+                    <span className="flex items-center gap-1">
+                      <Home className="w-3 h-3" /> CEP {o.cep}
+                    </span>
+                  )}
+                </div>
+
                 {o.neighborhood && (
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5" /> {o.neighborhood}
                   </p>
+                )}
+                {o.address && (
+                  <p className="text-xs text-muted-foreground leading-snug">{o.address}</p>
                 )}
                 {o.seller && (
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
@@ -550,10 +578,12 @@ export default function Expedition() {
                 <p className="text-sm font-semibold">{formatBRL(o.total_value)}</p>
                 {o.checked_at && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="w-3 h-3" /> {format(new Date(o.checked_at), "dd/MM HH:mm")}
-                    {conferenteName(o.checked_by) && <> · Conferente: {conferenteName(o.checked_by)}</>}
+                    <PackageCheck className="w-3 h-3" /> Conferido{" "}
+                    {format(new Date(o.checked_at), "dd/MM/yyyy HH:mm")}
+                    {conferenteName(o.checked_by) && <> · {conferenteName(o.checked_by)}</>}
                   </p>
                 )}
+
 
                 <Button
                   size="sm"
