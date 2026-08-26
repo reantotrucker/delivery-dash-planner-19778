@@ -93,7 +93,14 @@ export default function TvPanel() {
     };
   }, [companyId, queryClient]);
 
-  const pending = useMemo(() => orders.filter((o) => o.status === "AGUARDANDO"), [orders]);
+  // Pendentes: aguardando e sem nenhuma ação de conferência (ordem de chegada)
+  const pending = useMemo(
+    () =>
+      orders
+        .filter((o) => o.status === "AGUARDANDO" && !o.checked_by)
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+    [orders]
+  );
   const done = useMemo(() => orders.filter((o) => o.status !== "AGUARDANDO").slice(0, 8), [orders]);
 
   useEffect(() => {
