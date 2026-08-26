@@ -194,7 +194,7 @@ export default function TvPanel() {
                   "rounded-2xl border-4 bg-card p-5 transition-colors duration-500",
                   inConference ? "border-success bg-success/10" : "border-primary",
                   !inConference && !isLeaving && o.id === pending[0]?.id && "animate-pulse",
-                  isLeaving && "tv-disintegrate"
+                  isLeaving && "tv-disintegrate border-destructive bg-destructive/10"
                 )}
               >
                 <p className="text-sm font-semibold text-muted-foreground">
@@ -204,7 +204,7 @@ export default function TvPanel() {
                 {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
                 <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
                 {isLeaving && (
-                  <p className="mt-3 text-3xl font-black text-success tracking-widest">
+                  <p className="mt-3 text-3xl font-black text-destructive tracking-widest">
                     {o.status === "BALCAO" ? "BALCÃO ✓" : "ROTA ✓"}
                   </p>
                 )}
