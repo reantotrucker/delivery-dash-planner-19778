@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getActiveCompanyId } from "@/lib/company";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,6 +25,7 @@ export default function Locations() {
       const { data, error } = await supabase
         .from("routes")
         .select("client, address, neighborhood, location_link")
+        .eq("company_id", getActiveCompanyId())
         .not("location_link", "is", null)
         .order("client", { ascending: true });
 

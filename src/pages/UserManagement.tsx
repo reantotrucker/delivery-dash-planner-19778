@@ -27,13 +27,18 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Building2 } from "lucide-react";
+
+type AppRole = 'admin' | 'user' | 'motorista' | 'comercial' | 'expedicao';
 
 type Profile = {
   id: string;
   email: string;
   full_name: string;
   created_at: string;
-  user_roles: Array<{ role: 'admin' | 'user' | 'motorista' | 'comercial' }>;
+  user_roles: Array<{ role: AppRole }>;
 };
 
 export default function UserManagement() {
@@ -67,8 +72,51 @@ export default function UserManagement() {
     enabled: !authLoading && isAdmin,
   });
 
+  const { data: companies = [] } = useQuery({
+    queryKey: ['all-companies'],
+    enabled: !authLoading && isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('companies').select('id, name').order('name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: memberships = [] } = useQuery({
+    queryKey: ['all-user-companies'],
+    enabled: !authLoading && isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('user_companies').select('user_id, company_id');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const toggleCompanyMutation = useMutation({
+    mutationFn: async ({ userId, companyId, enabled }: { userId: string; companyId: string; enabled: boolean }) => {
+      if (enabled) {
+        const { error } = await supabase.from('user_companies').insert({ user_id: userId, company_id: companyId });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('user_companies')
+          .delete()
+          .eq('user_id', userId)
+          .eq('company_id', companyId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-user-companies'] });
+      toast({ title: "Empresas atualizadas" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao atualizar empresas", description: error.message, variant: "destructive" });
+    },
+  });
+
   const toggleRoleMutation = useMutation({
-    mutationFn: async ({ userId, newRole }: { userId: string; newRole: 'admin' | 'user' | 'motorista' | 'comercial' }) => {
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
       const { error: deleteError } = await supabase
         .from('user_roles')
         .delete()
@@ -172,6 +220,7 @@ export default function UserManagement() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Nível de Acesso</TableHead>
+                  <TableHead>Empresas</TableHead>
                   <TableHead>Data de Cadastro</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -196,10 +245,44 @@ export default function UserManagement() {
                             <><Truck className="mr-1 h-3 w-3" /> Motorista</>
                           ) : isCurrentComercial ? (
                             <><User className="mr-1 h-3 w-3" /> Comercial</>
+                          ) : role === 'expedicao' ? (
+                            <><Building2 className="mr-1 h-3 w-3" /> Expedição</>
                           ) : (
                             <><User className="mr-1 h-3 w-3" /> Usuário</>
                           )}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <Building2 className="mr-2 h-4 w-4" />
+                              {memberships.filter((m: any) => m.user_id === profile.id).length} empresa(s)
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-56 space-y-2">
+                            {companies.map((c: any) => {
+                              const checked = memberships.some(
+                                (m: any) => m.user_id === profile.id && m.company_id === c.id
+                              );
+                              return (
+                                <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={(v) =>
+                                      toggleCompanyMutation.mutate({
+                                        userId: profile.id,
+                                        companyId: c.id,
+                                        enabled: !!v,
+                                      })
+                                    }
+                                  />
+                                  {c.name}
+                                </label>
+                              );
+                            })}
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
                       <TableCell>
                         {new Date(profile.created_at).toLocaleDateString('pt-BR')}
@@ -211,7 +294,7 @@ export default function UserManagement() {
                             onValueChange={(newRole) => {
                               toggleRoleMutation.mutate({
                                 userId: profile.id,
-                                newRole: newRole as 'admin' | 'user' | 'motorista' | 'comercial',
+                                newRole: newRole as AppRole,
                               });
                             }}
                           >
@@ -222,6 +305,7 @@ export default function UserManagement() {
                               <SelectItem value="admin"><div className="flex items-center"><Shield className="mr-2 h-4 w-4" />Administrador</div></SelectItem>
                               <SelectItem value="motorista"><div className="flex items-center"><Truck className="mr-2 h-4 w-4" />Motorista</div></SelectItem>
                               <SelectItem value="comercial"><div className="flex items-center"><User className="mr-2 h-4 w-4" />Comercial</div></SelectItem>
+                              <SelectItem value="expedicao"><div className="flex items-center"><Building2 className="mr-2 h-4 w-4" />Expedição</div></SelectItem>
                               <SelectItem value="user"><div className="flex items-center"><User className="mr-2 h-4 w-4" />Usuário</div></SelectItem>
                             </SelectContent>
                           </Select>

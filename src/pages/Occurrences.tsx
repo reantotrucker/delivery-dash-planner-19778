@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getActiveCompanyId } from "@/lib/company";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,7 @@ const Occurrences = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const { data: occurrences = [], isLoading, refetch } = useQuery({
-    queryKey: ["all-occurrences", startDate, endDate],
+    queryKey: ["all-occurrences", getActiveCompanyId(), startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("route_occurrences")
@@ -65,6 +66,7 @@ const Occurrences = () => {
             consultant:consultants(name)
           )
         `)
+        .eq("route.company_id", getActiveCompanyId())
         .gte("route.date", startDate)
         .lte("route.date", endDate)
         .order("created_at", { ascending: false });

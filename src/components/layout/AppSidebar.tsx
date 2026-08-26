@@ -1,14 +1,18 @@
-import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin } from "lucide-react";
+import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, PackageCheck, Tv } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CompanySwitcher } from "@/components/layout/CompanySwitcher";
 
 const navItems = [
   { title: "Rotas", url: "/", icon: Home, adminOnly: false },
+  { title: "Expedição", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
+  { title: "Painel TV", url: "/tv", icon: Tv, adminOnly: false, expeditionOnly: true },
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true },
@@ -19,12 +23,15 @@ const navItems = [
 
 export function AppSidebar() {
   const { user, role, isAdmin, isComercial, signOut } = useAuth();
+  const { hasExpedition } = useCompany();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
   if (!user) return null;
 
-  const filteredItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  const filteredItems = navItems.filter(
+    (item) => (!item.adminOnly || isAdmin) && (!item.expeditionOnly || hasExpedition)
+  );
 
   const handleLogout = async () => {
     await signOut();
@@ -34,6 +41,7 @@ export function AppSidebar() {
     if (isAdmin) return "Admin";
     if (role === 'motorista') return "Motorista";
     if (isComercial) return "Comercial";
+    if (role === 'expedicao') return "Expedição";
     return "Usuário";
   };
 
@@ -85,6 +93,7 @@ export function AppSidebar() {
 
       {/* Footer */}
       <div className="p-3 border-t border-border space-y-2">
+        <CompanySwitcher collapsed={collapsed} />
         {!collapsed && (
           <Badge 
             variant="outline" 
