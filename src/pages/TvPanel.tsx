@@ -6,8 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
-import { PackageCheck, Store, Truck, ArrowLeft, Volume2, VolumeX } from "lucide-react";
+import { PackageCheck, Store, ArrowLeft, Volume2, VolumeX, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface TvOrder {
   id: string;
@@ -20,6 +31,7 @@ interface TvOrder {
   created_at: string;
   checked_at: string | null;
   checked_by: string | null;
+  delivered_at: string | null;
 }
 
 const formatBRL = (v?: number | null) =>
@@ -84,7 +96,7 @@ export default function TvPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expedition_orders")
-        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at, checked_by")
+        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at, checked_by, delivered_at")
         .eq("company_id", companyId)
         .gte("created_at", `${today}T00:00:00`)
         .lte("created_at", `${today}T23:59:59`)
@@ -120,7 +132,33 @@ export default function TvPanel() {
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [orders]
   );
-  const done = useMemo(() => orders.filter((o) => o.status !== "AGUARDANDO").slice(0, 8), [orders]);
+  // Balcão conferido, aguardando o cliente retirar
+  const counter = useMemo(
+    () =>
+      orders
+        .filter((o) => o.status === "BALCAO" && !o.delivered_at)
+        .sort((a, b) => new Date(a.checked_at || a.created_at).getTime() - new Date(b.checked_at || b.created_at).getTime()),
+    [orders]
+  );
+  const [confirmDeliver, setConfirmDeliver] = useState<TvOrder | null>(null);
+  const [deliverLoading, setDeliverLoading] = useState(false);
+
+  const markDelivered = async (order: TvOrder) => {
+    setDeliverLoading(true);
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("expedition_orders")
+      .update({ delivered_at: new Date().toISOString(), delivered_by: auth.user?.id ?? null } as any)
+      .eq("id", order.id);
+    setDeliverLoading(false);
+    if (error) {
+      toast.error("Erro ao confirmar entrega");
+      return;
+    }
+    toast.success(`Entrega confirmada: ${order.client}`);
+    setConfirmDeliver(null);
+    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
+  };
 
   // Cards que acabaram de ser finalizados: ficam em tela desintegrando
   const prevStatus = useRef<Map<string, string>>(new Map());
@@ -185,7 +223,10 @@ export default function TvPanel() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge className="text-2xl px-5 py-2">{pending.length} pendente(s)</Badge>
+          <Badge className="text-2xl px-5 py-2">{pending.length} separando</Badge>
+          <Badge variant="outline" className="text-2xl px-5 py-2 border-success text-success">
+            {counter.length} balcão
+          </Badge>
           <Button variant="outline" size="icon" onClick={() => setSound((s) => !s)} aria-label="Som">
             {sound ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </Button>
@@ -197,79 +238,114 @@ export default function TvPanel() {
         </div>
       </header>
 
-      {display.length === 0 ? (
-        <div className="flex items-center justify-center h-[50vh] text-4xl font-bold text-muted-foreground">
-          Nenhum pedido aguardando separação
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {display.map((o) => {
-            const isLeaving = !pending.some((p) => p.id === o.id);
-            const inConference = !!o.checked_by;
-            return (
-              <div
-                key={o.id}
-                className={cn(
-                  "rounded-2xl border-4 bg-card p-5 transition-colors duration-500",
-                  inConference ? "border-success bg-success/10" : "border-primary",
-                  !inConference && !isLeaving && o.id === pending[0]?.id && "animate-pulse",
-                  isLeaving && "tv-disintegrate border-destructive bg-destructive/10"
-                )}
-              >
-                <p className="text-sm font-semibold text-muted-foreground">
-                  {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
-                </p>
-                <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
-                {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
-                <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
-                {isLeaving && (
-                  <p className="mt-3 text-3xl font-black text-destructive tracking-widest">
-                    {o.status === "BALCAO" ? "BALCÃO ✓" : "ROTA ✓"}
-                  </p>
-                )}
-                {!isLeaving && inConference && (
-                  <p className="mt-3 inline-flex items-center gap-2 text-lg font-bold text-success">
-                    <PackageCheck className="w-5 h-5" /> EM CONFERÊNCIA
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Lado esquerdo: em separação */}
+        <section className="rounded-2xl border-2 border-border p-4">
+          <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
+            <PackageCheck className="w-6 h-6 text-primary" /> EM SEPARAÇÃO
+          </h2>
 
-
-      {done.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-xl font-bold text-muted-foreground mb-3">Concluídos recentes</h2>
-          <div className="flex flex-wrap gap-3">
-            {done.map((o) => (
-              <div
-                key={o.id}
-                className={cn(
-                  "rounded-xl px-4 py-3 border-2",
-                  o.status === "BALCAO"
-                    ? "border-success bg-success/10"
-                    : "border-primary bg-primary/10"
-                )}
-              >
-                <p className="font-bold text-lg">{o.client}</p>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  {o.status === "BALCAO" ? (
-                    <>
-                      <Store className="w-4 h-4" /> Venda balcão
-                    </>
-                  ) : (
-                    <>
-                      <Truck className="w-4 h-4" /> Enviado para rota
-                    </>
-                  )}
-                </p>
-              </div>
-            ))}
-          </div>
+          {display.length === 0 ? (
+            <div className="flex items-center justify-center h-[40vh] text-3xl font-bold text-muted-foreground text-center">
+              Nenhum pedido aguardando separação
+            </div>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {display.map((o) => {
+                const isLeaving = !pending.some((p) => p.id === o.id);
+                const inConference = !!o.checked_by;
+                return (
+                  <div
+                    key={o.id}
+                    className={cn(
+                      "rounded-2xl border-4 bg-card p-5 transition-colors duration-500",
+                      inConference ? "border-success bg-success/10" : "border-primary",
+                      !inConference && !isLeaving && o.id === pending[0]?.id && "animate-pulse",
+                      isLeaving && "tv-disintegrate border-destructive bg-destructive/10"
+                    )}
+                  >
+                    <p className="text-sm font-semibold text-muted-foreground">
+                      {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
+                    </p>
+                    <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
+                    {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
+                    <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
+                    {isLeaving && (
+                      <p className="mt-3 text-3xl font-black text-destructive tracking-widest">
+                        {o.status === "BALCAO" ? "BALCÃO ✓" : "ROTA ✓"}
+                      </p>
+                    )}
+                    {!isLeaving && inConference && (
+                      <p className="mt-3 inline-flex items-center gap-2 text-lg font-bold text-success">
+                        <PackageCheck className="w-5 h-5" /> EM CONFERÊNCIA
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
-      )}
+
+        {/* Lado direito: separado para balcão, aguardando o cliente */}
+        <section className="rounded-2xl border-2 border-success/40 bg-success/5 p-4">
+          <h2 className="text-2xl font-black mb-4 flex items-center gap-2 text-success">
+            <Store className="w-6 h-6" /> SEPARADO · BALCÃO
+          </h2>
+
+          {counter.length === 0 ? (
+            <div className="flex items-center justify-center h-[40vh] text-3xl font-bold text-muted-foreground text-center">
+              Nenhum pedido aguardando o cliente
+            </div>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {counter.map((o) => (
+                <button
+                  key={o.id}
+                  onClick={() => setConfirmDeliver(o)}
+                  className="text-left rounded-2xl border-4 border-success bg-card p-5 transition-transform hover:scale-[1.02]"
+                >
+                  <p className="text-sm font-semibold text-muted-foreground">
+                    {o.doc_type} {o.doc_number} ·{" "}
+                    {format(new Date(o.checked_at || o.created_at), "dd/MM HH:mm")}
+                  </p>
+                  <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
+                  {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
+                  <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
+                  <p className="mt-3 inline-flex items-center gap-2 text-lg font-bold text-success">
+                    <HandCoins className="w-5 h-5" /> PRONTO · AGUARDANDO CLIENTE
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <AlertDialog open={!!confirmDeliver} onOpenChange={(o) => !o && setConfirmDeliver(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Já foi entregue ao cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDeliver?.client} — {confirmDeliver?.doc_type} {confirmDeliver?.doc_number}. Ao
+              confirmar, o pedido sai do painel.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Ainda não</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deliverLoading}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmDeliver) markDelivered(confirmDeliver);
+              }}
+            >
+              Sim, entregue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
