@@ -169,11 +169,6 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
     }
   };
 
-  const daysLeft = (expiresAt: string) => {
-    const diff = new Date(expiresAt).getTime() - Date.now();
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-  };
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,9 +176,10 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
           <DialogHeader>
             <DialogTitle>Canhotos assinados — {clientName}</DialogTitle>
             <DialogDescription>
-              Fotos dos canhotos das NFe/NFCe assinados pelo cliente. Anexos são apagados automaticamente após 30 dias.
+              Fotos dos canhotos das NFe/NFCe assinados pelo cliente. Os anexos ficam guardados por tempo indeterminado.
             </DialogDescription>
           </DialogHeader>
+
 
           {canManage && (
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
@@ -233,7 +229,7 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {receipts.map((r) => {
                   const url = signedUrls[r.file_path];
-                  const days = daysLeft(r.expires_at);
+                  
                   return (
                     <div key={r.id} className="relative group border border-border rounded-md overflow-hidden bg-muted/30">
                       {url ? (
@@ -250,7 +246,7 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
                       )}
                       <div className="p-1.5 text-[10px] text-muted-foreground flex items-center justify-between gap-1">
                         <span>{new Date(r.created_at).toLocaleDateString("pt-BR")}</span>
-                        <span className={days <= 5 ? "text-amber-500 font-semibold" : ""}>{days}d</span>
+                        
                       </div>
                       {canManage && (isAdmin || r.uploaded_by === user?.id) && (
                         <button
