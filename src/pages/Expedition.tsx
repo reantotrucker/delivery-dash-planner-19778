@@ -92,6 +92,9 @@ interface ExpeditionItem {
   checked: boolean;
   checked_at: string | null;
   checked_by: string | null;
+  checked2: boolean;
+  checked2_at: string | null;
+  checked2_by: string | null;
 }
 
 const formatBRL = (v?: number | null) =>
@@ -189,6 +192,28 @@ export default function Expedition() {
         .order("name");
       if (error) throw error;
       return (data || []) as ExpeditionItem[];
+    },
+  });
+
+  // Progresso da 2ª conferência dos pedidos de balcão
+  const balcaoIds = orders.filter((o) => o.status === "BALCAO" && !o.delivered_at).map((o) => o.id);
+  const { data: check2Counts = {} } = useQuery({
+    queryKey: ["expedition-check2-counts", companyId, balcaoIds.join(",")],
+    enabled: balcaoIds.length > 0,
+    refetchInterval: 20000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("expedition_order_items")
+        .select("expedition_order_id, checked2")
+        .in("expedition_order_id", balcaoIds);
+      if (error) throw error;
+      const acc: Record<string, { total: number; done: number }> = {};
+      (data || []).forEach((r: any) => {
+        const c = (acc[r.expedition_order_id] ||= { total: 0, done: 0 });
+        c.total++;
+        if (r.checked2) c.done++;
+      });
+      return acc;
     },
   });
 
@@ -354,6 +379,26 @@ export default function Expedition() {
     queryClient.invalidateQueries({ queryKey: ["expedition-items", openOrder?.id] });
   };
 
+  // 2ª conferência: feita junto com o cliente no balcão
+  const toggleItem2 = async (item: ExpeditionItem) => {
+    if (!canOperate) return;
+    const next = !item.checked2;
+    const { error } = await supabase
+      .from("expedition_order_items")
+      .update({
+        checked2: next,
+        checked2_at: next ? new Date().toISOString() : null,
+        checked2_by: next ? (user?.id ?? null) : null,
+      } as any)
+      .eq("id", item.id);
+    if (error) {
+      toast.error("Erro na 2ª conferência");
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["expedition-items", openOrder?.id] });
+    queryClient.invalidateQueries({ queryKey: ["expedition-check2-counts", companyId] });
+  };
+
   // Se fechar sem confirmar Balcão ou Rota, desmarca toda a conferência
   const cancelConference = async (order: ExpeditionOrder) => {
     if (order.status !== "AGUARDANDO") return;
@@ -449,7 +494,7 @@ export default function Expedition() {
       if (error) throw error;
       await supabase
         .from("expedition_order_items")
-        .update({ checked: false, checked_at: null })
+        .update({ checked: false, checked_at: null, checked2: false, checked2_at: null, checked2_by: null } as any)
         .eq("expedition_order_id", openOrder.id);
 
       toast.success("Pedido retornou para Aguardando");
@@ -678,16 +723,42 @@ export default function Expedition() {
                   {o.status === "AGUARDANDO" ? "Conferir" : "Ver itens"}
                 </Button>
 
-                {o.status === "BALCAO" && !o.delivered_at && canOperate && (
-                  <Button
-                    size="sm"
-                    className="w-full bg-success text-success-foreground hover:bg-success/90"
-                    onClick={() => setConfirmDeliver(o)}
-                  >
-                    <HandCoins className="w-4 h-4 mr-2" />
-                    Confirmar entrega ao cliente
-                  </Button>
-                )}
+                {o.status === "BALCAO" && !o.delivered_at && canOperate && (() => {
+                  const c = check2Counts[o.id];
+                  const ready = !!c && c.total > 0 && c.done === c.total;
+                  return (
+                    <div className="space-y-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full border-primary text-primary hover:bg-primary/10"
+                        onClick={() => openConference(o)}
+                      >
+                        <PackageCheck className="w-4 h-4 mr-2" />
+                        2ª conferência com o cliente
+                        {c && c.total > 0 && (
+                          <span className="ml-2 text-xs font-semibold">
+                            {c.done}/{c.total}
+                          </span>
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={!ready}
+                        className="w-full bg-success text-success-foreground hover:bg-success/90"
+                        onClick={() => setConfirmDeliver(o)}
+                      >
+                        <HandCoins className="w-4 h-4 mr-2" />
+                        Confirmar entrega ao cliente
+                      </Button>
+                      {!ready && (
+                        <p className="text-[10px] text-muted-foreground text-center">
+                          Faça a 2ª conferência com o cliente para liberar a entrega
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
 
               </CardContent>
@@ -752,6 +823,33 @@ export default function Expedition() {
                       {i.checked_at && ` · ${manausShort(i.checked_at)}`}
                     </p>
                   )}
+                  {openOrder?.status === "BALCAO" && !openOrder?.delivered_at && (
+                    <button
+                      type="button"
+                      disabled={!canOperate}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleItem2(i);
+                      }}
+                      className={cn(
+                        "mt-1.5 w-full flex items-center gap-2 p-1.5 rounded-md border text-xs font-medium transition-colors",
+                        i.checked2
+                          ? "border-success bg-success/15 text-success"
+                          : "border-border bg-muted/30 text-muted-foreground hover:border-success"
+                      )}
+                    >
+                      <PackageCheck className="w-3.5 h-3.5 shrink-0" />
+                      <span className="text-left">
+                        2ª conf. com o cliente
+                        {i.checked2 && i.checked2_by && (
+                          <span className="block font-normal">
+                            {conferenteName(i.checked2_by) || "—"}
+                            {i.checked2_at && ` · ${manausShort(i.checked2_at)}`}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </label>
             ))}
@@ -772,6 +870,20 @@ export default function Expedition() {
                 Enviar para rota
               </Button>
             </DialogFooter>
+          )}
+
+          {openOrder?.status === "BALCAO" && !openOrder?.delivered_at && canOperate && (
+            <Button
+              disabled={items.length === 0 || items.some((i) => !i.checked2)}
+              className="w-full bg-success text-success-foreground hover:bg-success/90"
+              onClick={() => {
+                setConfirmDeliver(openOrder);
+                setOpenOrder(null);
+              }}
+            >
+              <HandCoins className="w-4 h-4 mr-2" />
+              Confirmar entrega ao cliente
+            </Button>
           )}
 
           {openOrder?.status !== "AGUARDANDO" && canOperate && (
