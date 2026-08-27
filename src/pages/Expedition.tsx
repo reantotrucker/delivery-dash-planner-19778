@@ -49,6 +49,7 @@ import {
   Hash,
   Home,
   HandCoins,
+  StickyNote,
 
 
 } from "lucide-react";
@@ -644,6 +645,16 @@ export default function Expedition() {
                   </p>
                 )}
                 <p className="text-sm font-semibold">{formatBRL(o.total_value)}</p>
+                {o.observation && (
+                  <div className="rounded-md border border-primary/40 bg-primary/10 p-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-primary flex items-center gap-1">
+                      <StickyNote className="w-3 h-3" /> Observação do pedido
+                    </p>
+                    <p className="text-xs text-foreground/90 leading-snug whitespace-pre-wrap break-words mt-0.5">
+                      {o.observation}
+                    </p>
+                  </div>
+                )}
                 {o.checked_at && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <PackageCheck className="w-3 h-3" /> Conferido{" "}
