@@ -60,8 +60,19 @@ export default function TvPanel() {
   const company = companies.find((c) => c.id === companyId) || null;
   const hasExpedition = !!company?.has_expedition;
 
+  const [today, setToday] = useState(todayStr());
+
+  // Mantém o painel sempre no dia atual (virada de dia)
+  useEffect(() => {
+    const id = setInterval(() => {
+      const t = todayStr();
+      setToday((prev) => (prev === t ? prev : t));
+    }, 60000);
+    return () => clearInterval(id);
+  }, []);
+
   const { data: orders = [] } = useQuery({
-    queryKey: ["tv-orders", companyId],
+    queryKey: ["tv-orders", companyId, today],
     enabled: !!companyId && hasExpedition,
     refetchInterval: 15000,
     queryFn: async () => {
@@ -69,6 +80,8 @@ export default function TvPanel() {
         .from("expedition_orders")
         .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at, checked_by")
         .eq("company_id", companyId)
+        .gte("created_at", `${today}T00:00:00`)
+        .lte("created_at", `${today}T23:59:59`)
         .order("created_at", { ascending: false })
         .limit(60);
 
