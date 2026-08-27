@@ -79,6 +79,12 @@ interface ExpeditionItem {
 const formatBRL = (v?: number | null) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
 
+const todayStr = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
 export default function Expedition() {
   const { isAdmin, role, user } = useAuth();
   const { companyId, company, hasExpedition } = useCompany();
@@ -90,8 +96,8 @@ export default function Expedition() {
   const [syncing, setSyncing] = useState(false);
   const [openOrder, setOpenOrder] = useState<ExpeditionOrder | null>(null);
   const [saving, setSaving] = useState(false);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(todayStr());
+  const [dateTo, setDateTo] = useState(todayStr());
   const [autoSync, setAutoSync] = useState(
     () => localStorage.getItem("expedition-auto-sync") === "1"
   );
@@ -235,6 +241,28 @@ export default function Expedition() {
       setSyncing(false);
     }
   };
+
+  // Mantém o filtro sempre no dia atual (virada de dia / retorno à aba)
+  const lastDayRef = useRef(todayStr());
+  useEffect(() => {
+    const sync = () => {
+      const today = todayStr();
+      if (today !== lastDayRef.current) {
+        lastDayRef.current = today;
+        setDateFrom(today);
+        setDateTo(today);
+      }
+    };
+    const id = setInterval(sync, 60000);
+    const onFocus = () => sync();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, []);
 
   // Sincronização automática a cada 60s (intervalo ágil e seguro para a API Omie)
   const syncRef = useRef(syncFromOmie);
@@ -487,16 +515,16 @@ export default function Expedition() {
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
           />
-          {(dateFrom || dateTo) && (
+          {(dateFrom !== todayStr() || dateTo !== todayStr()) && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
-                setDateFrom("");
-                setDateTo("");
+                setDateFrom(todayStr());
+                setDateTo(todayStr());
               }}
             >
-              Limpar
+              Hoje
             </Button>
           )}
         </div>
