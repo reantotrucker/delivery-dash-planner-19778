@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { manausShort, manausTime, manausToday } from "@/lib/manausTime";
 import { useCompany } from "@/hooks/useCompany";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,11 +46,7 @@ const beep = () => {
 };
 
 
-const todayStr = () => {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
+const todayStr = () => manausToday();
 
 export default function TvPanel() {
   const { companies, companyId: activeCompanyId, selectCompany } = useCompany();
@@ -237,11 +234,11 @@ export default function TvPanel() {
                     )}
                   >
                     <p className="text-[11px] font-semibold text-muted-foreground">
-                      {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
+                      {o.doc_type} {o.doc_number} · {manausShort(o.created_at)}
                     </p>
                     {o.issued_at && (
                       <p className="text-[10px] text-muted-foreground">
-                        Faturado {format(new Date(o.issued_at), "HH:mm")}
+                        Faturado {manausTime(o.issued_at)}
                       </p>
                     )}
 
@@ -286,7 +283,7 @@ export default function TvPanel() {
                 >
                   <p className="text-[11px] font-semibold text-muted-foreground">
                     {o.doc_type} {o.doc_number} ·{" "}
-                    {format(new Date(o.checked_at || o.created_at), "dd/MM HH:mm")}
+                    {manausShort(o.checked_at || o.created_at)}
                   </p>
                   <p className="text-base font-black leading-tight mt-0.5 break-words line-clamp-2">{o.client}</p>
                   {o.neighborhood && (
