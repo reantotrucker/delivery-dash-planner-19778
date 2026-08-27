@@ -67,9 +67,11 @@ async function syncCompany(companyId: string) {
           cep: inv.address?.cep || null,
           seller: inv.vendedorName || null,
           total_value: inv.totalValue ?? null,
+          issued_at: toIsoIssuedAt(inv.emissionDate, inv.emissionTime),
           observation: inv.orderObservation || null,
           status: "AGUARDANDO",
         })
+
         .select("id")
         .single();
       if (insErr) throw insErr;
