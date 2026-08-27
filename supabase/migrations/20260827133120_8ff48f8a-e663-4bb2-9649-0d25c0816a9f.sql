@@ -1,0 +1,1 @@
+UPDATE public.expedition_orders SET delivered_at = NULL, delivered_by = NULL WHERE status = 'AGUARDANDO' AND delivered_at IS NOT NULL;
