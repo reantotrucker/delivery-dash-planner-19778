@@ -18,7 +18,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
 import { format } from "date-fns";
 import {
   Loader2,
@@ -36,6 +47,8 @@ import {
   FileText,
   Hash,
   Home,
+  HandCoins,
+
 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,7 +74,9 @@ interface ExpeditionOrder {
   order_number: string | null;
   created_at: string | null;
   observation: string | null;
+  delivered_at?: string | null;
 }
+
 
 interface ExpeditionItem {
   id: string;
@@ -102,6 +117,26 @@ export default function Expedition() {
     () => localStorage.getItem("expedition-auto-sync") !== "0"
   );
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [confirmDeliver, setConfirmDeliver] = useState<ExpeditionOrder | null>(null);
+  const [deliverLoading, setDeliverLoading] = useState(false);
+
+  const markDelivered = async (order: ExpeditionOrder) => {
+    setDeliverLoading(true);
+    const { error } = await supabase
+      .from("expedition_orders")
+      .update({ delivered_at: new Date().toISOString(), delivered_by: user?.id ?? null } as any)
+      .eq("id", order.id);
+    setDeliverLoading(false);
+    if (error) {
+      toast.error("Erro ao confirmar entrega");
+      return;
+    }
+    toast.success(`Entrega confirmada: ${order.client}`);
+    setConfirmDeliver(null);
+    queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
+  };
+
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["expedition-orders", companyId, statusFilter, dateFrom, dateTo],
@@ -611,7 +646,12 @@ export default function Expedition() {
                     {conferenteName(o.checked_by) && <> · {conferenteName(o.checked_by)}</>}
                   </p>
                 )}
-
+                {o.delivered_at && (
+                  <p className="text-xs font-medium text-success flex items-center gap-1">
+                    <HandCoins className="w-3 h-3" /> Entregue ao cliente{" "}
+                    {format(new Date(o.delivered_at), "dd/MM/yyyy HH:mm")}
+                  </p>
+                )}
 
                 <Button
                   size="sm"
@@ -621,6 +661,18 @@ export default function Expedition() {
                 >
                   {o.status === "AGUARDANDO" ? "Conferir" : "Ver itens"}
                 </Button>
+
+                {o.status === "BALCAO" && !o.delivered_at && canOperate && (
+                  <Button
+                    size="sm"
+                    className="w-full bg-success text-success-foreground hover:bg-success/90"
+                    onClick={() => setConfirmDeliver(o)}
+                  >
+                    <HandCoins className="w-4 h-4 mr-2" />
+                    Confirmar entrega ao cliente
+                  </Button>
+                )}
+
 
               </CardContent>
             </Card>
@@ -704,6 +756,31 @@ export default function Expedition() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!confirmDeliver} onOpenChange={(o) => !o && setConfirmDeliver(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Já foi entregue ao cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDeliver?.client} — {confirmDeliver?.doc_type} {confirmDeliver?.doc_number}. Ao
+              confirmar, o pedido sai do painel de TV.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Ainda não</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deliverLoading}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmDeliver) markDelivered(confirmDeliver);
+              }}
+            >
+              Sim, entregue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 }

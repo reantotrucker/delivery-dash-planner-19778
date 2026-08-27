@@ -8,17 +8,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { PackageCheck, Store, ArrowLeft, Volume2, VolumeX, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
 
 interface TvOrder {
   id: string;
@@ -140,26 +129,6 @@ export default function TvPanel() {
         .sort((a, b) => new Date(a.checked_at || a.created_at).getTime() - new Date(b.checked_at || b.created_at).getTime()),
     [orders]
   );
-  const [confirmDeliver, setConfirmDeliver] = useState<TvOrder | null>(null);
-  const [deliverLoading, setDeliverLoading] = useState(false);
-
-  const markDelivered = async (order: TvOrder) => {
-    setDeliverLoading(true);
-    const { data: auth } = await supabase.auth.getUser();
-    const { error } = await supabase
-      .from("expedition_orders")
-      .update({ delivered_at: new Date().toISOString(), delivered_by: auth.user?.id ?? null } as any)
-      .eq("id", order.id);
-    setDeliverLoading(false);
-    if (error) {
-      toast.error("Erro ao confirmar entrega");
-      return;
-    }
-    toast.success(`Entrega confirmada: ${order.client}`);
-    setConfirmDeliver(null);
-    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
-  };
-
   // Cards que acabaram de ser finalizados: ficam em tela desintegrando
   const prevStatus = useRef<Map<string, string>>(new Map());
   const prevOrders = useRef<TvOrder[]>([]);
@@ -238,19 +207,19 @@ export default function TvPanel() {
         </div>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* Lado esquerdo: em separação */}
-        <section className="rounded-2xl border-2 border-border p-4">
-          <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
-            <PackageCheck className="w-6 h-6 text-primary" /> EM SEPARAÇÃO
+        <section className="rounded-xl border-2 border-border p-3">
+          <h2 className="text-xl font-black mb-3 flex items-center gap-2">
+            <PackageCheck className="w-5 h-5 text-primary" /> EM SEPARAÇÃO
           </h2>
 
           {display.length === 0 ? (
-            <div className="flex items-center justify-center h-[40vh] text-3xl font-bold text-muted-foreground text-center">
+            <div className="flex items-center justify-center h-[30vh] text-xl font-bold text-muted-foreground text-center">
               Nenhum pedido aguardando separação
             </div>
           ) : (
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
               {display.map((o) => {
                 const isLeaving = !pending.some((p) => p.id === o.id);
                 const inConference = !!o.checked_by;
@@ -258,26 +227,28 @@ export default function TvPanel() {
                   <div
                     key={o.id}
                     className={cn(
-                      "rounded-2xl border-4 bg-card p-5 transition-colors duration-500",
+                      "rounded-lg border-2 bg-card p-3 transition-colors duration-500",
                       inConference ? "border-success bg-success/10" : "border-primary",
                       !inConference && !isLeaving && o.id === pending[0]?.id && "animate-pulse",
                       isLeaving && "tv-disintegrate border-destructive bg-destructive/10"
                     )}
                   >
-                    <p className="text-sm font-semibold text-muted-foreground">
+                    <p className="text-[11px] font-semibold text-muted-foreground">
                       {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
                     </p>
-                    <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
-                    {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
-                    <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
+                    <p className="text-lg font-black leading-tight mt-0.5 break-words">{o.client}</p>
+                    {o.neighborhood && (
+                      <p className="text-sm text-muted-foreground">{o.neighborhood}</p>
+                    )}
+                    <p className="text-base font-bold mt-1">{formatBRL(o.total_value)}</p>
                     {isLeaving && (
-                      <p className="mt-3 text-3xl font-black text-destructive tracking-widest">
+                      <p className="mt-1 text-lg font-black text-destructive tracking-wider">
                         {o.status === "BALCAO" ? "BALCÃO ✓" : "ROTA ✓"}
                       </p>
                     )}
                     {!isLeaving && inConference && (
-                      <p className="mt-3 inline-flex items-center gap-2 text-lg font-bold text-success">
-                        <PackageCheck className="w-5 h-5" /> EM CONFERÊNCIA
+                      <p className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-success">
+                        <PackageCheck className="w-4 h-4" /> EM CONFERÊNCIA
                       </p>
                     )}
                   </div>
@@ -288,63 +259,42 @@ export default function TvPanel() {
         </section>
 
         {/* Lado direito: separado para balcão, aguardando o cliente */}
-        <section className="rounded-2xl border-2 border-success/40 bg-success/5 p-4">
-          <h2 className="text-2xl font-black mb-4 flex items-center gap-2 text-success">
-            <Store className="w-6 h-6" /> SEPARADO · BALCÃO
+        <section className="rounded-xl border-2 border-success/40 bg-success/5 p-3">
+          <h2 className="text-xl font-black mb-3 flex items-center gap-2 text-success">
+            <Store className="w-5 h-5" /> SEPARADO · BALCÃO
           </h2>
 
           {counter.length === 0 ? (
-            <div className="flex items-center justify-center h-[40vh] text-3xl font-bold text-muted-foreground text-center">
+            <div className="flex items-center justify-center h-[30vh] text-xl font-bold text-muted-foreground text-center">
               Nenhum pedido aguardando o cliente
             </div>
           ) : (
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
               {counter.map((o) => (
-                <button
+                <div
                   key={o.id}
-                  onClick={() => setConfirmDeliver(o)}
-                  className="text-left rounded-2xl border-4 border-success bg-card p-5 transition-transform hover:scale-[1.02]"
+                  className="rounded-lg border-2 border-success bg-card p-3"
                 >
-                  <p className="text-sm font-semibold text-muted-foreground">
+                  <p className="text-[11px] font-semibold text-muted-foreground">
                     {o.doc_type} {o.doc_number} ·{" "}
                     {format(new Date(o.checked_at || o.created_at), "dd/MM HH:mm")}
                   </p>
-                  <p className="text-3xl font-black leading-tight mt-1 break-words">{o.client}</p>
-                  {o.neighborhood && <p className="text-xl text-muted-foreground mt-1">{o.neighborhood}</p>}
-                  <p className="text-2xl font-bold mt-2">{formatBRL(o.total_value)}</p>
-                  <p className="mt-3 inline-flex items-center gap-2 text-lg font-bold text-success">
-                    <HandCoins className="w-5 h-5" /> PRONTO · AGUARDANDO CLIENTE
+                  <p className="text-lg font-black leading-tight mt-0.5 break-words">{o.client}</p>
+                  {o.neighborhood && (
+                    <p className="text-sm text-muted-foreground">{o.neighborhood}</p>
+                  )}
+                  <p className="text-base font-bold mt-1">{formatBRL(o.total_value)}</p>
+                  <p className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-success">
+                    <HandCoins className="w-4 h-4" /> PRONTO · AGUARDANDO CLIENTE
                   </p>
-                </button>
+                </div>
               ))}
             </div>
           )}
         </section>
       </div>
 
-      <AlertDialog open={!!confirmDeliver} onOpenChange={(o) => !o && setConfirmDeliver(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Já foi entregue ao cliente?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmDeliver?.client} — {confirmDeliver?.doc_type} {confirmDeliver?.doc_number}. Ao
-              confirmar, o pedido sai do painel.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Ainda não</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deliverLoading}
-              onClick={(e) => {
-                e.preventDefault();
-                if (confirmDeliver) markDelivered(confirmDeliver);
-              }}
-            >
-              Sim, entregue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </div>
   );
 }
