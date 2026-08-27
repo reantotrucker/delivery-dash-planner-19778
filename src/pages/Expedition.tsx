@@ -608,8 +608,9 @@ export default function Expedition() {
                   )}
                   {o.issued_at && (
                     <span className="flex items-center gap-1">
-                      <FileText className="w-3 h-3" /> Emissão{" "}
+                      <FileText className="w-3 h-3" /> Faturado{" "}
                       {format(new Date(o.issued_at), "dd/MM/yyyy HH:mm")}
+
                     </span>
                   )}
                   {o.created_at && (
