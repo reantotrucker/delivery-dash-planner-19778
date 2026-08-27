@@ -6,8 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
-import { PackageCheck, Store, Truck, ArrowLeft, Volume2, VolumeX } from "lucide-react";
+import { PackageCheck, Store, ArrowLeft, Volume2, VolumeX, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface TvOrder {
   id: string;
@@ -20,6 +31,7 @@ interface TvOrder {
   created_at: string;
   checked_at: string | null;
   checked_by: string | null;
+  delivered_at: string | null;
 }
 
 const formatBRL = (v?: number | null) =>
@@ -84,7 +96,7 @@ export default function TvPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expedition_orders")
-        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at, checked_by")
+        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at, checked_by, delivered_at")
         .eq("company_id", companyId)
         .gte("created_at", `${today}T00:00:00`)
         .lte("created_at", `${today}T23:59:59`)
@@ -120,7 +132,33 @@ export default function TvPanel() {
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
     [orders]
   );
-  const done = useMemo(() => orders.filter((o) => o.status !== "AGUARDANDO").slice(0, 8), [orders]);
+  // Balcão conferido, aguardando o cliente retirar
+  const counter = useMemo(
+    () =>
+      orders
+        .filter((o) => o.status === "BALCAO" && !o.delivered_at)
+        .sort((a, b) => new Date(a.checked_at || a.created_at).getTime() - new Date(b.checked_at || b.created_at).getTime()),
+    [orders]
+  );
+  const [confirmDeliver, setConfirmDeliver] = useState<TvOrder | null>(null);
+  const [deliverLoading, setDeliverLoading] = useState(false);
+
+  const markDelivered = async (order: TvOrder) => {
+    setDeliverLoading(true);
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("expedition_orders")
+      .update({ delivered_at: new Date().toISOString(), delivered_by: auth.user?.id ?? null } as any)
+      .eq("id", order.id);
+    setDeliverLoading(false);
+    if (error) {
+      toast.error("Erro ao confirmar entrega");
+      return;
+    }
+    toast.success(`Entrega confirmada: ${order.client}`);
+    setConfirmDeliver(null);
+    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
+  };
 
   // Cards que acabaram de ser finalizados: ficam em tela desintegrando
   const prevStatus = useRef<Map<string, string>>(new Map());
