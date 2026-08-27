@@ -702,6 +702,10 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     delete inv.vendedorId;
   }
 
+  await attachFamilies(nfceInvoices, appKey, appSecret);
+
+
+
   return {
     type: 'nfce' as const,
     page: data.nPagina || page,
