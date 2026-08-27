@@ -8,6 +8,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { PackageCheck, Store, ArrowLeft, Volume2, VolumeX, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
+import moneySfx from "@/assets/money-soundfx.mp3.asset.json";
+
 
 interface TvOrder {
   id: string;
@@ -26,21 +28,20 @@ interface TvOrder {
 const formatBRL = (v?: number | null) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
 
+let audioEl: HTMLAudioElement | null = null;
 const beep = () => {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.2, ctx.currentTime);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.35);
+    if (!audioEl) {
+      audioEl = new Audio(moneySfx.url);
+      audioEl.volume = 1;
+    }
+    audioEl.currentTime = 0;
+    void audioEl.play();
   } catch {
     /* ignore */
   }
 };
+
 
 const todayStr = () => {
   const d = new Date();
