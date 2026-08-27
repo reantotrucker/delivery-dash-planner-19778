@@ -99,7 +99,7 @@ export default function Expedition() {
   const [dateFrom, setDateFrom] = useState(todayStr());
   const [dateTo, setDateTo] = useState(todayStr());
   const [autoSync, setAutoSync] = useState(
-    () => localStorage.getItem("expedition-auto-sync") === "1"
+    () => localStorage.getItem("expedition-auto-sync") !== "0"
   );
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
@@ -458,7 +458,7 @@ export default function Expedition() {
               id="auto-sync"
               checked={autoSync}
               onCheckedChange={setAutoSync}
-              disabled={!canOperate}
+              disabled={!isAdmin}
             />
             <Label htmlFor="auto-sync" className="text-sm cursor-pointer">
               Automático (60s)
