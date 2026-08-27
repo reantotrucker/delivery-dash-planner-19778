@@ -485,7 +485,7 @@ export type Database = {
       route_receipts: {
         Row: {
           created_at: string
-          expires_at: string
+          expires_at: string | null
           file_name: string
           file_path: string
           file_size: number | null
@@ -495,7 +495,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          expires_at?: string
+          expires_at?: string | null
           file_name: string
           file_path: string
           file_size?: number | null
@@ -505,7 +505,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          expires_at?: string
+          expires_at?: string | null
           file_name?: string
           file_path?: string
           file_size?: number | null
@@ -717,7 +717,6 @@ export type Database = {
         Returns: undefined
       }
       clean_omie_cache: { Args: never; Returns: undefined }
-      cleanup_expired_receipts: { Args: never; Returns: undefined }
       has_company_access: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
