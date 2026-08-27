@@ -239,6 +239,12 @@ export default function TvPanel() {
                     <p className="text-[11px] font-semibold text-muted-foreground">
                       {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
                     </p>
+                    {o.issued_at && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Faturado {format(new Date(o.issued_at), "HH:mm")}
+                      </p>
+                    )}
+
                     <p className="text-base font-black leading-tight mt-0.5 break-words line-clamp-2">{o.client}</p>
                     {o.neighborhood && (
                       <p className="text-xs text-muted-foreground truncate">{o.neighborhood}</p>
