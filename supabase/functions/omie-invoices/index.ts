@@ -550,9 +550,12 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
         unitValue: item.prod?.vUnCom || 0,
         totalValue: item.prod?.vProd || 0,
         code: item.prod?.cProd || '',
+        family: '',
       })),
     };
   }).reverse();
+
+  await attachFamilies(invoices, appKey, appSecret);
 
   return {
     type: 'nfe' as const,
@@ -561,6 +564,21 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
     totalRecords: data.total_de_registros || 0,
     invoices,
   };
+}
+
+// Preenche a família de cada produto das notas
+async function attachFamilies(invoices: any[], appKey: string, appSecret: string) {
+  try {
+    const codes = invoices.flatMap((inv: any) => (inv.products || []).map((p: any) => p.code)).filter(Boolean);
+    const families = await fetchProductFamilies(codes, appKey, appSecret);
+    invoices.forEach((inv: any) => {
+      (inv.products || []).forEach((p: any) => {
+        p.family = families.get(p.code) || '';
+      });
+    });
+  } catch (e) {
+    console.log('Erro ao anexar famílias:', e);
+  }
 }
 
 // --- Build full result for NFCe ---
@@ -631,6 +649,7 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
         unitValue: item.vUnit || 0,
         totalValue: item.vItem || 0,
         code: item.cCodigo || '',
+        family: '',
       })),
     };
   });
