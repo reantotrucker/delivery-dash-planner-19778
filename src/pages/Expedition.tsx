@@ -117,6 +117,26 @@ export default function Expedition() {
     () => localStorage.getItem("expedition-auto-sync") !== "0"
   );
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [confirmDeliver, setConfirmDeliver] = useState<ExpeditionOrder | null>(null);
+  const [deliverLoading, setDeliverLoading] = useState(false);
+
+  const markDelivered = async (order: ExpeditionOrder) => {
+    setDeliverLoading(true);
+    const { error } = await supabase
+      .from("expedition_orders")
+      .update({ delivered_at: new Date().toISOString(), delivered_by: user?.id ?? null } as any)
+      .eq("id", order.id);
+    setDeliverLoading(false);
+    if (error) {
+      toast.error("Erro ao confirmar entrega");
+      return;
+    }
+    toast.success(`Entrega confirmada: ${order.client}`);
+    setConfirmDeliver(null);
+    queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
+  };
+
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["expedition-orders", companyId, statusFilter, dateFrom, dateTo],
