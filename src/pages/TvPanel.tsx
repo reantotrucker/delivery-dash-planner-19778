@@ -41,6 +41,12 @@ const beep = () => {
   }
 };
 
+const todayStr = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
 export default function TvPanel() {
   const { companies, companyId: activeCompanyId, selectCompany } = useCompany();
   const [searchParams] = useSearchParams();
