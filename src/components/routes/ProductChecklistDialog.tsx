@@ -18,6 +18,7 @@ interface RouteProduct {
   route_id: string;
   name: string;
   code: string | null;
+  family: string | null;
   quantity: number;
   unit: string | null;
   unit_value: number | null;
@@ -215,8 +216,17 @@ export const ProductChecklistDialog = ({
                         {product.name}
                       </p>
                       <div className="flex items-center justify-between mt-1">
-                        <div className="text-xs text-muted-foreground">
-                          {product.code && <span>Cód: {product.code}</span>}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {product.code && (
+                            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-muted text-foreground/80">
+                              {product.code}
+                            </span>
+                          )}
+                          {product.family && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                              {product.family}
+                            </span>
+                          )}
                         </div>
                         <div className="text-right shrink-0">
                           <span className="font-semibold text-sm">
