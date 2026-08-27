@@ -229,7 +229,7 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {receipts.map((r) => {
                   const url = signedUrls[r.file_path];
-                  const days = daysLeft(r.expires_at);
+                  
                   return (
                     <div key={r.id} className="relative group border border-border rounded-md overflow-hidden bg-muted/30">
                       {url ? (
