@@ -493,16 +493,16 @@ export default function Expedition() {
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
           />
-          {(dateFrom || dateTo) && (
+          {(dateFrom !== todayStr() || dateTo !== todayStr()) && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
-                setDateFrom("");
-                setDateTo("");
+                setDateFrom(todayStr());
+                setDateTo(todayStr());
               }}
             >
-              Limpar
+              Hoje
             </Button>
           )}
         </div>
