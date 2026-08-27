@@ -18,7 +18,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
 import { format } from "date-fns";
 import {
   Loader2,
@@ -36,6 +47,8 @@ import {
   FileText,
   Hash,
   Home,
+  HandCoins,
+
 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,7 +74,9 @@ interface ExpeditionOrder {
   order_number: string | null;
   created_at: string | null;
   observation: string | null;
+  delivered_at?: string | null;
 }
+
 
 interface ExpeditionItem {
   id: string;
