@@ -246,7 +246,7 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
                       )}
                       <div className="p-1.5 text-[10px] text-muted-foreground flex items-center justify-between gap-1">
                         <span>{new Date(r.created_at).toLocaleDateString("pt-BR")}</span>
-                        <span className={days <= 5 ? "text-amber-500 font-semibold" : ""}>{days}d</span>
+                        
                       </div>
                       {canManage && (isAdmin || r.uploaded_by === user?.id) && (
                         <button
