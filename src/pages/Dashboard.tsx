@@ -23,7 +23,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const { isAdmin, isMotorista, isComercial } = useAuth();
   const canManageRoutes = isAdmin;
-  const canManageOccurrences = isAdmin || isMotorista || isComercial;
+  const canManageOccurrences = isAdmin || isMotorista;
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedPeriod, setSelectedPeriod] = useState<"MANHA" | "TARDE">(new Date().getHours() >= 12 ? "TARDE" : "MANHA");
   const [searchTerm, setSearchTerm] = useState("");
