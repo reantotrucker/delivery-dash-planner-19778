@@ -215,6 +215,10 @@ export default function OmieImport() {
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [fetchCounter, setFetchCounter] = useState(0);
+  const [autoSearch, setAutoSearch] = useState(
+    () => localStorage.getItem("omie-import-auto") === "1"
+  );
+  const [lastSearch, setLastSearch] = useState<Date | null>(null);
 
   // Fetch NF-e and NFC-e in parallel and merge into a single list
   const queries = useQueries({
