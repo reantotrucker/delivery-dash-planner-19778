@@ -756,6 +756,31 @@ export default function Expedition() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!confirmDeliver} onOpenChange={(o) => !o && setConfirmDeliver(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Já foi entregue ao cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDeliver?.client} — {confirmDeliver?.doc_type} {confirmDeliver?.doc_number}. Ao
+              confirmar, o pedido sai do painel de TV.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Ainda não</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deliverLoading}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmDeliver) markDelivered(confirmDeliver);
+              }}
+            >
+              Sim, entregue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 }
