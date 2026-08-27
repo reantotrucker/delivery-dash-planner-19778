@@ -633,7 +633,10 @@ serve(async (req) => {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
       // Require admin, comercial or expedicao role
+
       const sbRoles = getSupabase();
       const { data: roles } = await sbRoles
         .from('user_roles')
