@@ -169,11 +169,6 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
     }
   };
 
-  const daysLeft = (expiresAt: string) => {
-    const diff = new Date(expiresAt).getTime() - Date.now();
-    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-  };
-
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -181,9 +176,10 @@ export const RouteReceiptDialog = ({ routeId, clientName, open, onOpenChange, ca
           <DialogHeader>
             <DialogTitle>Canhotos assinados — {clientName}</DialogTitle>
             <DialogDescription>
-              Fotos dos canhotos das NFe/NFCe assinados pelo cliente. Anexos são apagados automaticamente após 30 dias.
+              Fotos dos canhotos das NFe/NFCe assinados pelo cliente. Os anexos ficam guardados por tempo indeterminado.
             </DialogDescription>
           </DialogHeader>
+
 
           {canManage && (
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
