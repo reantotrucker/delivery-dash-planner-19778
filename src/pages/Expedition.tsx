@@ -242,6 +242,28 @@ export default function Expedition() {
     }
   };
 
+  // Mantém o filtro sempre no dia atual (virada de dia / retorno à aba)
+  const lastDayRef = useRef(todayStr());
+  useEffect(() => {
+    const sync = () => {
+      const today = todayStr();
+      if (today !== lastDayRef.current) {
+        lastDayRef.current = today;
+        setDateFrom(today);
+        setDateTo(today);
+      }
+    };
+    const id = setInterval(sync, 60000);
+    const onFocus = () => sync();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, []);
+
   // Sincronização automática a cada 60s (intervalo ágil e seguro para a API Omie)
   const syncRef = useRef(syncFromOmie);
   syncRef.current = syncFromOmie;
