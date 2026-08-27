@@ -2,3 +2,6 @@ project_id = "yuxvypdqujobkjkudqet"
 
 [functions.admin-delete-user]
 verify_jwt = true
+
+[functions.expedition-auto-sync]
+verify_jwt = false

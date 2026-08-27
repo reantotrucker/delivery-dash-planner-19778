@@ -617,31 +617,47 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const authClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: userData, error: userError } = await authClient.auth.getUser();
-    if (userError || !userData?.user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Chamada interna (cron / função servidor) usando a service role key
+    const isInternal =
+      authHeader === `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`;
+
+    let userId: string | null = null;
+    let userRoles: any[] = [];
+
+    if (!isInternal) {
+      const authClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: userData, error: userError } = await authClient.auth.getUser();
+      if (userError || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      userId = userData.user.id;
+
+      // Require admin, comercial or expedicao role
+      const sbRoles = getSupabase();
+      const { data: roles } = await sbRoles
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+      userRoles = roles ?? [];
+      const allowed = userRoles.some((r: any) => ['admin', 'comercial', 'expedicao'].includes(r.role));
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
-    // Require admin or comercial role
+
     const sb = getSupabase();
-    const { data: roles } = await sb
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userData.user.id);
-    const allowed = (roles ?? []).some((r: any) => ['admin', 'comercial', 'expedicao'].includes(r.role));
-    if (!allowed) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+
+
 
     const { type, page = 1, fetchLastPage = false, forceRefresh = false, companyId } = await req.json();
 
@@ -658,18 +674,21 @@ serve(async (req) => {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const isAdmin = (roles ?? []).some((r: any) => r.role === 'admin');
-      const { data: membership } = await sb
-        .from('user_companies')
-        .select('id')
-        .eq('user_id', userData.user.id)
-        .eq('company_id', company.id)
-        .maybeSingle();
-      if (!membership && !isAdmin) {
-        return new Response(JSON.stringify({ error: 'Sem acesso a esta empresa' }), {
-          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      if (!isInternal) {
+        const isAdmin = userRoles.some((r: any) => r.role === 'admin');
+        const { data: membership } = await sb
+          .from('user_companies')
+          .select('id')
+          .eq('user_id', userId!)
+          .eq('company_id', company.id)
+          .maybeSingle();
+        if (!membership && !isAdmin) {
+          return new Response(JSON.stringify({ error: 'Sem acesso a esta empresa' }), {
+            status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
       }
+
       companySlug = company.slug;
     }
 
