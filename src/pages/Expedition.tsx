@@ -646,7 +646,12 @@ export default function Expedition() {
                     {conferenteName(o.checked_by) && <> · {conferenteName(o.checked_by)}</>}
                   </p>
                 )}
-
+                {o.delivered_at && (
+                  <p className="text-xs font-medium text-success flex items-center gap-1">
+                    <HandCoins className="w-3 h-3" /> Entregue ao cliente{" "}
+                    {format(new Date(o.delivered_at), "dd/MM/yyyy HH:mm")}
+                  </p>
+                )}
 
                 <Button
                   size="sm"
@@ -656,6 +661,18 @@ export default function Expedition() {
                 >
                   {o.status === "AGUARDANDO" ? "Conferir" : "Ver itens"}
                 </Button>
+
+                {o.status === "BALCAO" && !o.delivered_at && canOperate && (
+                  <Button
+                    size="sm"
+                    className="w-full bg-success text-success-foreground hover:bg-success/90"
+                    onClick={() => setConfirmDeliver(o)}
+                  >
+                    <HandCoins className="w-4 h-4 mr-2" />
+                    Confirmar entrega ao cliente
+                  </Button>
+                )}
+
 
               </CardContent>
             </Card>
