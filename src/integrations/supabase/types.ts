@@ -181,6 +181,8 @@ export type Database = {
           client_document: string | null
           company_id: string
           created_at: string
+          delivered_at: string | null
+          delivered_by: string | null
           doc_number: string | null
           doc_type: string
           id: string
@@ -203,6 +205,8 @@ export type Database = {
           client_document?: string | null
           company_id: string
           created_at?: string
+          delivered_at?: string | null
+          delivered_by?: string | null
           doc_number?: string | null
           doc_type?: string
           id?: string
@@ -225,6 +229,8 @@ export type Database = {
           client_document?: string | null
           company_id?: string
           created_at?: string
+          delivered_at?: string | null
+          delivered_by?: string | null
           doc_number?: string | null
           doc_type?: string
           id?: string
