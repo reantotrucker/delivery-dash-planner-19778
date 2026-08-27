@@ -126,6 +126,7 @@ export type Database = {
           code: string | null
           created_at: string
           expedition_order_id: string
+          family: string | null
           id: string
           name: string
           quantity: number
@@ -140,6 +141,7 @@ export type Database = {
           code?: string | null
           created_at?: string
           expedition_order_id: string
+          family?: string | null
           id?: string
           name: string
           quantity?: number
@@ -154,6 +156,7 @@ export type Database = {
           code?: string | null
           created_at?: string
           expedition_order_id?: string
+          family?: string | null
           id?: string
           name?: string
           quantity?: number
@@ -430,6 +433,7 @@ export type Database = {
           checked2_by: string | null
           code: string | null
           created_at: string
+          family: string | null
           id: string
           name: string
           quantity: number
@@ -447,6 +451,7 @@ export type Database = {
           checked2_by?: string | null
           code?: string | null
           created_at?: string
+          family?: string | null
           id?: string
           name: string
           quantity?: number
@@ -464,6 +469,7 @@ export type Database = {
           checked2_by?: string | null
           code?: string | null
           created_at?: string
+          family?: string | null
           id?: string
           name?: string
           quantity?: number

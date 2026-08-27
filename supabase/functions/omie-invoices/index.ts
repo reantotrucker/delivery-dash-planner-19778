@@ -146,6 +146,95 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3,
   throw lastError || new Error('Falha após múltiplas tentativas');
 }
 
+// --- Famílias de produtos (nome da família por código do produto) ---
+async function fetchFamilyNames(appKey: string, appSecret: string): Promise<Map<number, string>> {
+  const cacheKey = `familias:${appKey.slice(0, 8)}`;
+  const cached = await getCached(cacheKey);
+  if (cached) return new Map(cached as [number, string][]);
+
+  const map = new Map<number, string>();
+  let page = 1;
+  let totalPages = 1;
+  do {
+    const res = await fetchWithRetry(`${OMIE_API_URL}/geral/familias/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        call: 'PesquisarFamilias',
+        app_key: appKey,
+        app_secret: appSecret,
+        param: [{ pagina: page, registros_por_pagina: 50, apenas_importado_api: 'N' }],
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data?.faultstring) break;
+    totalPages = data.total_de_paginas || 1;
+    (data.famCadastro || []).forEach((f: any) => {
+      if (f.codigo) map.set(Number(f.codigo), f.nomeFamilia || '');
+    });
+    page++;
+  } while (page <= totalPages && page <= 10);
+
+  await setCache(cacheKey, Array.from(map.entries()), 24 * 7);
+  return map;
+}
+
+// Descobre a família de cada código de produto (cache 7 dias por produto)
+async function fetchProductFamilies(
+  codes: string[],
+  appKey: string,
+  appSecret: string,
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  const uniqueCodes = [...new Set(codes.filter(Boolean))];
+  if (uniqueCodes.length === 0) return result;
+
+  const prefix = `prodfam:${appKey.slice(0, 8)}:`;
+  const cached = await getMultiCached(uniqueCodes.map(c => `${prefix}${c}`));
+  const missing: string[] = [];
+  uniqueCodes.forEach(c => {
+    const hit = cached.get(`${prefix}${c}`);
+    if (hit !== undefined && hit !== null) result.set(c, String(hit));
+    else missing.push(c);
+  });
+
+  if (missing.length === 0) return result;
+
+  let familyNames: Map<number, string>;
+  try {
+    familyNames = await fetchFamilyNames(appKey, appSecret);
+  } catch (e) {
+    console.log('Erro ao buscar famílias:', e);
+    return result;
+  }
+
+  const toCache: { key: string; value: any }[] = [];
+  for (const code of missing.slice(0, 40)) {
+    try {
+      const res = await fetchWithRetry(`${OMIE_API_URL}/geral/produtos/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          call: 'ConsultarProduto',
+          app_key: appKey,
+          app_secret: appSecret,
+          param: [{ codigo: code }],
+        }),
+      }, 2, 20000);
+      const data = await res.json().catch(() => ({}));
+      const famId = Number(data?.codigo_familia || 0);
+      const famName = famId ? (familyNames.get(famId) || '') : '';
+      result.set(code, famName);
+      toCache.push({ key: `${prefix}${code}`, value: famName });
+    } catch (e) {
+      console.log('Erro ao consultar produto', code, e);
+    }
+  }
+  await setMultiCache(toCache, 24 * 7);
+  return result;
+}
+
+
 // Process with cache-aware batching
 async function fetchClientsWithCache(
   clientIds: number[],
@@ -461,9 +550,12 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
         unitValue: item.prod?.vUnCom || 0,
         totalValue: item.prod?.vProd || 0,
         code: item.prod?.cProd || '',
+        family: '',
       })),
     };
   }).reverse();
+
+  await attachFamilies(invoices, appKey, appSecret);
 
   return {
     type: 'nfe' as const,
@@ -472,6 +564,21 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
     totalRecords: data.total_de_registros || 0,
     invoices,
   };
+}
+
+// Preenche a família de cada produto das notas
+async function attachFamilies(invoices: any[], appKey: string, appSecret: string) {
+  try {
+    const codes = invoices.flatMap((inv: any) => (inv.products || []).map((p: any) => p.code)).filter(Boolean);
+    const families = await fetchProductFamilies(codes, appKey, appSecret);
+    invoices.forEach((inv: any) => {
+      (inv.products || []).forEach((p: any) => {
+        p.family = families.get(p.code) || '';
+      });
+    });
+  } catch (e) {
+    console.log('Erro ao anexar famílias:', e);
+  }
 }
 
 // --- Build full result for NFCe ---
@@ -542,6 +649,7 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
         unitValue: item.vUnit || 0,
         totalValue: item.vItem || 0,
         code: item.cCodigo || '',
+        family: '',
       })),
     };
   });
@@ -593,6 +701,10 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     // Clean up vendedorId from response
     delete inv.vendedorId;
   }
+
+  await attachFamilies(nfceInvoices, appKey, appSecret);
+
+
 
   return {
     type: 'nfce' as const,

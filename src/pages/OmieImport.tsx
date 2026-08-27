@@ -605,6 +605,7 @@ export default function OmieImport() {
           route_id: routeId,
           name: p.name,
           code: p.code,
+          family: (p as any).family ?? null,
           quantity: p.quantity,
           unit: p.unit || 'UN',
           unit_value: p.unit_value,
