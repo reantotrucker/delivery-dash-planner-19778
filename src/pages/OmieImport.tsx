@@ -217,7 +217,7 @@ export default function OmieImport() {
   const [searchTerm, setSearchTerm] = useState("");
   const [fetchCounter, setFetchCounter] = useState(0);
   const [autoSearch, setAutoSearch] = useState(
-    () => localStorage.getItem("omie-import-auto") === "1"
+    () => localStorage.getItem("omie-import-auto") !== "0"
   );
   const [lastSearch, setLastSearch] = useState<Date | null>(null);
 
