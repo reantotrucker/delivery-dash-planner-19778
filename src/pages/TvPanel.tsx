@@ -18,7 +18,9 @@ interface TvOrder {
   client: string;
   neighborhood: string | null;
   total_value: number | null;
+  issued_at: string | null;
   status: "AGUARDANDO" | "BALCAO" | "ROTA";
+
   created_at: string;
   checked_at: string | null;
   checked_by: string | null;
