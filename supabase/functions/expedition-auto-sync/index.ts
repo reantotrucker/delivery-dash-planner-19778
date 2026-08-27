@@ -25,7 +25,18 @@ async function fetchInvoices(type: "nfe" | "nfce", companyId: string) {
   return data.invoices || [];
 }
 
+// Converte dd/MM/yyyy + HH:mm(:ss) da Omie (horário de Manaus, UTC-4) em ISO
+function toIsoIssuedAt(date?: string | null, time?: string | null) {
+  if (!date) return null;
+  const [d, m, y] = date.split("/");
+  if (!d || !m || !y) return null;
+  const [hh = "00", mi = "00", ss = "00"] = (time || "").split(":");
+  const pad = (v: string) => v.padStart(2, "0");
+  return `${y}-${pad(m)}-${pad(d)}T${pad(hh)}:${pad(mi)}:${pad(ss)}-04:00`;
+}
+
 async function syncCompany(companyId: string) {
+
   let created = 0;
   for (const type of ["nfe", "nfce"] as const) {
     const invoices = await fetchInvoices(type, companyId);
@@ -56,9 +67,11 @@ async function syncCompany(companyId: string) {
           cep: inv.address?.cep || null,
           seller: inv.vendedorName || null,
           total_value: inv.totalValue ?? null,
+          issued_at: toIsoIssuedAt(inv.emissionDate, inv.emissionTime),
           observation: inv.orderObservation || null,
           status: "AGUARDANDO",
         })
+
         .select("id")
         .single();
       if (insErr) throw insErr;

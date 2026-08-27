@@ -18,7 +18,9 @@ interface TvOrder {
   client: string;
   neighborhood: string | null;
   total_value: number | null;
+  issued_at: string | null;
   status: "AGUARDANDO" | "BALCAO" | "ROTA";
+
   created_at: string;
   checked_at: string | null;
   checked_by: string | null;
@@ -86,7 +88,7 @@ export default function TvPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expedition_orders")
-        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at, checked_by, delivered_at")
+        .select("id, doc_type, doc_number, client, neighborhood, total_value, issued_at, status, created_at, checked_at, checked_by, delivered_at")
         .eq("company_id", companyId)
         .gte("created_at", `${today}T00:00:00`)
         .lte("created_at", `${today}T23:59:59`)
@@ -237,6 +239,12 @@ export default function TvPanel() {
                     <p className="text-[11px] font-semibold text-muted-foreground">
                       {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
                     </p>
+                    {o.issued_at && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Faturado {format(new Date(o.issued_at), "HH:mm")}
+                      </p>
+                    )}
+
                     <p className="text-base font-black leading-tight mt-0.5 break-words line-clamp-2">{o.client}</p>
                     {o.neighborhood && (
                       <p className="text-xs text-muted-foreground truncate">{o.neighborhood}</p>
