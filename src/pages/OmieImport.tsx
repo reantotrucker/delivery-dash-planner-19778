@@ -690,7 +690,22 @@ export default function OmieImport() {
               </Popover>
             </div>
 
-            <div className="flex items-end">
+            <div className="flex flex-col items-stretch justify-end gap-2">
+              <div className="flex items-center gap-2 rounded-md border border-border px-3 py-2">
+                <Switch
+                  id="omie-auto"
+                  checked={autoSearch}
+                  onCheckedChange={setAutoSearch}
+                />
+                <Label htmlFor="omie-auto" className="cursor-pointer text-sm font-semibold">
+                  Automático (60s)
+                </Label>
+                {lastSearch && (
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    Última: {format(lastSearch, "HH:mm:ss")}
+                  </span>
+                )}
+              </div>
               <Button onClick={handleSearch} disabled={isLoading} className="w-full">
                 {isLoading ? (
                   <>
