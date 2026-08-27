@@ -439,7 +439,7 @@ export default function Expedition() {
       }
       const { error } = await supabase
         .from("expedition_orders")
-        .update({ status: "AGUARDANDO", route_id: null, checked_at: null, checked_by: null })
+        .update({ status: "AGUARDANDO", route_id: null, checked_at: null, checked_by: null, delivered_at: null, delivered_by: null } as any)
         .eq("id", openOrder.id);
       if (error) throw error;
       await supabase
