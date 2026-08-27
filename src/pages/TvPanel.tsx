@@ -8,17 +8,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { PackageCheck, Store, ArrowLeft, Volume2, VolumeX, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
 
 interface TvOrder {
   id: string;
@@ -140,26 +129,6 @@ export default function TvPanel() {
         .sort((a, b) => new Date(a.checked_at || a.created_at).getTime() - new Date(b.checked_at || b.created_at).getTime()),
     [orders]
   );
-  const [confirmDeliver, setConfirmDeliver] = useState<TvOrder | null>(null);
-  const [deliverLoading, setDeliverLoading] = useState(false);
-
-  const markDelivered = async (order: TvOrder) => {
-    setDeliverLoading(true);
-    const { data: auth } = await supabase.auth.getUser();
-    const { error } = await supabase
-      .from("expedition_orders")
-      .update({ delivered_at: new Date().toISOString(), delivered_by: auth.user?.id ?? null } as any)
-      .eq("id", order.id);
-    setDeliverLoading(false);
-    if (error) {
-      toast.error("Erro ao confirmar entrega");
-      return;
-    }
-    toast.success(`Entrega confirmada: ${order.client}`);
-    setConfirmDeliver(null);
-    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
-  };
-
   // Cards que acabaram de ser finalizados: ficam em tela desintegrando
   const prevStatus = useRef<Map<string, string>>(new Map());
   const prevOrders = useRef<TvOrder[]>([]);
@@ -322,29 +291,6 @@ export default function TvPanel() {
         </section>
       </div>
 
-      <AlertDialog open={!!confirmDeliver} onOpenChange={(o) => !o && setConfirmDeliver(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Já foi entregue ao cliente?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmDeliver?.client} — {confirmDeliver?.doc_type} {confirmDeliver?.doc_number}. Ao
-              confirmar, o pedido sai do painel.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Ainda não</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deliverLoading}
-              onClick={(e) => {
-                e.preventDefault();
-                if (confirmDeliver) markDelivered(confirmDeliver);
-              }}
-            >
-              Sim, entregue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
