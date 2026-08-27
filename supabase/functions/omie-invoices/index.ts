@@ -633,21 +633,23 @@ serve(async (req) => {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      // Require admin, comercial or expedicao role
+      const sbRoles = getSupabase();
+      const { data: roles } = await sbRoles
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userData.user.id);
+      const allowed = (roles ?? []).some((r: any) => ['admin', 'comercial', 'expedicao'].includes(r.role));
+      if (!allowed) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-
-    // Require admin or comercial role
-    const sb = getSupabase();
-    const { data: roles } = await sb
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userData.user.id);
-    const allowed = (roles ?? []).some((r: any) => ['admin', 'comercial', 'expedicao'].includes(r.role));
-    if (!allowed) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
+
+    const sb = getSupabase();
+
 
     const { type, page = 1, fetchLastPage = false, forceRefresh = false, companyId } = await req.json();
 
