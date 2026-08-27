@@ -182,18 +182,18 @@ export default function TvPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-6">
-      <header className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-background text-foreground p-3">
+      <header className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <PackageCheck className="w-10 h-10 text-primary" />
+          <PackageCheck className="w-8 h-8 text-primary" />
           <div>
-            <h1 className="text-4xl font-black tracking-tight">SEPARAR PEDIDOS</h1>
-            <p className="text-lg text-muted-foreground">{company?.name}</p>
+            <h1 className="text-2xl font-black tracking-tight">SEPARAR PEDIDOS</h1>
+            <p className="text-sm text-muted-foreground">{company?.name}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge className="text-2xl px-5 py-2">{pending.length} separando</Badge>
-          <Badge variant="outline" className="text-2xl px-5 py-2 border-success text-success">
+          <Badge className="text-xl px-4 py-1">{pending.length} separando</Badge>
+          <Badge variant="outline" className="text-xl px-4 py-1 border-success text-success">
             {counter.length} balcão
           </Badge>
           <Button variant="outline" size="icon" onClick={() => setSound((s) => !s)} aria-label="Som">
@@ -207,19 +207,19 @@ export default function TvPanel() {
         </div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-[3fr_2fr]">
         {/* Lado esquerdo: em separação */}
-        <section className="rounded-xl border-2 border-border p-3">
+        <section className="rounded-xl border-2 border-border p-2">
           <h2 className="text-xl font-black mb-3 flex items-center gap-2">
             <PackageCheck className="w-5 h-5 text-primary" /> EM SEPARAÇÃO
           </h2>
 
           {display.length === 0 ? (
-            <div className="flex items-center justify-center h-[30vh] text-xl font-bold text-muted-foreground text-center">
+            <div className="flex items-center justify-center h-[22vh] text-xl font-bold text-muted-foreground text-center">
               Nenhum pedido aguardando separação
             </div>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-1.5 grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {display.map((o) => {
                 const isLeaving = !pending.some((p) => p.id === o.id);
                 const inConference = !!o.checked_by;
@@ -227,7 +227,7 @@ export default function TvPanel() {
                   <div
                     key={o.id}
                     className={cn(
-                      "rounded-lg border-2 bg-card p-3 transition-colors duration-500",
+                      "rounded-lg border-2 bg-card p-2 transition-colors duration-500",
                       inConference ? "border-success bg-success/10" : "border-primary",
                       !inConference && !isLeaving && o.id === pending[0]?.id && "animate-pulse",
                       isLeaving && "tv-disintegrate border-destructive bg-destructive/10"
@@ -236,11 +236,11 @@ export default function TvPanel() {
                     <p className="text-[11px] font-semibold text-muted-foreground">
                       {o.doc_type} {o.doc_number} · {format(new Date(o.created_at), "dd/MM HH:mm")}
                     </p>
-                    <p className="text-lg font-black leading-tight mt-0.5 break-words">{o.client}</p>
+                    <p className="text-base font-black leading-tight mt-0.5 break-words line-clamp-2">{o.client}</p>
                     {o.neighborhood && (
-                      <p className="text-sm text-muted-foreground">{o.neighborhood}</p>
+                      <p className="text-xs text-muted-foreground truncate">{o.neighborhood}</p>
                     )}
-                    <p className="text-base font-bold mt-1">{formatBRL(o.total_value)}</p>
+                    <p className="text-sm font-bold mt-0.5">{formatBRL(o.total_value)}</p>
                     {isLeaving && (
                       <p className="mt-1 text-lg font-black text-destructive tracking-wider">
                         {o.status === "BALCAO" ? "BALCÃO ✓" : "ROTA ✓"}
@@ -265,7 +265,7 @@ export default function TvPanel() {
           </h2>
 
           {counter.length === 0 ? (
-            <div className="flex items-center justify-center h-[30vh] text-xl font-bold text-muted-foreground text-center">
+            <div className="flex items-center justify-center h-[22vh] text-xl font-bold text-muted-foreground text-center">
               Nenhum pedido aguardando o cliente
             </div>
           ) : (
@@ -279,11 +279,11 @@ export default function TvPanel() {
                     {o.doc_type} {o.doc_number} ·{" "}
                     {format(new Date(o.checked_at || o.created_at), "dd/MM HH:mm")}
                   </p>
-                  <p className="text-lg font-black leading-tight mt-0.5 break-words">{o.client}</p>
+                  <p className="text-base font-black leading-tight mt-0.5 break-words line-clamp-2">{o.client}</p>
                   {o.neighborhood && (
-                    <p className="text-sm text-muted-foreground">{o.neighborhood}</p>
+                    <p className="text-xs text-muted-foreground truncate">{o.neighborhood}</p>
                   )}
-                  <p className="text-base font-bold mt-1">{formatBRL(o.total_value)}</p>
+                  <p className="text-sm font-bold mt-0.5">{formatBRL(o.total_value)}</p>
                   <p className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-success">
                     <HandCoins className="w-4 h-4" /> PRONTO · AGUARDANDO CLIENTE
                   </p>
