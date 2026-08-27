@@ -90,8 +90,8 @@ export default function Expedition() {
   const [syncing, setSyncing] = useState(false);
   const [openOrder, setOpenOrder] = useState<ExpeditionOrder | null>(null);
   const [saving, setSaving] = useState(false);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(todayStr());
+  const [dateTo, setDateTo] = useState(todayStr());
   const [autoSync, setAutoSync] = useState(
     () => localStorage.getItem("expedition-auto-sync") === "1"
   );
