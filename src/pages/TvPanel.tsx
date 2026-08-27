@@ -88,7 +88,7 @@ export default function TvPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("expedition_orders")
-        .select("id, doc_type, doc_number, client, neighborhood, total_value, status, created_at, checked_at, checked_by, delivered_at")
+        .select("id, doc_type, doc_number, client, neighborhood, total_value, issued_at, status, created_at, checked_at, checked_by, delivered_at")
         .eq("company_id", companyId)
         .gte("created_at", `${today}T00:00:00`)
         .lte("created_at", `${today}T23:59:59`)
