@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { manausDateTime, manausShort, manausTimeSec } from "@/lib/manausTime";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
@@ -511,7 +512,7 @@ export default function Expedition() {
           </Button>
           {lastSync && (
             <span className="text-xs text-muted-foreground">
-              Última: {format(lastSync, "HH:mm:ss")}
+              Última: {manausTimeSec(lastSync)}
             </span>
           )}
         </div>
@@ -609,14 +610,14 @@ export default function Expedition() {
                   {o.issued_at && (
                     <span className="flex items-center gap-1">
                       <FileText className="w-3 h-3" /> Faturado{" "}
-                      {format(new Date(o.issued_at), "dd/MM/yyyy HH:mm")}
+                      {manausDateTime(o.issued_at)}
 
                     </span>
                   )}
                   {o.created_at && (
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" /> Chegou{" "}
-                      {format(new Date(o.created_at), "dd/MM/yyyy HH:mm")}
+                      {manausDateTime(o.created_at)}
                     </span>
                   )}
                   {o.cep && (
@@ -643,14 +644,14 @@ export default function Expedition() {
                 {o.checked_at && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <PackageCheck className="w-3 h-3" /> Conferido{" "}
-                    {format(new Date(o.checked_at), "dd/MM/yyyy HH:mm")}
+                    {manausDateTime(o.checked_at)}
                     {conferenteName(o.checked_by) && <> · {conferenteName(o.checked_by)}</>}
                   </p>
                 )}
                 {o.delivered_at && o.status !== "AGUARDANDO" && (
                   <p className="text-xs font-medium text-success flex items-center gap-1">
                     <HandCoins className="w-3 h-3" /> Entregue ao cliente{" "}
-                    {format(new Date(o.delivered_at), "dd/MM/yyyy HH:mm")}
+                    {manausDateTime(o.delivered_at)}
                   </p>
                 )}
 
@@ -722,7 +723,7 @@ export default function Expedition() {
                   {i.checked && i.checked_by && (
                     <p className="text-xs text-primary font-medium">
                       Conferido por {conferenteName(i.checked_by) || "—"}
-                      {i.checked_at && ` · ${format(new Date(i.checked_at), "dd/MM HH:mm")}`}
+                      {i.checked_at && ` · ${manausShort(i.checked_at)}`}
                     </p>
                   )}
                 </div>
