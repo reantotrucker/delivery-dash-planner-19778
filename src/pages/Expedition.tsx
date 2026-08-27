@@ -646,7 +646,7 @@ export default function Expedition() {
                     {conferenteName(o.checked_by) && <> · {conferenteName(o.checked_by)}</>}
                   </p>
                 )}
-                {o.delivered_at && (
+                {o.delivered_at && o.status !== "AGUARDANDO" && (
                   <p className="text-xs font-medium text-success flex items-center gap-1">
                     <HandCoins className="w-3 h-3" /> Entregue ao cliente{" "}
                     {format(new Date(o.delivered_at), "dd/MM/yyyy HH:mm")}
