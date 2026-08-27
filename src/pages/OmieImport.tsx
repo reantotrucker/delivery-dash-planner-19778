@@ -425,23 +425,61 @@ export default function OmieImport() {
     return partial?.id || '';
   }, [consultants]);
 
-  const handleOpenInvoiceDialog = (invoice: OmieInvoice) => {
+  // Cria o consultor automaticamente quando o vendedor da Omie ainda não existe
+  const ensureConsultantId = useCallback(async (vendedorName?: string | null): Promise<string> => {
+    const existing = resolveConsultantId(vendedorName);
+    if (existing || !vendedorName?.trim()) return existing;
+    const name = vendedorName.trim().toUpperCase().slice(0, 100);
+    const { data, error } = await supabase
+      .from('consultants')
+      .insert({ name, company_id: getActiveCompanyId() })
+      .select('id')
+      .single();
+    if (error || !data) return '';
+    queryClient.invalidateQueries({ queryKey: ['consultants'] });
+    toast.success(`Consultor "${name}" cadastrado automaticamente`);
+    return data.id;
+  }, [resolveConsultantId, queryClient]);
+
+  // Cria a forma de pagamento automaticamente quando ainda não existe
+  const ensurePaymentMethodId = useCallback(async (tPag?: string): Promise<string> => {
+    const existing = resolvePaymentMethodId(tPag);
+    if (existing) return existing;
+    const mappedName = tPag ? OMIE_PAYMENT_MAP[tPag] : undefined;
+    if (!mappedName) return '';
+    const { data, error } = await supabase
+      .from('payment_methods')
+      .insert({ name: mappedName, company_id: getActiveCompanyId() })
+      .select('id')
+      .single();
+    if (error || !data) return '';
+    queryClient.invalidateQueries({ queryKey: ['payment-methods'] });
+    toast.success(`Pagamento "${mappedName}" cadastrado automaticamente`);
+    return data.id;
+  }, [resolvePaymentMethodId, queryClient]);
+
+  const handleOpenInvoiceDialog = async (invoice: OmieInvoice) => {
     if (importedNfNumbers.has(normalizeNfNumber(invoice.number))) return;
     setDialogDriverId('');
     setDialogVehicleId('');
-    // Auto-fill consultant from Omie vendedor
-    const autoConsultantId = resolveConsultantId(invoice.vendedorName);
-    setDialogConsultantId(autoConsultantId);
-    // Auto-fill payment method from Omie mapping
-    const autoPaymentId = resolvePaymentMethodId(invoice.paymentMethod);
-    setDialogPaymentMethodId(autoPaymentId || '');
+    setDialogConsultantId('');
+    setDialogPaymentMethodId('');
     setDialogUrgent(false);
     setDialogDate(new Date());
     // Auto-detect period based on current time
     const currentHour = new Date().getHours();
     setDialogPeriod(currentHour < 12 ? 'MANHA' : 'TARDE');
     setDialogInvoice(invoice);
+
+    // Consultor e pagamento vindos da Omie (criados se não existirem)
+    const [autoConsultantId, autoPaymentId] = await Promise.all([
+      ensureConsultantId(invoice.vendedorName),
+      ensurePaymentMethodId(invoice.paymentMethod),
+    ]);
+    setDialogConsultantId(autoConsultantId);
+    setDialogPaymentMethodId(autoPaymentId);
   };
+
 
   const handleCreateRoute = () => {
     if (!dialogInvoice) return;
