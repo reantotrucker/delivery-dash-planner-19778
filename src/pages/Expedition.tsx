@@ -83,6 +83,7 @@ interface ExpeditionItem {
   id: string;
   name: string;
   code: string | null;
+  family: string | null;
   quantity: number;
   unit: string | null;
   unit_value: number | null;
@@ -257,6 +258,7 @@ export default function Expedition() {
                 expedition_order_id: inserted.id,
                 name: p.name,
                 code: p.code || null,
+                family: p.family || null,
                 quantity: p.quantity,
                 unit: p.unit || "UN",
                 unit_value: p.unitValue ?? null,
@@ -399,6 +401,7 @@ export default function Expedition() {
               route_id: route.id,
               name: i.name,
               code: i.code,
+              family: i.family,
               quantity: i.quantity,
               unit: i.unit || "UN",
               unit_value: i.unit_value,
@@ -717,6 +720,18 @@ export default function Expedition() {
                   <p className={cn("text-sm font-medium", i.checked && "line-through text-muted-foreground")}>
                     {i.name}
                   </p>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                    {i.code && (
+                      <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-muted text-foreground/80">
+                        {i.code}
+                      </span>
+                    )}
+                    {i.family && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                        {i.family}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     {i.quantity} {i.unit || "UN"} · {formatBRL(i.total_value)}
                   </p>

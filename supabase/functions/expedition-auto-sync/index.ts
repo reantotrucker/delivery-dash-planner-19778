@@ -84,6 +84,7 @@ async function syncCompany(companyId: string) {
             expedition_order_id: inserted.id,
             name: p.name,
             code: p.code || null,
+            family: p.family || null,
             quantity: p.quantity,
             unit: p.unit || "UN",
             unit_value: p.unitValue ?? null,
