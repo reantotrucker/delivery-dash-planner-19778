@@ -343,7 +343,6 @@ export default function TvPanel() {
               Sim, entregue
             </AlertDialogAction>
           </AlertDialogFooter>
-        </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
