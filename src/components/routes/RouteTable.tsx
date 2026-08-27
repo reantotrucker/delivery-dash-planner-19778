@@ -61,7 +61,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
   const [receiptRoute, setReceiptRoute] = useState<Route | null>(null);
   const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
   const [savingLocationId, setSavingLocationId] = useState<string | null>(null);
-  const canEditLocation = isAdmin || isComercial;
+  const canEditLocation = isAdmin;
   const canUploadReceipts = isAdmin || isMotorista;
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [occurrenceRoute, setOccurrenceRoute] = useState<Route | null>(null);
