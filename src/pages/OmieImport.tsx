@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Switch } from "@/components/ui/switch";
 import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { format, parse, isWithinInterval, startOfDay, endOfDay, subDays } from "date-fns";
@@ -215,6 +216,10 @@ export default function OmieImport() {
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [searchTerm, setSearchTerm] = useState("");
   const [fetchCounter, setFetchCounter] = useState(0);
+  const [autoSearch, setAutoSearch] = useState(
+    () => localStorage.getItem("omie-import-auto") === "1"
+  );
+  const [lastSearch, setLastSearch] = useState<Date | null>(null);
 
   // Fetch NF-e and NFC-e in parallel and merge into a single list
   const queries = useQueries({
@@ -388,8 +393,18 @@ export default function OmieImport() {
 
   const handleSearch = useCallback(() => {
     setCurrentPage(null);
+    setLastSearch(new Date());
     setTimeout(() => setFetchCounter(c => c + 1), 0);
   }, []);
+
+  // Busca automática a cada 60s (intervalo ágil e seguro para a API Omie)
+  useEffect(() => {
+    localStorage.setItem("omie-import-auto", autoSearch ? "1" : "0");
+    if (!autoSearch) return;
+    handleSearch();
+    const id = setInterval(() => handleSearch(), 60000);
+    return () => clearInterval(id);
+  }, [autoSearch, handleSearch]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
@@ -676,7 +691,22 @@ export default function OmieImport() {
               </Popover>
             </div>
 
-            <div className="flex items-end">
+            <div className="flex flex-col items-stretch justify-end gap-2">
+              <div className="flex items-center gap-2 rounded-md border border-border px-3 py-2">
+                <Switch
+                  id="omie-auto"
+                  checked={autoSearch}
+                  onCheckedChange={setAutoSearch}
+                />
+                <Label htmlFor="omie-auto" className="cursor-pointer text-sm font-semibold">
+                  Automático (60s)
+                </Label>
+                {lastSearch && (
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    Última: {format(lastSearch, "HH:mm:ss")}
+                  </span>
+                )}
+              </div>
               <Button onClick={handleSearch} disabled={isLoading} className="w-full">
                 {isLoading ? (
                   <>
