@@ -79,6 +79,12 @@ interface ExpeditionItem {
 const formatBRL = (v?: number | null) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
 
+const todayStr = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
 export default function Expedition() {
   const { isAdmin, role, user } = useAuth();
   const { companyId, company, hasExpedition } = useCompany();
