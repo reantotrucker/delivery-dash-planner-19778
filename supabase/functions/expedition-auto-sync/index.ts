@@ -18,7 +18,8 @@ async function fetchInvoices(type: "nfe" | "nfce", companyId: string) {
       Authorization: `Bearer ${SERVICE_ROLE}`,
       apikey: SERVICE_ROLE,
     },
-    body: JSON.stringify({ type, fetchLastPage: true, companyId }),
+    // forceRefresh: ignora o cache de 10 min, senão o job encontra vendas atrasadas
+    body: JSON.stringify({ type, fetchLastPage: true, forceRefresh: true, companyId }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data?.error) throw new Error(data?.error || `omie-invoices ${res.status}`);
