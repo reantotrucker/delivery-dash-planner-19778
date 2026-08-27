@@ -388,8 +388,18 @@ export default function OmieImport() {
 
   const handleSearch = useCallback(() => {
     setCurrentPage(null);
+    setLastSearch(new Date());
     setTimeout(() => setFetchCounter(c => c + 1), 0);
   }, []);
+
+  // Busca automática a cada 60s (intervalo ágil e seguro para a API Omie)
+  useEffect(() => {
+    localStorage.setItem("omie-import-auto", autoSearch ? "1" : "0");
+    if (!autoSearch) return;
+    handleSearch();
+    const id = setInterval(() => handleSearch(), 60000);
+    return () => clearInterval(id);
+  }, [autoSearch, handleSearch]);
 
   const handlePageChange = useCallback((newPage: number) => {
     setCurrentPage(newPage);
