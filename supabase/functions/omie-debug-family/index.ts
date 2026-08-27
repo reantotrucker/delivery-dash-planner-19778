@@ -9,6 +9,8 @@ Deno.serve(async (req) => {
     const t = await r.text();
     return t.substring(0, 1200);
   };
-  out.consulta = await call("https://app.omie.com.br/api/v1/geral/produtos/", { call: "ConsultarProduto", app_key: key, app_secret: secret, param: [{ codigo: "001-I" }] });
+  for (const c of ["ListarFamilias","PesquisarFamilias","ConsultarFamilia","ListarFamiliaProduto"]) {
+    out[c] = await call("https://app.omie.com.br/api/v1/geral/familias/", { call: c, app_key: key, app_secret: secret, param: [{ pagina: 1, registros_por_pagina: 3, codigo: 1810458420 }] });
+  }
   return new Response(JSON.stringify(out, null, 1), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 });
