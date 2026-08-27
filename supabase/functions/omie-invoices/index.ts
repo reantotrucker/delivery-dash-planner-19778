@@ -621,6 +621,9 @@ serve(async (req) => {
     const isInternal =
       authHeader === `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`;
 
+    let userId: string | null = null;
+    let userRoles: any[] = [];
+
     if (!isInternal) {
       const authClient = createClient(
         Deno.env.get('SUPABASE_URL')!,
@@ -634,15 +637,16 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      userId = userData.user.id;
 
       // Require admin, comercial or expedicao role
-
       const sbRoles = getSupabase();
       const { data: roles } = await sbRoles
         .from('user_roles')
         .select('role')
-        .eq('user_id', userData.user.id);
-      const allowed = (roles ?? []).some((r: any) => ['admin', 'comercial', 'expedicao'].includes(r.role));
+        .eq('user_id', userId);
+      userRoles = roles ?? [];
+      const allowed = userRoles.some((r: any) => ['admin', 'comercial', 'expedicao'].includes(r.role));
       if (!allowed) {
         return new Response(JSON.stringify({ error: 'Forbidden' }), {
           status: 403,
@@ -652,6 +656,7 @@ serve(async (req) => {
     }
 
     const sb = getSupabase();
+
 
 
     const { type, page = 1, fetchLastPage = false, forceRefresh = false, companyId } = await req.json();
