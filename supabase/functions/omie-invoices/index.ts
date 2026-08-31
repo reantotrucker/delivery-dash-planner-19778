@@ -756,16 +756,11 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     }
   }
 
-  // Cupons não expõem o pedido: buscamos os pedidos de cada cliente e casamos pelo valor total
-  const nfceClientIds = [...new Set(nfceInvoices.map((inv: any) => inv.clientId).filter(Boolean))] as number[];
-  const pedidosPorCliente = await fetchPedidosForClientes(nfceClientIds, appKey, appSecret);
+  // Cupons de balcão (PDV) nascem de pré-venda e não têm Pedido de Venda na Omie,
+  // então não há observação/número de pedido para buscar. Evitamos chamadas extras
+  // que estouram o limite da API.
   const matchedPedidos = new Map<string, PedidoResumo>();
-  for (const inv of nfceInvoices) {
-    const pedidos = pedidosPorCliente.get(inv.clientId) || [];
-    const match = matchPedido(pedidos, inv.clientId, inv.totalValue);
-    if (match) matchedPedidos.set(String(inv.id), match);
-  }
-  console.log(`NFCe: ${matchedPedidos.size}/${nfceInvoices.length} cupons casados com pedido`);
+
 
 
   // Merge vendedor codes from orders + direct cupom vendedor IDs
