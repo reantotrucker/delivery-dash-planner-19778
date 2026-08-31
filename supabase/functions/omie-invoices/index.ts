@@ -626,7 +626,9 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
       accessKey: nf.compl?.cChaveNFe,
       orderId,
       orderObservation: orderObs,
+      orderNumber: parsedObs.numero || '',
       vendedorName,
+
       products: (nf.det || []).map((item: any) => ({
         name: item.prod?.xProd || '',
         quantity: item.prod?.qCom || 0,
