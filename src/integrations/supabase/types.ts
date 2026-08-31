@@ -118,6 +118,38 @@ export type Database = {
           },
         ]
       }
+      expedition_infos: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expedition_infos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expedition_order_items: {
         Row: {
           checked: boolean
@@ -197,6 +229,7 @@ export type Database = {
           delivered_by: string | null
           doc_number: string | null
           doc_type: string
+          extra_info: string | null
           id: string
           issued_at: string | null
           neighborhood: string | null
@@ -221,6 +254,7 @@ export type Database = {
           delivered_by?: string | null
           doc_number?: string | null
           doc_type?: string
+          extra_info?: string | null
           id?: string
           issued_at?: string | null
           neighborhood?: string | null
@@ -245,6 +279,7 @@ export type Database = {
           delivered_by?: string | null
           doc_number?: string | null
           doc_type?: string
+          extra_info?: string | null
           id?: string
           issued_at?: string | null
           neighborhood?: string | null

@@ -52,6 +52,7 @@ import {
   StickyNote,
   Pencil,
   Plus,
+  Tag,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ interface ExpeditionOrder {
   order_number: string | null;
   created_at: string | null;
   observation: string | null;
+  extra_info?: string | null;
   delivered_at?: string | null;
 }
 
@@ -129,11 +131,43 @@ export default function Expedition() {
   const [obsOrder, setObsOrder] = useState<ExpeditionOrder | null>(null);
   const [obsText, setObsText] = useState("");
   const [obsSaving, setObsSaving] = useState(false);
+  const [infoOrder, setInfoOrder] = useState<ExpeditionOrder | null>(null);
+  const canTagInfo = canOperate || role === "comercial";
+
+  const { data: extraInfos = [] } = useQuery({
+    queryKey: ["expedition-infos", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("expedition_infos")
+        .select("id, name")
+        .eq("company_id", companyId)
+        .order("name");
+      if (error) throw error;
+      return data as { id: string; name: string }[];
+    },
+  });
+
+  const setExtraInfo = async (order: ExpeditionOrder, value: string | null) => {
+    const { error } = await supabase
+      .from("expedition_orders")
+      .update({ extra_info: value } as any)
+      .eq("id", order.id);
+    if (error) {
+      toast.error("Erro ao salvar informação adicional");
+      return;
+    }
+    toast.success(value ? `Marcado como ${value}` : "Informação removida");
+    setInfoOrder(null);
+    queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
+  };
 
   const openObsEditor = (order: ExpeditionOrder) => {
     setObsOrder(order);
     setObsText(order.observation || "");
   };
+
 
   const saveObservation = async () => {
     if (!obsOrder) return;
@@ -752,6 +786,21 @@ export default function Expedition() {
                   )
                 )}
 
+                {(o.extra_info || (canTagInfo && extraInfos.length > 0)) && (
+                  <Button
+                    size="sm"
+                    variant={o.extra_info ? "default" : "outline"}
+                    className="w-full h-8 text-xs"
+                    disabled={!canTagInfo}
+                    onClick={() => setInfoOrder(o)}
+                  >
+                    <Tag className="w-3.5 h-3.5 mr-1.5" />
+                    {o.extra_info || "Informações adicional"}
+                  </Button>
+                )}
+
+
+
                 {o.checked_at && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <PackageCheck className="w-3 h-3" /> Conferido{" "}
@@ -979,6 +1028,50 @@ export default function Expedition() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!infoOrder} onOpenChange={(open) => !open && setInfoOrder(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Informações adicional
+              {infoOrder && (
+                <span className="block text-sm font-normal text-muted-foreground mt-1">
+                  {infoOrder.client} — {infoOrder.doc_type} {infoOrder.doc_number}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {extraInfos.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma opção cadastrada. Cadastre em Configurações → Informações adicional.
+              </p>
+            )}
+            {extraInfos.map((i) => (
+              <Button
+                key={i.id}
+                variant={infoOrder?.extra_info === i.name ? "default" : "outline"}
+                className="w-full justify-start"
+                disabled={!canTagInfo}
+                onClick={() => infoOrder && setExtraInfo(infoOrder, i.name)}
+              >
+                <Tag className="w-4 h-4 mr-2" />
+                {i.name}
+              </Button>
+            ))}
+          </div>
+          {infoOrder?.extra_info && canTagInfo && (
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                className="w-full text-destructive"
+                onClick={() => infoOrder && setExtraInfo(infoOrder, null)}
+              >
+                Remover informação
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
 
 
       <AlertDialog open={!!confirmDeliver} onOpenChange={(o) => !o && setConfirmDeliver(null)}>
