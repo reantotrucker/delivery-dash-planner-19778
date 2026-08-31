@@ -50,9 +50,10 @@ import {
   Home,
   HandCoins,
   StickyNote,
-
-
+  Pencil,
+  Plus,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 type Status = "AGUARDANDO" | "BALCAO" | "ROTA";
@@ -125,6 +126,33 @@ export default function Expedition() {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [confirmDeliver, setConfirmDeliver] = useState<ExpeditionOrder | null>(null);
   const [deliverLoading, setDeliverLoading] = useState(false);
+  const [obsOrder, setObsOrder] = useState<ExpeditionOrder | null>(null);
+  const [obsText, setObsText] = useState("");
+  const [obsSaving, setObsSaving] = useState(false);
+
+  const openObsEditor = (order: ExpeditionOrder) => {
+    setObsOrder(order);
+    setObsText(order.observation || "");
+  };
+
+  const saveObservation = async () => {
+    if (!obsOrder) return;
+    setObsSaving(true);
+    const { error } = await supabase
+      .from("expedition_orders")
+      .update({ observation: obsText.trim() || null } as any)
+      .eq("id", obsOrder.id);
+    setObsSaving(false);
+    if (error) {
+      toast.error("Erro ao salvar observação");
+      return;
+    }
+    toast.success("Observação salva");
+    setObsOrder(null);
+    queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
+  };
+
 
   const markDelivered = async (order: ExpeditionOrder) => {
     setDeliverLoading(true);
@@ -690,16 +718,40 @@ export default function Expedition() {
                   </p>
                 )}
                 <p className="text-sm font-semibold">{formatBRL(o.total_value)}</p>
-                {o.observation && (
+                {o.observation ? (
                   <div className="rounded-md border border-primary/40 bg-primary/10 p-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-primary flex items-center gap-1">
-                      <StickyNote className="w-3 h-3" /> Observação do pedido
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-primary flex items-center gap-1">
+                        <StickyNote className="w-3 h-3" /> Observação do pedido
+                      </p>
+                      {canOperate && (
+                        <button
+                          type="button"
+                          onClick={() => openObsEditor(o)}
+                          className="text-primary hover:opacity-70"
+                          aria-label="Editar observação"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                     <p className="text-xs text-foreground/90 leading-snug whitespace-pre-wrap break-words mt-0.5">
                       {o.observation}
                     </p>
                   </div>
+                ) : (
+                  canOperate && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 justify-start px-1 text-xs text-muted-foreground"
+                      onClick={() => openObsEditor(o)}
+                    >
+                      <Plus className="w-3 h-3 mr-1" /> Adicionar observação
+                    </Button>
+                  )
                 )}
+
                 {o.checked_at && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <PackageCheck className="w-3 h-3" /> Conferido{" "}
@@ -896,6 +948,38 @@ export default function Expedition() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!obsOrder} onOpenChange={(open) => !open && setObsOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Observação do pedido
+              {obsOrder && (
+                <span className="block text-sm font-normal text-muted-foreground mt-1">
+                  {obsOrder.client} — {obsOrder.doc_type} {obsOrder.doc_number}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={obsText}
+            onChange={(e) => setObsText(e.target.value)}
+            rows={4}
+            placeholder="Ex.: VEM BUSCAR / ROTA - levar brinde"
+          />
+          <DialogFooter className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={() => setObsOrder(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveObservation} disabled={obsSaving}>
+              {obsSaving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       <AlertDialog open={!!confirmDeliver} onOpenChange={(o) => !o && setConfirmDeliver(null)}>
         <AlertDialogContent>
