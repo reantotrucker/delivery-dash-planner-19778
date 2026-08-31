@@ -785,6 +785,21 @@ export default function Expedition() {
                   )
                 )}
 
+                {(o.extra_info || (canTagInfo && extraInfos.length > 0)) && (
+                  <Button
+                    size="sm"
+                    variant={o.extra_info ? "default" : "outline"}
+                    className="w-full h-8 text-xs"
+                    disabled={!canTagInfo}
+                    onClick={() => setInfoOrder(o)}
+                  >
+                    <Tag className="w-3.5 h-3.5 mr-1.5" />
+                    {o.extra_info || "Informações adicional"}
+                  </Button>
+                )}
+
+
+
                 {o.checked_at && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <PackageCheck className="w-3 h-3" /> Conferido{" "}
