@@ -602,8 +602,12 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
 
   const invoices = validInvoices.map((nf: any) => {
     const orderId = nf.compl?.nIdPedido || 0;
-    const orderObs = orderObservations.get(orderId) || '';
+    const rawObs = orderObservations.get(orderId) || '';
+    // Obs da Omie vem como "Pré-venda: #170447|ROTA" — separamos nº da pré-venda e o texto
+    const parsedObs = parsePreVendaObs(rawObs);
+    const orderObs = parsedObs.obs;
     const vendedorName = orderVendedorNames.get(orderId) || null;
+
     const clientId = nf.nfDestInt?.nCodCli;
     return {
       id: nf.compl?.nIdNF || nf.ide?.nNF || String(Math.random()),
