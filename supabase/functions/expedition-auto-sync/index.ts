@@ -59,6 +59,8 @@ async function syncCompany(companyId: string) {
           company_id: companyId,
           doc_type: type.toUpperCase(),
           doc_number: docNumber,
+          order_number: inv.orderNumber || null,
+
           client: inv.clientName || `Cliente ${inv.clientId}`,
           client_document: inv.clientCpfCnpj || null,
           neighborhood: inv.address?.neighborhood || null,

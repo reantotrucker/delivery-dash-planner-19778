@@ -374,6 +374,84 @@ async function fetchOrdersWithCache(
   return { orderObservations, orderVendedorCodes };
 }
 
+// --- NFCe: cupons não trazem o id do pedido. Buscamos os pedidos do cliente
+// (filtrar_por_cliente) e casamos por valor total para recuperar observação/vendedor ---
+type PedidoResumo = { obs: string; vendedorCode: number; total: number; clientId: number; numero: string };
+
+async function fetchPedidosByCliente(
+  clientId: number,
+  appKey: string,
+  appSecret: string
+): Promise<PedidoResumo[]> {
+  const cacheKey = `pedidos_cli_${clientId}`;
+  const cached = await getCached(cacheKey);
+  if (cached) return cached as PedidoResumo[];
+
+  const pedidos: PedidoResumo[] = [];
+  try {
+    const body = {
+      call: 'ListarPedidos',
+      app_key: appKey,
+      app_secret: appSecret,
+      param: [{
+        pagina: 1,
+        registros_por_pagina: 50,
+        apenas_importado_api: 'N',
+        filtrar_por_cliente: clientId,
+      }],
+    };
+    const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/pedido/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.faultstring) {
+      console.log('ListarPedidos(cliente) fault:', data.faultstring);
+    } else {
+      for (const p of data.pedido_venda_produto || []) {
+        pedidos.push({
+          obs: p?.observacoes?.obs_venda || p?.informacoes_adicionais?.obs_venda || '',
+          vendedorCode: p?.informacoes_adicionais?.codVend || p?.cabecalho?.codigo_vendedor || 0,
+          total: p?.total_pedido?.valor_total_pedido ?? 0,
+          clientId: p?.cabecalho?.codigo_cliente || clientId,
+          numero: String(p?.cabecalho?.numero_pedido || ''),
+        });
+      }
+    }
+  } catch (e) {
+    console.log('Erro ao listar pedidos do cliente', clientId, e);
+  }
+
+  await setCacheMinutes(cacheKey, pedidos, 30);
+  return pedidos;
+}
+
+async function fetchPedidosForClientes(
+  clientIds: number[],
+  appKey: string,
+  appSecret: string
+): Promise<Map<number, PedidoResumo[]>> {
+  const map = new Map<number, PedidoResumo[]>();
+  const ids = clientIds.slice(0, 12);
+  for (let i = 0; i < ids.length; i++) {
+    map.set(ids[i], await fetchPedidosByCliente(ids[i], appKey, appSecret));
+    if (i < ids.length - 1) await new Promise(r => setTimeout(r, 800));
+  }
+
+  console.log(`Pedidos por cliente: ${map.size} clientes consultados`);
+  return map;
+}
+
+
+function matchPedido(pedidos: PedidoResumo[], clientId: number, total: number): PedidoResumo | null {
+  const doCliente = pedidos.filter(p => p.clientId === clientId);
+  if (doCliente.length === 0) return null;
+  // Só aceita casamento pelo valor exato, para não trazer observação de outro pedido
+  return doCliente.find(p => Math.abs((p.total || 0) - (total || 0)) < 0.05) || null;
+}
+
+
 async function fetchVendedorNames(
   codes: number[],
   appKey: string,
@@ -638,7 +716,9 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
       totalValue: cupom.cabecalhoCupom?.nValorCupom || 0,
       accessKey: cupom.cabecalhoCupom?.cChaveCupom,
       orderId: cupom.cabecalhoCupom?.nIdPedido || 0,
+      orderNumber: '' as string,
       orderObservation: '',
+
       vendedorId: cupom.cabecalhoCupom?.idVendedor || 0,
       vendedorName: null as string | null,
       paymentMethod: cupom.pagamentosCupom?.[0]?.tPag || null,
@@ -676,9 +756,17 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     }
   }
 
+  // Cupons de balcão (PDV) nascem de pré-venda e não têm Pedido de Venda na Omie,
+  // então não há observação/número de pedido para buscar. Evitamos chamadas extras
+  // que estouram o limite da API.
+  const matchedPedidos = new Map<string, PedidoResumo>();
+
+
+
   // Merge vendedor codes from orders + direct cupom vendedor IDs
   const allVendedorCodes = [...new Set([
     ...orderVendedorCodes.values(),
+    ...[...matchedPedidos.values()].map(p => p.vendedorCode),
     ...cupomVendedorIds,
   ])].filter(Boolean);
   const vendedorCodeToName = await fetchVendedorNames(allVendedorCodes, appKey, appSecret);
@@ -694,6 +782,15 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
         inv.vendedorName = vendedorCodeToName.get(vendCode) || null;
       }
     }
+    // Pedido casado pela data/cliente/valor
+    const match = matchedPedidos.get(String(inv.id));
+    if (match) {
+      if (!inv.orderObservation && match.obs) inv.orderObservation = match.obs;
+      if (!inv.orderNumber && match.numero) inv.orderNumber = match.numero;
+      if (!inv.vendedorName && match.vendedorCode) {
+        inv.vendedorName = vendedorCodeToName.get(match.vendedorCode) || null;
+      }
+    }
     // Fallback: use idVendedor from cupom header
     if (!inv.vendedorName && inv.vendedorId > 0) {
       inv.vendedorName = vendedorCodeToName.get(inv.vendedorId) || null;
@@ -701,6 +798,7 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     // Clean up vendedorId from response
     delete inv.vendedorId;
   }
+
 
   await attachFamilies(nfceInvoices, appKey, appSecret);
 
