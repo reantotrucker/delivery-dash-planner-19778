@@ -130,11 +130,43 @@ export default function Expedition() {
   const [obsOrder, setObsOrder] = useState<ExpeditionOrder | null>(null);
   const [obsText, setObsText] = useState("");
   const [obsSaving, setObsSaving] = useState(false);
+  const [infoOrder, setInfoOrder] = useState<ExpeditionOrder | null>(null);
+  const canTagInfo = canOperate || role === "comercial";
+
+  const { data: extraInfos = [] } = useQuery({
+    queryKey: ["expedition-infos", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("expedition_infos")
+        .select("id, name")
+        .eq("company_id", companyId)
+        .order("name");
+      if (error) throw error;
+      return data as { id: string; name: string }[];
+    },
+  });
+
+  const setExtraInfo = async (order: ExpeditionOrder, value: string | null) => {
+    const { error } = await supabase
+      .from("expedition_orders")
+      .update({ extra_info: value } as any)
+      .eq("id", order.id);
+    if (error) {
+      toast.error("Erro ao salvar informação adicional");
+      return;
+    }
+    toast.success(value ? `Marcado como ${value}` : "Informação removida");
+    setInfoOrder(null);
+    queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
+  };
 
   const openObsEditor = (order: ExpeditionOrder) => {
     setObsOrder(order);
     setObsText(order.observation || "");
   };
+
 
   const saveObservation = async () => {
     if (!obsOrder) return;
