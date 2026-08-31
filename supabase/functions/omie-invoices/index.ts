@@ -758,10 +758,23 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     }
   }
 
-  // Cupons de balcão (PDV) nascem de pré-venda e não têm Pedido de Venda na Omie,
-  // então não há observação/número de pedido para buscar. Evitamos chamadas extras
-  // que estouram o limite da API.
+  // Cupons de balcão (PDV) nascem de pré-venda, mas a Omie gera um Pedido de Venda com
+  // observação "Pré-venda: #170447|ROTA". Listamos os pedidos das datas dos cupons e
+  // casamos por cliente + valor total (1 chamada por data, cache de 10 min).
   const matchedPedidos = new Map<string, PedidoResumo>();
+  const cupomDates = [...new Set(nfceInvoices.map((i: any) => i.emissionDate).filter(Boolean))] as string[];
+  const pedidosPorData = new Map<string, PedidoResumo[]>();
+  for (let i = 0; i < cupomDates.slice(0, 3).length; i++) {
+    pedidosPorData.set(cupomDates[i], await fetchPedidosByDate(cupomDates[i], appKey, appSecret));
+    if (i < cupomDates.length - 1) await new Promise(r => setTimeout(r, 800));
+  }
+  for (const inv of nfceInvoices) {
+    const lista = pedidosPorData.get(inv.emissionDate) || [];
+    const match = matchPedido(lista, inv.clientId, inv.totalValue);
+    if (match) matchedPedidos.set(String(inv.id), match);
+  }
+
+
 
 
 
