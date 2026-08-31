@@ -949,6 +949,38 @@ export default function Expedition() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!obsOrder} onOpenChange={(open) => !open && setObsOrder(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Observação do pedido
+              {obsOrder && (
+                <span className="block text-sm font-normal text-muted-foreground mt-1">
+                  {obsOrder.client} — {obsOrder.doc_type} {obsOrder.doc_number}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={obsText}
+            onChange={(e) => setObsText(e.target.value)}
+            rows={4}
+            placeholder="Ex.: VEM BUSCAR / ROTA - levar brinde"
+          />
+          <DialogFooter className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={() => setObsOrder(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveObservation} disabled={obsSaving}>
+              {obsSaving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       <AlertDialog open={!!confirmDeliver} onOpenChange={(o) => !o && setConfirmDeliver(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
