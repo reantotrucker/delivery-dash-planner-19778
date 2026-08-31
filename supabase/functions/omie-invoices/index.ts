@@ -374,75 +374,76 @@ async function fetchOrdersWithCache(
   return { orderObservations, orderVendedorCodes };
 }
 
-// --- NFCe: cupons não trazem o id do pedido. Buscamos os pedidos do cliente
-// (filtrar_por_cliente) e casamos por valor total para recuperar observação/vendedor ---
+// --- NFCe: cupons não trazem o id do pedido. Os cupons do PDV geram Pedido de Venda
+// com observação no formato "Pré-venda: #170447|ROTA". Listamos os pedidos do dia
+// e casamos por cliente + valor total para recuperar observação/nº da pré-venda ---
 type PedidoResumo = { obs: string; vendedorCode: number; total: number; clientId: number; numero: string };
 
-async function fetchPedidosByCliente(
-  clientId: number,
+// Separa "Pré-venda: #170447|ROTA" em { numero, obs }
+function parsePreVendaObs(raw: string): { numero: string; obs: string } {
+  const text = (raw || '').trim();
+  const m = text.match(/pr[ée]-?venda:\s*#?(\d+)\s*\|?\s*(.*)$/i);
+  if (m) return { numero: m[1], obs: (m[2] || '').trim() };
+  return { numero: '', obs: text };
+}
+
+async function fetchPedidosByDate(
+  date: string, // dd/MM/yyyy
   appKey: string,
   appSecret: string
 ): Promise<PedidoResumo[]> {
-  const cacheKey = `pedidos_cli_${clientId}`;
+  const cacheKey = `pedidos_data_${date.replace(/\//g, '-')}`;
   const cached = await getCached(cacheKey);
   if (cached) return cached as PedidoResumo[];
 
   const pedidos: PedidoResumo[] = [];
   try {
-    const body = {
-      call: 'ListarPedidos',
-      app_key: appKey,
-      app_secret: appSecret,
-      param: [{
-        pagina: 1,
-        registros_por_pagina: 50,
-        apenas_importado_api: 'N',
-        filtrar_por_cliente: clientId,
-      }],
-    };
-    const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/pedido/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (data.faultstring) {
-      console.log('ListarPedidos(cliente) fault:', data.faultstring);
-    } else {
+    let page = 1;
+    let totalPages = 1;
+    do {
+      const body = {
+        call: 'ListarPedidos',
+        app_key: appKey,
+        app_secret: appSecret,
+        param: [{
+          pagina: page,
+          registros_por_pagina: 100,
+          apenas_importado_api: 'N',
+          filtrar_por_data_de: date,
+          filtrar_por_data_ate: date,
+        }],
+      };
+      const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/pedido/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.faultstring) {
+        console.log('ListarPedidos(data) fault:', data.faultstring);
+        break;
+      }
+      totalPages = data.total_de_paginas || 1;
       for (const p of data.pedido_venda_produto || []) {
         pedidos.push({
           obs: p?.observacoes?.obs_venda || p?.informacoes_adicionais?.obs_venda || '',
           vendedorCode: p?.informacoes_adicionais?.codVend || p?.cabecalho?.codigo_vendedor || 0,
           total: p?.total_pedido?.valor_total_pedido ?? 0,
-          clientId: p?.cabecalho?.codigo_cliente || clientId,
+          clientId: p?.cabecalho?.codigo_cliente || 0,
           numero: String(p?.cabecalho?.numero_pedido || ''),
         });
       }
-    }
+      page++;
+      if (page <= totalPages) await new Promise(r => setTimeout(r, 800));
+    } while (page <= totalPages && page <= 5);
   } catch (e) {
-    console.log('Erro ao listar pedidos do cliente', clientId, e);
+    console.log('Erro ao listar pedidos da data', date, e);
   }
 
-  await setCacheMinutes(cacheKey, pedidos, 30);
+  console.log(`Pedidos do dia ${date}: ${pedidos.length}`);
+  await setCacheMinutes(cacheKey, pedidos, 10);
   return pedidos;
 }
-
-async function fetchPedidosForClientes(
-  clientIds: number[],
-  appKey: string,
-  appSecret: string
-): Promise<Map<number, PedidoResumo[]>> {
-  const map = new Map<number, PedidoResumo[]>();
-  const ids = clientIds.slice(0, 12);
-  for (let i = 0; i < ids.length; i++) {
-    map.set(ids[i], await fetchPedidosByCliente(ids[i], appKey, appSecret));
-    if (i < ids.length - 1) await new Promise(r => setTimeout(r, 800));
-  }
-
-  console.log(`Pedidos por cliente: ${map.size} clientes consultados`);
-  return map;
-}
-
 
 function matchPedido(pedidos: PedidoResumo[], clientId: number, total: number): PedidoResumo | null {
   const doCliente = pedidos.filter(p => p.clientId === clientId);
@@ -450,6 +451,7 @@ function matchPedido(pedidos: PedidoResumo[], clientId: number, total: number): 
   // Só aceita casamento pelo valor exato, para não trazer observação de outro pedido
   return doCliente.find(p => Math.abs((p.total || 0) - (total || 0)) < 0.05) || null;
 }
+
 
 
 async function fetchVendedorNames(
@@ -600,8 +602,12 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
 
   const invoices = validInvoices.map((nf: any) => {
     const orderId = nf.compl?.nIdPedido || 0;
-    const orderObs = orderObservations.get(orderId) || '';
+    const rawObs = orderObservations.get(orderId) || '';
+    // Obs da Omie vem como "Pré-venda: #170447|ROTA" — separamos nº da pré-venda e o texto
+    const parsedObs = parsePreVendaObs(rawObs);
+    const orderObs = parsedObs.obs;
     const vendedorName = orderVendedorNames.get(orderId) || null;
+
     const clientId = nf.nfDestInt?.nCodCli;
     return {
       id: nf.compl?.nIdNF || nf.ide?.nNF || String(Math.random()),
@@ -620,7 +626,9 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
       accessKey: nf.compl?.cChaveNFe,
       orderId,
       orderObservation: orderObs,
+      orderNumber: parsedObs.numero || '',
       vendedorName,
+
       products: (nf.det || []).map((item: any) => ({
         name: item.prod?.xProd || '',
         quantity: item.prod?.qCom || 0,
@@ -756,10 +764,23 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     }
   }
 
-  // Cupons de balcão (PDV) nascem de pré-venda e não têm Pedido de Venda na Omie,
-  // então não há observação/número de pedido para buscar. Evitamos chamadas extras
-  // que estouram o limite da API.
+  // Cupons de balcão (PDV) nascem de pré-venda, mas a Omie gera um Pedido de Venda com
+  // observação "Pré-venda: #170447|ROTA". Listamos os pedidos das datas dos cupons e
+  // casamos por cliente + valor total (1 chamada por data, cache de 10 min).
   const matchedPedidos = new Map<string, PedidoResumo>();
+  const cupomDates = [...new Set(nfceInvoices.map((i: any) => i.emissionDate).filter(Boolean))] as string[];
+  const pedidosPorData = new Map<string, PedidoResumo[]>();
+  for (let i = 0; i < cupomDates.slice(0, 3).length; i++) {
+    pedidosPorData.set(cupomDates[i], await fetchPedidosByDate(cupomDates[i], appKey, appSecret));
+    if (i < cupomDates.length - 1) await new Promise(r => setTimeout(r, 800));
+  }
+  for (const inv of nfceInvoices) {
+    const lista = pedidosPorData.get(inv.emissionDate) || [];
+    const match = matchPedido(lista, inv.clientId, inv.totalValue);
+    if (match) matchedPedidos.set(String(inv.id), match);
+  }
+
+
 
 
 
@@ -782,15 +803,17 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
         inv.vendedorName = vendedorCodeToName.get(vendCode) || null;
       }
     }
-    // Pedido casado pela data/cliente/valor
+    // Pedido casado pela data/cliente/valor (obs no formato "Pré-venda: #170447|ROTA")
     const match = matchedPedidos.get(String(inv.id));
     if (match) {
-      if (!inv.orderObservation && match.obs) inv.orderObservation = match.obs;
-      if (!inv.orderNumber && match.numero) inv.orderNumber = match.numero;
+      const parsed = parsePreVendaObs(match.obs);
+      if (!inv.orderObservation && parsed.obs) inv.orderObservation = parsed.obs;
+      if (!inv.orderNumber) inv.orderNumber = parsed.numero || match.numero || '';
       if (!inv.vendedorName && match.vendedorCode) {
         inv.vendedorName = vendedorCodeToName.get(match.vendedorCode) || null;
       }
     }
+
     // Fallback: use idVendedor from cupom header
     if (!inv.vendedorName && inv.vendedorId > 0) {
       inv.vendedorName = vendedorCodeToName.get(inv.vendedorId) || null;
