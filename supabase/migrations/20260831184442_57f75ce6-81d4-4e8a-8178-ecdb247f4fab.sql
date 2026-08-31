@@ -1,0 +1,1 @@
+DELETE FROM public.omie_cache WHERE cache_key LIKE '%pedidos_cli_%' OR cache_key LIKE '%pedidos_dia_%';
