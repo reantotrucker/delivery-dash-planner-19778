@@ -50,9 +50,10 @@ import {
   Home,
   HandCoins,
   StickyNote,
-
-
+  Pencil,
+  Plus,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 type Status = "AGUARDANDO" | "BALCAO" | "ROTA";
