@@ -77,6 +77,7 @@ interface ExpeditionOrder {
   order_number: string | null;
   created_at: string | null;
   observation: string | null;
+  extra_info?: string | null;
   delivered_at?: string | null;
 }
 
