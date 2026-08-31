@@ -46,21 +46,12 @@ async function syncCompany(companyId: string) {
       const docNumber = String(inv.number);
       const { data: existing } = await sb
         .from("expedition_orders")
-        .select("id, observation, order_number")
+        .select("id")
         .eq("company_id", companyId)
         .eq("doc_type", type.toUpperCase())
         .eq("doc_number", docNumber)
         .maybeSingle();
-      if (existing) {
-        // Preenche informações que chegaram depois (obs/nº da pré-venda)
-        const patch: Record<string, unknown> = {};
-        if (!existing.observation && inv.orderObservation) patch.observation = inv.orderObservation;
-        if (!existing.order_number && inv.orderNumber) patch.order_number = inv.orderNumber;
-        if (Object.keys(patch).length) {
-          await sb.from("expedition_orders").update(patch).eq("id", existing.id);
-        }
-        continue;
-      }
+      if (existing) continue;
 
       const { data: inserted, error: insErr } = await sb
         .from("expedition_orders")
@@ -68,8 +59,6 @@ async function syncCompany(companyId: string) {
           company_id: companyId,
           doc_type: type.toUpperCase(),
           doc_number: docNumber,
-          order_number: inv.orderNumber || null,
-
           client: inv.clientName || `Cliente ${inv.clientId}`,
           client_document: inv.clientCpfCnpj || null,
           neighborhood: inv.address?.neighborhood || null,
