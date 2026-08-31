@@ -746,4 +746,140 @@ const PaymentMethodsSettings = () => {
   );
 };
 
+const ExtraInfosSettings = () => {
+  const { companyId } = useCompany();
+  const [newInfo, setNewInfo] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState("");
+
+  const { data: infos = [], refetch } = useQuery({
+    queryKey: ["expedition_infos", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("expedition_infos")
+        .select("*")
+        .eq("company_id", companyId)
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const addInfo = async () => {
+    const name = newInfo.trim();
+    if (name.length < 2) {
+      toast.error("Informe um nome válido");
+      return;
+    }
+    const { error } = await supabase.from("expedition_infos").insert({ name, company_id: companyId });
+    if (error) {
+      toast.error("Erro ao adicionar opção");
+      return;
+    }
+    toast.success("Opção adicionada");
+    setNewInfo("");
+    refetch();
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    const name = editData.trim();
+    if (name.length < 2) {
+      toast.error("Informe um nome válido");
+      return;
+    }
+    const { error } = await supabase.from("expedition_infos").update({ name }).eq("id", editingId);
+    if (error) {
+      toast.error("Erro ao atualizar opção");
+      return;
+    }
+    toast.success("Opção atualizada");
+    setEditingId(null);
+    setEditData("");
+    refetch();
+  };
+
+  const deleteInfo = async (id: string) => {
+    const { error } = await supabase.from("expedition_infos").delete().eq("id", id);
+    if (error) {
+      toast.error("Erro ao excluir opção");
+      return;
+    }
+    toast.success("Opção excluída");
+    refetch();
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-6 bg-card border-border">
+        <h2 className="text-xl font-bold text-primary mb-1">Adicionar Informação Adicional</h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          Opções que o comercial e a expedição podem marcar no card do pedido (ex.: ROTA, VEM BUSCAR,
+          TRANSPORTADORA).
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Nome</Label>
+            <Input
+              value={newInfo}
+              onChange={(e) => setNewInfo(e.target.value)}
+              placeholder="Ex: ROTA"
+            />
+          </div>
+          <div className="flex items-end">
+            <Button onClick={addInfo} className="w-full">
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6 bg-card border-border">
+        <h2 className="text-xl font-bold text-primary mb-4">Opções Cadastradas</h2>
+        <div className="space-y-2">
+          {infos.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nenhuma opção cadastrada.</p>
+          )}
+          {infos.map((info) => (
+            <div key={info.id} className="flex items-center justify-between p-3 border border-border rounded">
+              {editingId === info.id ? (
+                <Input
+                  value={editData}
+                  onChange={(e) => setEditData(e.target.value)}
+                  className="flex-1 mr-4"
+                />
+              ) : (
+                <span className="font-medium">{info.name}</span>
+              )}
+              <div className="flex gap-2">
+                {editingId === info.id ? (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={saveEdit}>
+                      <Check className="w-4 h-4 text-green-500" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEditData(""); }}>
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button size="sm" variant="ghost" onClick={() => { setEditingId(info.id); setEditData(info.name); }}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => deleteInfo(info.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 export default Settings;
