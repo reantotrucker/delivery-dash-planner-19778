@@ -718,16 +718,40 @@ export default function Expedition() {
                   </p>
                 )}
                 <p className="text-sm font-semibold">{formatBRL(o.total_value)}</p>
-                {o.observation && (
+                {o.observation ? (
                   <div className="rounded-md border border-primary/40 bg-primary/10 p-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-primary flex items-center gap-1">
-                      <StickyNote className="w-3 h-3" /> Observação do pedido
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-primary flex items-center gap-1">
+                        <StickyNote className="w-3 h-3" /> Observação do pedido
+                      </p>
+                      {canOperate && (
+                        <button
+                          type="button"
+                          onClick={() => openObsEditor(o)}
+                          className="text-primary hover:opacity-70"
+                          aria-label="Editar observação"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                     <p className="text-xs text-foreground/90 leading-snug whitespace-pre-wrap break-words mt-0.5">
                       {o.observation}
                     </p>
                   </div>
+                ) : (
+                  canOperate && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 justify-start px-1 text-xs text-muted-foreground"
+                      onClick={() => openObsEditor(o)}
+                    >
+                      <Plus className="w-3 h-3 mr-1" /> Adicionar observação
+                    </Button>
+                  )
                 )}
+
                 {o.checked_at && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <PackageCheck className="w-3 h-3" /> Conferido{" "}
