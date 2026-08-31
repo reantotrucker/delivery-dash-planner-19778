@@ -797,15 +797,17 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
         inv.vendedorName = vendedorCodeToName.get(vendCode) || null;
       }
     }
-    // Pedido casado pela data/cliente/valor
+    // Pedido casado pela data/cliente/valor (obs no formato "Pré-venda: #170447|ROTA")
     const match = matchedPedidos.get(String(inv.id));
     if (match) {
-      if (!inv.orderObservation && match.obs) inv.orderObservation = match.obs;
-      if (!inv.orderNumber && match.numero) inv.orderNumber = match.numero;
+      const parsed = parsePreVendaObs(match.obs);
+      if (!inv.orderObservation && parsed.obs) inv.orderObservation = parsed.obs;
+      if (!inv.orderNumber) inv.orderNumber = parsed.numero || match.numero || '';
       if (!inv.vendedorName && match.vendedorCode) {
         inv.vendedorName = vendedorCodeToName.get(match.vendedorCode) || null;
       }
     }
+
     // Fallback: use idVendedor from cupom header
     if (!inv.vendedorName && inv.vendedorId > 0) {
       inv.vendedorName = vendedorCodeToName.get(inv.vendedorId) || null;
