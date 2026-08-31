@@ -433,13 +433,12 @@ async function fetchPedidosForClientes(
   appSecret: string
 ): Promise<Map<number, PedidoResumo[]>> {
   const map = new Map<number, PedidoResumo[]>();
-  const ids = clientIds.slice(0, 20);
-  for (let i = 0; i < ids.length; i += 3) {
-    const batch = ids.slice(i, i + 3);
-    const results = await Promise.all(batch.map(id => fetchPedidosByCliente(id, appKey, appSecret)));
-    batch.forEach((id, idx) => map.set(id, results[idx]));
-    if (i + 3 < ids.length) await new Promise(r => setTimeout(r, 2000));
+  const ids = clientIds.slice(0, 12);
+  for (let i = 0; i < ids.length; i++) {
+    map.set(ids[i], await fetchPedidosByCliente(ids[i], appKey, appSecret));
+    if (i < ids.length - 1) await new Promise(r => setTimeout(r, 800));
   }
+
   console.log(`Pedidos por cliente: ${map.size} clientes consultados`);
   return map;
 }
