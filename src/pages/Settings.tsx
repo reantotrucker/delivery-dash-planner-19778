@@ -21,7 +21,7 @@ import { z } from "zod";
 
 const Settings = () => {
   const { isAdmin } = useAuth();
-  const { company } = useCompany();
+  const { company, hasExpedition } = useCompany();
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,11 +38,12 @@ const Settings = () => {
 
       <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="drivers">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap h-auto">
             <TabsTrigger value="drivers">Motoristas</TabsTrigger>
             <TabsTrigger value="vehicles">Veículos</TabsTrigger>
             <TabsTrigger value="consultants">Consultores</TabsTrigger>
             <TabsTrigger value="payments">Pagamentos</TabsTrigger>
+            {hasExpedition && <TabsTrigger value="infos">Informações adicional</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="drivers">
@@ -60,11 +61,18 @@ const Settings = () => {
           <TabsContent value="payments">
             <PaymentMethodsSettings />
           </TabsContent>
+
+          {hasExpedition && (
+            <TabsContent value="infos">
+              <ExtraInfosSettings />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
   );
 };
+
 
 const DriversSettings = () => {
   const { companyId } = useCompany();
