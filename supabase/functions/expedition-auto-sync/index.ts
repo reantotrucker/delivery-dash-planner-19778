@@ -46,12 +46,21 @@ async function syncCompany(companyId: string) {
       const docNumber = String(inv.number);
       const { data: existing } = await sb
         .from("expedition_orders")
-        .select("id")
+        .select("id, observation, order_number")
         .eq("company_id", companyId)
         .eq("doc_type", type.toUpperCase())
         .eq("doc_number", docNumber)
         .maybeSingle();
-      if (existing) continue;
+      if (existing) {
+        // Preenche informações que chegaram depois (obs/nº da pré-venda)
+        const patch: Record<string, unknown> = {};
+        if (!existing.observation && inv.orderObservation) patch.observation = inv.orderObservation;
+        if (!existing.order_number && inv.orderNumber) patch.order_number = inv.orderNumber;
+        if (Object.keys(patch).length) {
+          await sb.from("expedition_orders").update(patch).eq("id", existing.id);
+        }
+        continue;
+      }
 
       const { data: inserted, error: insErr } = await sb
         .from("expedition_orders")
