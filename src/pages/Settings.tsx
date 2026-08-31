@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getActiveCompanyId } from "@/lib/company";
+import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,12 +21,18 @@ import { z } from "zod";
 
 const Settings = () => {
   const { isAdmin } = useAuth();
+  const { company } = useCompany();
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-primary">Configurações</h1>
+          {company && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Cadastros exclusivos de <span className="font-medium text-foreground">{company.name}</span>
+            </p>
+          )}
         </div>
       </header>
 
@@ -61,23 +67,26 @@ const Settings = () => {
 };
 
 const DriversSettings = () => {
+  const { companyId } = useCompany();
   const [newDriver, setNewDriver] = useState({ name: "", color: "#FF6B00" });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState({ name: "", color: "", default_vehicle_id: "" });
 
   const { data: drivers = [], refetch } = useQuery({
-    queryKey: ["drivers", getActiveCompanyId()],
+    queryKey: ["drivers", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("drivers").select("*").eq("company_id", getActiveCompanyId()).order("name");
+      const { data, error } = await supabase.from("drivers").select("*").eq("company_id", companyId).order("name");
       if (error) throw error;
       return data;
     },
   });
 
   const { data: vehicles = [] } = useQuery({
-    queryKey: ["vehicles", getActiveCompanyId()],
+    queryKey: ["vehicles", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("*").eq("company_id", getActiveCompanyId()).order("plate");
+      const { data, error } = await supabase.from("vehicles").select("*").eq("company_id", companyId).order("plate");
       if (error) throw error;
       return data;
     },
@@ -94,7 +103,7 @@ const DriversSettings = () => {
       return;
     }
 
-    const { error } = await supabase.from("drivers").insert({ ...newDriver, company_id: getActiveCompanyId() });
+    const { error } = await supabase.from("drivers").insert({ ...newDriver, company_id: companyId });
     if (error) {
       toast.error("Erro ao adicionar motorista");
       return;
@@ -268,14 +277,16 @@ const DriversSettings = () => {
 };
 
 const VehiclesSettings = () => {
+  const { companyId } = useCompany();
   const [newVehicle, setNewVehicle] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState("");
 
   const { data: vehicles = [], refetch } = useQuery({
-    queryKey: ["vehicles", getActiveCompanyId()],
+    queryKey: ["vehicles", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("vehicles").select("*").eq("company_id", getActiveCompanyId()).order("plate");
+      const { data, error } = await supabase.from("vehicles").select("*").eq("company_id", companyId).order("plate");
       if (error) throw error;
       return data;
     },
@@ -291,7 +302,7 @@ const VehiclesSettings = () => {
       return;
     }
 
-    const { error } = await supabase.from("vehicles").insert({ plate: newVehicle, company_id: getActiveCompanyId() });
+    const { error } = await supabase.from("vehicles").insert({ plate: newVehicle, company_id: companyId });
     if (error) {
       toast.error("Erro ao adicionar veículo");
       return;
@@ -420,14 +431,16 @@ const VehiclesSettings = () => {
 };
 
 const ConsultantsSettings = () => {
+  const { companyId } = useCompany();
   const [newConsultant, setNewConsultant] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState("");
 
   const { data: consultants = [], refetch } = useQuery({
-    queryKey: ["consultants", getActiveCompanyId()],
+    queryKey: ["consultants", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("consultants").select("*").eq("company_id", getActiveCompanyId()).order("name");
+      const { data, error } = await supabase.from("consultants").select("*").eq("company_id", companyId).order("name");
       if (error) throw error;
       return data;
     },
@@ -443,7 +456,7 @@ const ConsultantsSettings = () => {
       return;
     }
 
-    const { error } = await supabase.from("consultants").insert({ name: newConsultant, company_id: getActiveCompanyId() });
+    const { error } = await supabase.from("consultants").insert({ name: newConsultant, company_id: companyId });
     if (error) {
       toast.error("Erro ao adicionar consultor");
       return;
@@ -572,14 +585,16 @@ const ConsultantsSettings = () => {
 };
 
 const PaymentMethodsSettings = () => {
+  const { companyId } = useCompany();
   const [newPayment, setNewPayment] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState("");
 
   const { data: payments = [], refetch } = useQuery({
-    queryKey: ["payment_methods", getActiveCompanyId()],
+    queryKey: ["payment_methods", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("payment_methods").select("*").eq("company_id", getActiveCompanyId()).order("name");
+      const { data, error } = await supabase.from("payment_methods").select("*").eq("company_id", companyId).order("name");
       if (error) throw error;
       return data;
     },
@@ -595,7 +610,7 @@ const PaymentMethodsSettings = () => {
       return;
     }
 
-    const { error } = await supabase.from("payment_methods").insert({ name: newPayment, company_id: getActiveCompanyId() });
+    const { error } = await supabase.from("payment_methods").insert({ name: newPayment, company_id: companyId });
     if (error) {
       toast.error("Erro ao adicionar forma de pagamento");
       return;
