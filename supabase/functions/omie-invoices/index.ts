@@ -353,7 +353,9 @@ async function fetchOrdersWithCache(
           const orderData = await res.json();
           if (orderData.faultstring) return { orderId, obs: '', vendedorCode: 0 };
           const pvp = orderData.pedido_venda_produto;
-          const obs = pvp?.observacoes?.obs_venda || pvp?.obs_venda || pvp?.informacoes_adicionais?.obs_venda || '';
+          const rawObs = pvp?.observacoes?.obs_venda || pvp?.obs_venda || pvp?.informacoes_adicionais?.obs_venda || '';
+          const obs = parsePreVendaObs(rawObs).obs || rawObs;
+
           const vendedorCode = pvp?.informacoes_adicionais?.codVend || pvp?.cabecalho?.codigo_vendedor || 0;
           return { orderId, obs, vendedorCode };
         } catch {
