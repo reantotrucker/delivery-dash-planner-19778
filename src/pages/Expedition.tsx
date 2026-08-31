@@ -125,6 +125,33 @@ export default function Expedition() {
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [confirmDeliver, setConfirmDeliver] = useState<ExpeditionOrder | null>(null);
   const [deliverLoading, setDeliverLoading] = useState(false);
+  const [obsOrder, setObsOrder] = useState<ExpeditionOrder | null>(null);
+  const [obsText, setObsText] = useState("");
+  const [obsSaving, setObsSaving] = useState(false);
+
+  const openObsEditor = (order: ExpeditionOrder) => {
+    setObsOrder(order);
+    setObsText(order.observation || "");
+  };
+
+  const saveObservation = async () => {
+    if (!obsOrder) return;
+    setObsSaving(true);
+    const { error } = await supabase
+      .from("expedition_orders")
+      .update({ observation: obsText.trim() || null } as any)
+      .eq("id", obsOrder.id);
+    setObsSaving(false);
+    if (error) {
+      toast.error("Erro ao salvar observação");
+      return;
+    }
+    toast.success("Observação salva");
+    setObsOrder(null);
+    queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+    queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
+  };
+
 
   const markDelivered = async (order: ExpeditionOrder) => {
     setDeliverLoading(true);
