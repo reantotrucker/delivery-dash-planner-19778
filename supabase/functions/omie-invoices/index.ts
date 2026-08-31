@@ -756,10 +756,34 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
     }
   }
 
-  // Cupons de balcão (PDV) nascem de pré-venda e não têm Pedido de Venda na Omie,
-  // então não há observação/número de pedido para buscar. Evitamos chamadas extras
-  // que estouram o limite da API.
+  // Cupons de balcão (PDV) nascem de pré-venda, que na Omie gera um Pedido de Venda
+  // com a observação "Pré-venda: #NNNN|<observação>". Buscamos os pedidos das datas
+  // dos cupons (1 chamada por data) e casamos por cliente + valor total.
   const matchedPedidos = new Map<string, PedidoResumo>();
+  try {
+    const cupomDates = [...new Set(nfceInvoices.map((i: any) => i.emissionDate).filter(Boolean))] as string[];
+    if (cupomDates.length > 0 && cupomDates.length <= 5) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const pedidosByDate = await fetchPedidosByDates(cupomDates, appKey, appSecret);
+      const used = new Set<string>();
+      for (const inv of nfceInvoices) {
+        const pedidos = pedidosByDate.get(inv.emissionDate) || [];
+        const match = pedidos.find((p, idx) =>
+          p.clientId === inv.clientId &&
+          Math.abs((p.total || 0) - (inv.totalValue || 0)) < 0.05 &&
+          !used.has(`${inv.emissionDate}_${idx}`)
+        );
+        if (match) {
+          used.add(`${inv.emissionDate}_${pedidos.indexOf(match)}`);
+          matchedPedidos.set(String(inv.id), match);
+        }
+      }
+      console.log(`NFCe: ${matchedPedidos.size}/${nfceInvoices.length} cupons casados com pré-venda`);
+    }
+  } catch (e) {
+    console.log('Erro ao casar cupons com pré-vendas:', (e as Error).message);
+  }
+
 
 
 
