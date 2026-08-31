@@ -1028,6 +1028,50 @@ export default function Expedition() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!infoOrder} onOpenChange={(open) => !open && setInfoOrder(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              Informações adicional
+              {infoOrder && (
+                <span className="block text-sm font-normal text-muted-foreground mt-1">
+                  {infoOrder.client} — {infoOrder.doc_type} {infoOrder.doc_number}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {extraInfos.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma opção cadastrada. Cadastre em Configurações → Informações adicional.
+              </p>
+            )}
+            {extraInfos.map((i) => (
+              <Button
+                key={i.id}
+                variant={infoOrder?.extra_info === i.name ? "default" : "outline"}
+                className="w-full justify-start"
+                disabled={!canTagInfo}
+                onClick={() => infoOrder && setExtraInfo(infoOrder, i.name)}
+              >
+                <Tag className="w-4 h-4 mr-2" />
+                {i.name}
+              </Button>
+            ))}
+          </div>
+          {infoOrder?.extra_info && canTagInfo && (
+            <DialogFooter>
+              <Button
+                variant="ghost"
+                className="w-full text-destructive"
+                onClick={() => infoOrder && setExtraInfo(infoOrder, null)}
+              >
+                Remover informação
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
 
 
       <AlertDialog open={!!confirmDeliver} onOpenChange={(o) => !o && setConfirmDeliver(null)}>
