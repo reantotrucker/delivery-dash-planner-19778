@@ -397,8 +397,6 @@ async function fetchPedidosByCliente(
         pagina: 1,
         registros_por_pagina: 50,
         apenas_importado_api: 'N',
-        ordenar_por: 'CODIGO',
-        ordem_decrescente: 'S',
         filtrar_por_cliente: clientId,
       }],
     };
