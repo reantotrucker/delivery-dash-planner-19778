@@ -21,12 +21,18 @@ import { z } from "zod";
 
 const Settings = () => {
   const { isAdmin } = useAuth();
+  const { company } = useCompany();
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-primary">Configurações</h1>
+          {company && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Cadastros exclusivos de <span className="font-medium text-foreground">{company.name}</span>
+            </p>
+          )}
         </div>
       </header>
 
