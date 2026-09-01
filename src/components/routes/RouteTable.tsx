@@ -585,7 +585,25 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                           </span>
                         )}
                       </Button>
+
+                      <Button
+                        variant="secondary"
+                        className="relative col-span-2 flex items-center justify-center gap-2 h-10 px-3 rounded-xl font-bold text-[11px] uppercase tracking-wider active:scale-95 transition-all"
+                        onClick={() => {
+                          setPendingDeliverId(null);
+                          setSignatureRoute(route);
+                        }}
+                      >
+                        <PenLine className={`w-4 h-4 ${signatureCount > 0 ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+                        {signatureCount > 0 ? "Assinatura do cliente" : "Coletar assinatura"}
+                        {signatureCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-card shadow-lg">
+                            {signatureCount}
+                          </span>
+                        )}
+                      </Button>
                     </div>
+
 
                     {/* Secondary row: Ocorrência + Reagendar */}
                     <div className="flex items-center gap-2">
