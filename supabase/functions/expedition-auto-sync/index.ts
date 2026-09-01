@@ -60,7 +60,6 @@ async function syncCompany(companyId: string, types: readonly ("nfe" | "nfce")[]
       continue;
     }
     for (const inv of invoices) {
-      if (inv.canceled) continue;
       const docNumber = String(inv.number);
       const { data: existing } = await sb
         .from("expedition_orders")
@@ -69,7 +68,19 @@ async function syncCompany(companyId: string, types: readonly ("nfe" | "nfce")[]
         .eq("doc_type", type.toUpperCase())
         .eq("doc_number", docNumber)
         .maybeSingle();
+
+      // Nota/cupom cancelado: sai da expedição (e do painel de TV)
+      if (inv.canceled) {
+        if (existing) {
+          await sb.from("expedition_order_items").delete().eq("expedition_order_id", existing.id);
+          await sb.from("route_signatures").delete().eq("expedition_order_id", existing.id);
+          await sb.from("expedition_orders").delete().eq("id", existing.id);
+          console.log(`Cancelado removido: ${type.toUpperCase()} ${docNumber}`);
+        }
+        continue;
+      }
       if (existing) continue;
+
 
       const { data: inserted, error: insErr } = await sb
         .from("expedition_orders")
