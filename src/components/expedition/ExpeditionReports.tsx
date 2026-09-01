@@ -436,6 +436,10 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
               <Download className="w-4 h-4 mr-2" />
               Exportar CSV
             </Button>
+            <Button variant="outline" size="sm" onClick={exportPdf} disabled={!orders.length}>
+              <Download className="w-4 h-4 mr-2" />
+              Exportar PDF
+            </Button>
           </div>
 
           {isLoading ? (
