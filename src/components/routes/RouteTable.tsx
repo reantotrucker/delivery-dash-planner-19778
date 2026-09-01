@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveCompanyId } from "@/lib/company";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2, Camera, ClipboardPaste, Crosshair, ExternalLink } from "lucide-react";
+import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2, Camera, ClipboardPaste, Crosshair, ExternalLink, PenLine } from "lucide-react";
 import { RouteReceiptDialog } from "./RouteReceiptDialog";
+import { RouteSignatureDialog } from "./RouteSignatureDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
 import { ProductChecklistDialog } from "./ProductChecklistDialog";
@@ -59,6 +60,8 @@ interface RouteTableProps {
 
 export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isComercial = false, canManageOccurrences = false }: RouteTableProps) => {
   const [receiptRoute, setReceiptRoute] = useState<Route | null>(null);
+  const [signatureRoute, setSignatureRoute] = useState<Route | null>(null);
+  const [pendingDeliverId, setPendingDeliverId] = useState<string | null>(null);
   const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
   const [savingLocationId, setSavingLocationId] = useState<string | null>(null);
   const canEditLocation = isAdmin;
@@ -127,6 +130,26 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
     },
     enabled: routes.length > 0,
   });
+
+  const { data: signatureCounts = {}, refetch: refetchSignatures } = useQuery({
+    queryKey: ["route-signature-counts", routes.map(r => r.id)],
+    queryFn: async () => {
+      if (routes.length === 0) return {} as Record<string, number>;
+      const { data, error } = await supabase
+        .from("route_signatures")
+        .select("route_id")
+        .in("route_id", routes.map(r => r.id));
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data as any[])?.forEach((r) => {
+        counts[r.route_id] = (counts[r.route_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: routes.length > 0,
+  });
+
+
 
   const saveLocation = async (routeId: string) => {
     const value = (locationDrafts[routeId] || "").trim();
@@ -198,8 +221,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
   };
 
 
-  const toggleStatus = async (routeId: string, currentStatus: string) => {
-    const newStatus = currentStatus === "ENTREGUE" ? "NAO_ENTREGUE" : "ENTREGUE";
+  const setStatus = async (routeId: string, newStatus: "ENTREGUE" | "NAO_ENTREGUE") => {
     const { error } = await supabase
       .from("routes")
       .update({ status: newStatus })
@@ -211,6 +233,18 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
       onUpdate();
     }
   };
+
+  const toggleStatus = async (route: Route) => {
+    const isDelivering = route.status !== "ENTREGUE";
+    // Ao entregar, pedir a assinatura do cliente na tela antes de concluir
+    if (isDelivering && canUploadReceipts && !(signatureCounts[route.id] > 0)) {
+      setPendingDeliverId(route.id);
+      setSignatureRoute(route);
+      return;
+    }
+    await setStatus(route.id, isDelivering ? "ENTREGUE" : "NAO_ENTREGUE");
+  };
+
 
   const deleteRoute = async (routeId: string) => {
     try {
@@ -297,6 +331,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
           const { maps: mapsLink, waze: wazeLink } = buildLocationLinks(route);
           const hasExactLocation = !!route.location_link?.trim();
           const receiptCount = receiptCounts[route.id] || 0;
+          const signatureCount = signatureCounts[route.id] || 0;
 
           return (
             <Card
@@ -330,7 +365,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <button
-                        onClick={() => toggleStatus(route.id, route.status)}
+                        onClick={() => toggleStatus(route)}
                         disabled={!isAdmin && !canManageOccurrences}
                         className="focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -551,7 +586,25 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                           </span>
                         )}
                       </Button>
+
+                      <Button
+                        variant="secondary"
+                        className="relative col-span-2 flex items-center justify-center gap-2 h-10 px-3 rounded-xl font-bold text-[11px] uppercase tracking-wider active:scale-95 transition-all"
+                        onClick={() => {
+                          setPendingDeliverId(null);
+                          setSignatureRoute(route);
+                        }}
+                      >
+                        <PenLine className={`w-4 h-4 ${signatureCount > 0 ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+                        {signatureCount > 0 ? "Assinatura do cliente" : "Coletar assinatura"}
+                        {signatureCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-card shadow-lg">
+                            {signatureCount}
+                          </span>
+                        )}
+                      </Button>
                     </div>
+
 
                     {/* Secondary row: Ocorrência + Reagendar */}
                     <div className="flex items-center gap-2">
@@ -818,6 +871,29 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
           }}
           canManage={canUploadReceipts}
           onChange={refetchReceipts}
+        />
+      )}
+
+      {signatureRoute && (
+        <RouteSignatureDialog
+          routeId={signatureRoute.id}
+          clientName={signatureRoute.client}
+          open={!!signatureRoute}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSignatureRoute(null);
+              setPendingDeliverId(null);
+            }
+          }}
+          canSign={canUploadReceipts}
+          onSaved={async () => {
+            await refetchSignatures();
+            if (pendingDeliverId) {
+              await setStatus(pendingDeliverId, "ENTREGUE");
+              setPendingDeliverId(null);
+              setSignatureRoute(null);
+            }
+          }}
         />
       )}
     </>
