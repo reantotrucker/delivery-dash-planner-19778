@@ -873,6 +873,29 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
           onChange={refetchReceipts}
         />
       )}
+
+      {signatureRoute && (
+        <RouteSignatureDialog
+          routeId={signatureRoute.id}
+          clientName={signatureRoute.client}
+          open={!!signatureRoute}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSignatureRoute(null);
+              setPendingDeliverId(null);
+            }
+          }}
+          canSign={canUploadReceipts}
+          onSaved={async () => {
+            await refetchSignatures();
+            if (pendingDeliverId) {
+              await setStatus(pendingDeliverId, "ENTREGUE");
+              setPendingDeliverId(null);
+              setSignatureRoute(null);
+            }
+          }}
+        />
+      )}
     </>
   );
 };
