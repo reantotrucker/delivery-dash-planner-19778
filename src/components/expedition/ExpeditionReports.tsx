@@ -272,11 +272,17 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
       ]);
 
       const bg = getComputedStyle(document.body).backgroundColor || "#ffffff";
-      const canvas = await html2canvas(node, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: bg,
-        windowWidth: node.scrollWidth,
+
+      // Blocos: cada card/gráfico é capturado separadamente para nunca ser cortado
+      const blocks: HTMLElement[] = [];
+      Array.from(node.children).forEach((child) => {
+        const el = child as HTMLElement;
+        const isGrid = getComputedStyle(el).display === "grid";
+        if (isGrid && el.children.length > 1 && !el.dataset.pdfAtomic) {
+          Array.from(el.children).forEach((c) => blocks.push(c as HTMLElement));
+        } else {
+          blocks.push(el);
+        }
       });
 
       const periodo =
@@ -287,46 +293,57 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
       const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
       const pw = doc.internal.pageSize.getWidth();
       const ph = doc.internal.pageSize.getHeight();
-      const margin = 24;
-      const headerH = 52;
+      const margin = 28;
       const usableW = pw - margin * 2;
-      const scale = usableW / canvas.width;
+      const gap = 12;
 
-      // Altura de imagem (em px do canvas) que cabe em cada página
-      const firstPageH = (ph - headerH - margin) / scale;
-      const otherPageH = (ph - margin * 2) / scale;
+      const drawHeader = () => {
+        doc.setFontSize(15);
+        doc.text(`Relatório de Expedição${companyName ? ` · ${companyName}` : ""}`, margin, margin + 12);
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        doc.text(`Período: ${periodo}`, margin, margin + 28);
+        doc.setTextColor(0);
+        return margin + 46;
+      };
 
-      let y = 0;
-      let page = 0;
-      while (y < canvas.height) {
-        const sliceH = Math.min(page === 0 ? firstPageH : otherPageH, canvas.height - y);
-        const slice = document.createElement("canvas");
-        slice.width = canvas.width;
-        slice.height = Math.floor(sliceH);
-        const ctx = slice.getContext("2d")!;
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, slice.width, slice.height);
-        ctx.drawImage(canvas, 0, y, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
+      let cursor = drawHeader();
 
-        if (page > 0) doc.addPage();
-        let top = margin;
-        if (page === 0) {
-          doc.setFontSize(15);
-          doc.text(`Relatório de Expedição${companyName ? ` · ${companyName}` : ""}`, margin, margin + 12);
-          doc.setFontSize(9);
-          doc.text(`Período: ${periodo}`, margin, margin + 28);
-          top = headerH;
+      for (const block of blocks) {
+        if (!block.offsetHeight) continue;
+        const canvas = await html2canvas(block, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: bg,
+          windowWidth: block.scrollWidth,
+        });
+        const imgW = usableW;
+        let imgH = (canvas.height / canvas.width) * imgW;
+        const maxH = ph - margin * 2;
+
+        // bloco maior que a página inteira: reduz para caber sem cortar
+        let w = imgW;
+        if (imgH > maxH) {
+          const k = maxH / imgH;
+          imgH = maxH;
+          w = imgW * k;
         }
-        doc.addImage(slice.toDataURL("image/jpeg", 0.92), "JPEG", margin, top, usableW, slice.height * scale);
-        y += slice.height;
-        page++;
+
+        if (cursor + imgH > ph - margin) {
+          doc.addPage();
+          cursor = margin;
+        }
+
+        doc.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", margin + (usableW - w) / 2, cursor, w, imgH);
+        cursor += imgH + gap;
       }
 
       const pages = doc.getNumberOfPages();
       for (let i = 1; i <= pages; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
-        doc.text(`Página ${i} de ${pages}`, pw - 80, ph - 10);
+        doc.setTextColor(140);
+        doc.text(`Página ${i} de ${pages}`, pw - margin - 60, ph - 12);
       }
 
       doc.save(`expedicao-${from}-a-${to}.pdf`);
@@ -334,6 +351,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
       setPdfLoading(false);
     }
   };
+
 
 
   const kpis = [
