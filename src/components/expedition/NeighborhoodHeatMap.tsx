@@ -122,6 +122,9 @@ interface Item {
 
 export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
   const [metric, setMetric] = useState<"total" | "valor">("total");
+  const [expanded, setExpanded] = useState(false);
+  const [labels, setLabels] = useState(true);
+
 
   const { points, unmapped, max } = useMemo(() => {
     const points: (Item & { lat: number; lng: number })[] = [];
