@@ -137,6 +137,7 @@ export default function Expedition() {
   const [signatureOrder, setSignatureOrder] = useState<ExpeditionOrder | null>(null);
   const [pendingDeliver, setPendingDeliver] = useState<ExpeditionOrder | null>(null);
   const canTagInfo = canOperate || role === "comercial";
+  const canEditObs = canOperate || role === "comercial";
 
   const { data: extraInfos = [] } = useQuery({
     queryKey: ["expedition-infos", companyId],
@@ -790,7 +791,7 @@ export default function Expedition() {
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-primary flex items-center gap-1">
                         <StickyNote className="w-3 h-3" /> Observação do pedido
                       </p>
-                      {canOperate && (
+                      {canEditObs && (
                         <button
                           type="button"
                           onClick={() => openObsEditor(o)}
@@ -806,7 +807,7 @@ export default function Expedition() {
                     </p>
                   </div>
                 ) : (
-                  canOperate && (
+                  canEditObs && (
                     <Button
                       size="sm"
                       variant="ghost"
