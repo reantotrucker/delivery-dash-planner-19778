@@ -10,20 +10,29 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function fetchInvoices(type: "nfe" | "nfce", companyId: string) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/omie-invoices`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${SERVICE_ROLE}`,
-      apikey: SERVICE_ROLE,
-    },
-    // forceRefresh: ignora o cache de 10 min, senão o job encontra vendas atrasadas
-    body: JSON.stringify({ type, fetchLastPage: true, forceRefresh: true, companyId }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data?.error) throw new Error(data?.error || `omie-invoices ${res.status}`);
-  return data.invoices || [];
+  let lastErr = "";
+  // Omie recusa chamadas muito próximas ("Consumo redundante"): tenta de novo com pausa
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (attempt > 0) await sleep(5000 + Math.random() * 5000);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/omie-invoices`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_ROLE}`,
+        apikey: SERVICE_ROLE,
+      },
+      // forceRefresh: ignora o cache de 10 min, senão o job encontra vendas atrasadas
+      body: JSON.stringify({ type, fetchLastPage: true, forceRefresh: true, companyId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && !data?.error) return data.invoices || [];
+    lastErr = data?.error || `omie-invoices ${res.status}`;
+    if (!/redundante|REDUNDANT|temporariamente|SOAP-ERROR|504|timeout/i.test(lastErr)) break;
+  }
+  throw new Error(lastErr);
 }
 
 // Converte dd/MM/yyyy + HH:mm(:ss) da Omie (horário de Manaus, UTC-4) em ISO
@@ -36,11 +45,20 @@ function toIsoIssuedAt(date?: string | null, time?: string | null) {
   return `${y}-${pad(m)}-${pad(d)}T${pad(hh)}:${pad(mi)}:${pad(ss)}-04:00`;
 }
 
-async function syncCompany(companyId: string) {
+async function syncCompany(companyId: string, types: readonly ("nfe" | "nfce")[]) {
 
   let created = 0;
-  for (const type of ["nfe", "nfce"] as const) {
-    const invoices = await fetchInvoices(type, companyId);
+  const errors: string[] = [];
+  // NFC-e (cupom balcão) primeiro: é a venda mais urgente para a separação
+  for (const type of types) {
+    let invoices: any[] = [];
+    try {
+      invoices = await fetchInvoices(type, companyId);
+    } catch (e) {
+      console.error(`falha ${type}`, (e as Error).message);
+      errors.push(`${type}: ${(e as Error).message}`);
+      continue;
+    }
     for (const inv of invoices) {
       if (inv.canceled) continue;
       const docNumber = String(inv.number);
@@ -96,6 +114,7 @@ async function syncCompany(companyId: string) {
       }
     }
   }
+  if (errors.length) return `${created} criados (falhas: ${errors.join(" | ")})`;
   return created;
 }
 
@@ -103,6 +122,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // NF-e é caro (paginação enorme) e sufoca a chave da Omie -> só a cada 5 min.
+    // NFC-e (cupom) roda em todo ciclo para o balcão não atrasar.
+    const body = await req.json().catch(() => ({} as any));
+    const minute = new Date().getUTCMinutes();
+    const types: readonly ("nfe" | "nfce")[] =
+      body?.types ?? (minute % 5 === 0 ? (["nfce", "nfe"] as const) : (["nfce"] as const));
+
     const { data: companies, error } = await sb
       .from("companies")
       .select("id, name, has_expedition")
@@ -112,7 +138,7 @@ Deno.serve(async (req) => {
     const results: Record<string, unknown> = {};
     for (const c of companies || []) {
       try {
-        results[c.name] = await syncCompany(c.id);
+        results[c.name] = await syncCompany(c.id, types);
       } catch (e) {
         console.error("sync error", c.name, e);
         results[c.name] = `erro: ${(e as Error).message}`;
