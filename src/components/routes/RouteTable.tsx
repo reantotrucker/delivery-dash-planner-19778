@@ -131,6 +131,26 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
     enabled: routes.length > 0,
   });
 
+  const { data: signatureCounts = {}, refetch: refetchSignatures } = useQuery({
+    queryKey: ["route-signature-counts", routes.map(r => r.id)],
+    queryFn: async () => {
+      if (routes.length === 0) return {} as Record<string, number>;
+      const { data, error } = await supabase
+        .from("route_signatures")
+        .select("route_id")
+        .in("route_id", routes.map(r => r.id));
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      (data as any[])?.forEach((r) => {
+        counts[r.route_id] = (counts[r.route_id] || 0) + 1;
+      });
+      return counts;
+    },
+    enabled: routes.length > 0,
+  });
+
+
+
   const saveLocation = async (routeId: string) => {
     const value = (locationDrafts[routeId] || "").trim();
     if (!value) {
