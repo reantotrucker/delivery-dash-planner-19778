@@ -32,16 +32,77 @@ const formatBRL = (v?: number | null) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
 
 let audioEl: HTMLAudioElement | null = null;
-const beep = () => {
+const getAudio = () => {
+  if (!audioEl) {
+    audioEl = new Audio(moneySfx.url);
+    audioEl.preload = "auto";
+    audioEl.volume = 1;
+  }
+  return audioEl;
+};
+
+// O navegador bloqueia áudio até o primeiro clique/toque na página
+const unlockAudio = async () => {
+  const el = getAudio();
   try {
-    if (!audioEl) {
-      audioEl = new Audio(moneySfx.url);
-      audioEl.volume = 1;
+    el.muted = true;
+    await el.play();
+    el.pause();
+    el.currentTime = 0;
+    el.muted = false;
+    return true;
+  } catch {
+    el.muted = false;
+    // tenta liberar o som sintetizado (WebAudio)
+    try {
+      const AC = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AC) return false;
+      ctx = ctx || new AC();
+      await ctx.resume();
+      return ctx.state === "running";
+    } catch {
+      return false;
     }
-    audioEl.currentTime = 0;
-    void audioEl.play();
+  }
+};
+
+// Fallback: som sintetizado (caso o mp3 não carregue no ambiente)
+let ctx: AudioContext | null = null;
+const synthBeep = () => {
+  try {
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return;
+    ctx = ctx || new AC();
+    void ctx.resume();
+    const now = ctx.currentTime;
+    [1046, 1568, 2093].forEach((f, i) => {
+      const osc = ctx!.createOscillator();
+      const gain = ctx!.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = f;
+      const t = now + i * 0.12;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      osc.connect(gain).connect(ctx!.destination);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    });
   } catch {
     /* ignore */
+  }
+};
+
+const beep = async () => {
+  const el = getAudio();
+  try {
+    el.currentTime = 0;
+    await el.play();
+    // se o arquivo não carregou, usa o som sintetizado
+    if (!el.duration || Number.isNaN(el.duration)) synthBeep();
+  } catch (e) {
+    synthBeep();
+    throw e;
   }
 };
 
@@ -54,6 +115,7 @@ export default function TvPanel() {
   const urlCompanyId = searchParams.get("company") || "";
   const queryClient = useQueryClient();
   const [sound, setSound] = useState(true);
+  const [audioBlocked, setAudioBlocked] = useState(false);
   const [lastCount, setLastCount] = useState<number | null>(null);
 
   // A empresa pode vir pela URL (painel aberto em nova aba)
@@ -163,10 +225,43 @@ export default function TvPanel() {
 
 
   useEffect(() => {
-    if (lastCount !== null && pending.length > lastCount && sound) beep();
+    if (lastCount !== null && pending.length > lastCount && sound) {
+      beep()?.catch(() => setAudioBlocked(true));
+    }
     setLastCount(pending.length);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending.length]);
+
+  // Libera o áudio no primeiro clique/toque/tecla da página
+  useEffect(() => {
+    let done = false;
+    const handler = async () => {
+      if (done) return;
+      const ok = await unlockAudio();
+      if (ok) {
+        done = true;
+        setAudioBlocked(false);
+        window.removeEventListener("pointerdown", handler);
+        window.removeEventListener("keydown", handler);
+      }
+    };
+    void unlockAudio().then((ok) => {
+      if (ok) done = true;
+      else setAudioBlocked(true);
+    });
+    window.addEventListener("pointerdown", handler);
+    window.addEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("pointerdown", handler);
+      window.removeEventListener("keydown", handler);
+    };
+  }, []);
+
+  const enableSound = async () => {
+    const ok = await unlockAudio();
+    setAudioBlocked(!ok);
+    if (ok) beep()?.catch(() => setAudioBlocked(true));
+  };
 
   if (!hasExpedition) {
     return (
@@ -196,8 +291,24 @@ export default function TvPanel() {
           <Badge variant="outline" className="text-xl px-4 py-1 border-success text-success">
             {counter.length} balcão
           </Badge>
-          <Button variant="outline" size="icon" onClick={() => setSound((s) => !s)} aria-label="Som">
-            {sound ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          {audioBlocked && (
+            <Button variant="destructive" onClick={enableSound} className="font-bold">
+              Ativar som
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              setSound((s) => {
+                const next = !s;
+                if (next) void enableSound();
+                return next;
+              });
+            }}
+            aria-label="Som"
+          >
+            {sound && !audioBlocked ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </Button>
           <Button variant="outline" size="icon" asChild aria-label="Voltar">
             <Link to="/">
