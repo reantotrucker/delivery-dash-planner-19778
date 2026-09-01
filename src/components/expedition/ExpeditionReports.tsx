@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { manausShort } from "@/lib/manausTime";
@@ -258,101 +258,83 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
     URL.revokeObjectURL(url);
   };
 
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+
   const exportPdf = async () => {
-    const { default: jsPDF } = await import("jspdf");
-    const { default: autoTable } = await import("jspdf-autotable");
-    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-    const periodo =
-      from === to
-        ? from.split("-").reverse().join("/")
-        : `${from.split("-").reverse().join("/")} — ${to.split("-").reverse().join("/")}`;
+    const node = reportRef.current;
+    if (!node) return;
+    setPdfLoading(true);
+    try {
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
 
-    doc.setFontSize(16);
-    doc.text(`Relatório de Expedição${companyName ? ` · ${companyName}` : ""}`, 40, 40);
-    doc.setFontSize(10);
-    doc.text(`Período: ${periodo}`, 40, 58);
-
-    autoTable(doc, {
-      startY: 72,
-      head: [["Indicador", "Valor", "Indicador", "Valor"]],
-      body: [
-        ["Pedidos", String(stats.total), "Entregues", String(stats.entregues)],
-        ["Balcão", String(stats.balcao), "Valor total", formatBRL(stats.valor)],
-        ["Rota", String(stats.rota), "Média separação", fmtMin(stats.mediaSeparacao)],
-        ["Aguardando", String(stats.aguardando), "Média entrega", fmtMin(stats.mediaEntrega)],
-      ],
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [37, 99, 235] },
-    });
-
-    const rank = (title: string, items: { name: string; total: number; valor: number }[]) => {
-      if (!items.length) return;
-      autoTable(doc, {
-        startY: (doc as any).lastAutoTable.finalY + 18,
-        head: [[title, "Pedidos", "Valor"]],
-        body: items.map((i) => [i.name, String(i.total), formatBRL(i.valor)]),
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [22, 163, 74] },
+      const bg = getComputedStyle(document.body).backgroundColor || "#ffffff";
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: bg,
+        windowWidth: node.scrollWidth,
       });
-    };
 
-    rank("Vendedor", stats.sellers);
-    rank("Bairro", stats.neighborhoods);
-    rank("Cliente", stats.clients);
-    if (stats.conferentes.length) {
-      autoTable(doc, {
-        startY: (doc as any).lastAutoTable.finalY + 18,
-        head: [["Conferente", "Itens conferidos", "Tempo médio"]],
-        body: stats.conferentes.map((c) => [c.name, String(c.total), fmtMin(c.media)]),
-        styles: { fontSize: 9 },
-        headStyles: { fillColor: [147, 51, 234] },
-      });
+      const periodo =
+        from === to
+          ? from.split("-").reverse().join("/")
+          : `${from.split("-").reverse().join("/")} — ${to.split("-").reverse().join("/")}`;
+
+      const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pw = doc.internal.pageSize.getWidth();
+      const ph = doc.internal.pageSize.getHeight();
+      const margin = 24;
+      const headerH = 52;
+      const usableW = pw - margin * 2;
+      const scale = usableW / canvas.width;
+
+      // Altura de imagem (em px do canvas) que cabe em cada página
+      const firstPageH = (ph - headerH - margin) / scale;
+      const otherPageH = (ph - margin * 2) / scale;
+
+      let y = 0;
+      let page = 0;
+      while (y < canvas.height) {
+        const sliceH = Math.min(page === 0 ? firstPageH : otherPageH, canvas.height - y);
+        const slice = document.createElement("canvas");
+        slice.width = canvas.width;
+        slice.height = Math.floor(sliceH);
+        const ctx = slice.getContext("2d")!;
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, slice.width, slice.height);
+        ctx.drawImage(canvas, 0, y, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
+
+        if (page > 0) doc.addPage();
+        let top = margin;
+        if (page === 0) {
+          doc.setFontSize(15);
+          doc.text(`Relatório de Expedição${companyName ? ` · ${companyName}` : ""}`, margin, margin + 12);
+          doc.setFontSize(9);
+          doc.text(`Período: ${periodo}`, margin, margin + 28);
+          top = headerH;
+        }
+        doc.addImage(slice.toDataURL("image/jpeg", 0.92), "JPEG", margin, top, usableW, slice.height * scale);
+        y += slice.height;
+        page++;
+      }
+
+      const pages = doc.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.text(`Página ${i} de ${pages}`, pw - 80, ph - 10);
+      }
+
+      doc.save(`expedicao-${from}-a-${to}.pdf`);
+    } finally {
+      setPdfLoading(false);
     }
-
-    doc.addPage();
-    doc.setFontSize(13);
-    doc.text("Pedidos do período", 40, 40);
-    autoTable(doc, {
-      startY: 56,
-      head: [[
-        "Doc",
-        "Número",
-        "Cliente",
-        "Bairro",
-        "Vendedor",
-        "Valor",
-        "Status",
-        "Recebido",
-        "Conferido",
-        "Conferente",
-        "Entregue",
-      ]],
-      body: orders.map((o) => [
-        o.doc_type,
-        o.doc_number || "",
-        o.client,
-        o.neighborhood || "",
-        o.seller || "",
-        formatBRL(Number(o.total_value) || 0),
-        o.status,
-        o.created_at ? manausShort(o.created_at) : "",
-        o.checked_at ? manausShort(o.checked_at) : "",
-        nameOf(o.checked_by),
-        o.delivered_at ? manausShort(o.delivered_at) : "",
-      ]),
-      styles: { fontSize: 7, cellPadding: 3 },
-      headStyles: { fillColor: [37, 99, 235] },
-    });
-
-    const pages = doc.getNumberOfPages();
-    for (let i = 1; i <= pages; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.text(`Página ${i} de ${pages}`, doc.internal.pageSize.getWidth() - 90, doc.internal.pageSize.getHeight() - 20);
-    }
-
-    doc.save(`expedicao-${from}-a-${to}.pdf`);
   };
+
 
   const kpis = [
     { label: "Pedidos", value: stats.total, icon: PackageCheck, color: "text-primary", bg: "bg-primary/10" },
@@ -436,8 +418,8 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
               <Download className="w-4 h-4 mr-2" />
               Exportar CSV
             </Button>
-            <Button variant="outline" size="sm" onClick={exportPdf} disabled={!orders.length}>
-              <Download className="w-4 h-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={exportPdf} disabled={!orders.length || pdfLoading}>
+              {pdfLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
               Exportar PDF
             </Button>
           </div>
@@ -453,7 +435,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 p-1" ref={reportRef}>
               {/* KPIs */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {kpis.map((k) => (
