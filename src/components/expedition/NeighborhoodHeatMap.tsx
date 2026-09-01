@@ -202,7 +202,21 @@ export default function NeighborhoodHeatMap({
         <h3 className="font-semibold text-sm flex items-center gap-2">
           <MapPinned className="w-4 h-4 text-primary" /> Mapa de calor de vendas por bairro
         </h3>
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-1 flex-wrap items-center">
+          {sellers.length > 0 && (
+            <select
+              value={seller}
+              onChange={(e) => setSeller(e.target.value)}
+              className="text-xs px-2 py-1 rounded-md border border-border bg-background text-foreground max-w-[190px]"
+            >
+              <option value="__all__">Todos os vendedores</option>
+              {sellers.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
           {(["total", "valor"] as const).map((m) => (
             <button
               key={m}
