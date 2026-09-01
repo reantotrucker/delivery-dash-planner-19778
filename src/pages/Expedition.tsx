@@ -113,7 +113,7 @@ export default function Expedition() {
   const { isAdmin, role, user } = useAuth();
   const { companyId, company, hasExpedition } = useCompany();
   const queryClient = useQueryClient();
-  const canOperate = isAdmin || role === "expedicao";
+  const canOperate = isAdmin || role === "expedicao" || role === "motorista";
 
   const [statusFilter, setStatusFilter] = useState<Status | "TODOS">("AGUARDANDO");
   const [search, setSearch] = useState("");
