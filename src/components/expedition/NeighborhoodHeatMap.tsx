@@ -101,14 +101,16 @@ const heatColor = (t: number) => {
 const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
-function FitPoints({ points }: { points: [number, number][] }) {
+function FitPoints({ points, resizeKey }: { points: [number, number][]; resizeKey?: unknown }) {
   const map = useMap();
   useEffect(() => {
-    if (points.length) {
-      map.fitBounds(points as L.LatLngBoundsExpression, { padding: [40, 40], maxZoom: 13 });
-    }
-    setTimeout(() => map.invalidateSize(), 200);
-  }, [points, map]);
+    setTimeout(() => {
+      map.invalidateSize();
+      if (points.length) {
+        map.fitBounds(points as L.LatLngBoundsExpression, { padding: [60, 60], maxZoom: 12 });
+      }
+    }, 250);
+  }, [points, map, resizeKey]);
   return null;
 }
 
