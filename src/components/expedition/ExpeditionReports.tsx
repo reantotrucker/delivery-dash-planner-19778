@@ -258,6 +258,102 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
     URL.revokeObjectURL(url);
   };
 
+  const exportPdf = async () => {
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const periodo =
+      from === to
+        ? from.split("-").reverse().join("/")
+        : `${from.split("-").reverse().join("/")} — ${to.split("-").reverse().join("/")}`;
+
+    doc.setFontSize(16);
+    doc.text(`Relatório de Expedição${companyName ? ` · ${companyName}` : ""}`, 40, 40);
+    doc.setFontSize(10);
+    doc.text(`Período: ${periodo}`, 40, 58);
+
+    autoTable(doc, {
+      startY: 72,
+      head: [["Indicador", "Valor", "Indicador", "Valor"]],
+      body: [
+        ["Pedidos", String(stats.total), "Entregues", String(stats.entregues)],
+        ["Balcão", String(stats.balcao), "Valor total", formatBRL(stats.valor)],
+        ["Rota", String(stats.rota), "Média separação", fmtMin(stats.mediaSeparacao)],
+        ["Aguardando", String(stats.aguardando), "Média entrega", fmtMin(stats.mediaEntrega)],
+      ],
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [37, 99, 235] },
+    });
+
+    const rank = (title: string, items: { name: string; total: number; valor: number }[]) => {
+      if (!items.length) return;
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 18,
+        head: [[title, "Pedidos", "Valor"]],
+        body: items.map((i) => [i.name, String(i.total), formatBRL(i.valor)]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [22, 163, 74] },
+      });
+    };
+
+    rank("Vendedor", stats.sellers);
+    rank("Bairro", stats.neighborhoods);
+    rank("Cliente", stats.clients);
+    if (stats.conferentes.length) {
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 18,
+        head: [["Conferente", "Itens conferidos", "Tempo médio"]],
+        body: stats.conferentes.map((c) => [c.name, String(c.total), fmtMin(c.media)]),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [147, 51, 234] },
+      });
+    }
+
+    doc.addPage();
+    doc.setFontSize(13);
+    doc.text("Pedidos do período", 40, 40);
+    autoTable(doc, {
+      startY: 56,
+      head: [[
+        "Doc",
+        "Número",
+        "Cliente",
+        "Bairro",
+        "Vendedor",
+        "Valor",
+        "Status",
+        "Recebido",
+        "Conferido",
+        "Conferente",
+        "Entregue",
+      ]],
+      body: orders.map((o) => [
+        o.doc_type,
+        o.doc_number || "",
+        o.client,
+        o.neighborhood || "",
+        o.seller || "",
+        formatBRL(Number(o.total_value) || 0),
+        o.status,
+        o.created_at ? manausShort(o.created_at) : "",
+        o.checked_at ? manausShort(o.checked_at) : "",
+        nameOf(o.checked_by),
+        o.delivered_at ? manausShort(o.delivered_at) : "",
+      ]),
+      styles: { fontSize: 7, cellPadding: 3 },
+      headStyles: { fillColor: [37, 99, 235] },
+    });
+
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(`Página ${i} de ${pages}`, doc.internal.pageSize.getWidth() - 90, doc.internal.pageSize.getHeight() - 20);
+    }
+
+    doc.save(`expedicao-${from}-a-${to}.pdf`);
+  };
+
   const kpis = [
     { label: "Pedidos", value: stats.total, icon: PackageCheck, color: "text-primary", bg: "bg-primary/10" },
     { label: "Balcão", value: stats.balcao, icon: Store, color: "text-green-500", bg: "bg-green-500/10" },
