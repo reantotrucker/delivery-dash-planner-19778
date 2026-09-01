@@ -10,20 +10,29 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function fetchInvoices(type: "nfe" | "nfce", companyId: string) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/omie-invoices`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${SERVICE_ROLE}`,
-      apikey: SERVICE_ROLE,
-    },
-    // forceRefresh: ignora o cache de 10 min, senão o job encontra vendas atrasadas
-    body: JSON.stringify({ type, fetchLastPage: true, forceRefresh: true, companyId }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || data?.error) throw new Error(data?.error || `omie-invoices ${res.status}`);
-  return data.invoices || [];
+  let lastErr = "";
+  // Omie recusa chamadas muito próximas ("Consumo redundante"): tenta de novo com pausa
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await sleep(6000);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/omie-invoices`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_ROLE}`,
+        apikey: SERVICE_ROLE,
+      },
+      // forceRefresh: ignora o cache de 10 min, senão o job encontra vendas atrasadas
+      body: JSON.stringify({ type, fetchLastPage: true, forceRefresh: true, companyId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && !data?.error) return data.invoices || [];
+    lastErr = data?.error || `omie-invoices ${res.status}`;
+    if (!/redundante|REDUNDANT|temporariamente|SOAP-ERROR|504|timeout/i.test(lastErr)) break;
+  }
+  throw new Error(lastErr);
 }
 
 // Converte dd/MM/yyyy + HH:mm(:ss) da Omie (horário de Manaus, UTC-4) em ISO
