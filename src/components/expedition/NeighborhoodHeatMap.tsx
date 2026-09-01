@@ -312,6 +312,10 @@ export default function NeighborhoodHeatMap({
           <span className="w-3 h-3 rounded-full" style={{ background: "#dc2626" }} /> Muito alto
         </span>
         <span>· {points.length} bairro(s) no mapa</span>
+        <span className="text-foreground font-medium">
+          · {seller === "__all__" ? "Todos" : seller}: {sellerTotals.total} pedido(s) ·{" "}
+          {formatBRL(sellerTotals.valor)}
+        </span>
       </div>
 
       {unmapped.length > 0 && (
