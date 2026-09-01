@@ -317,25 +317,62 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
       });
       cursor += boxH * 2 + boxGap + 22;
 
-      for (const visual of Array.from(node.querySelectorAll<HTMLElement>("[data-pdf-visual]"))) {
+      const visuals = Array.from(node.querySelectorAll<HTMLElement>("[data-pdf-visual]"));
+      const colGap = 14;
+      const colW = (usableW - colGap) / 2;
+      let col = 0;
+      let rowTop = cursor;
+      let rowMaxH = 0;
+
+      for (const visual of visuals) {
         const canvas = await html2canvas(visual, {
           scale: 2,
           useCORS: true,
           backgroundColor: "#ffffff",
           windowWidth: visual.scrollWidth,
         });
-        const targetW = visual.dataset.pdfVisual === "map" ? usableW : Math.min(usableW, 540);
-        const rawH = (canvas.height / canvas.width) * targetW;
-        const scale = Math.min(1, (ph - 118) / rawH);
-        const imageW = targetW * scale;
-        const imageH = rawH * scale;
-        if (cursor + imageH > ph - 28) {
-          doc.addPage();
-          cursor = drawHeader();
+        const isMap = visual.dataset.pdfVisual === "map";
+        const img = canvas.toDataURL("image/png");
+
+        if (isMap) {
+          // fecha a linha de gráficos em andamento
+          if (col !== 0) {
+            rowTop += rowMaxH + colGap;
+            col = 0;
+            rowMaxH = 0;
+          }
+          const rawH = (canvas.height / canvas.width) * usableW;
+          const scale = Math.min(1, (ph - 118) / rawH);
+          const w = usableW * scale;
+          const h = rawH * scale;
+          if (rowTop + h > ph - 28) {
+            doc.addPage();
+            rowTop = drawHeader();
+          }
+          doc.addImage(img, "PNG", margin, rowTop, w, h);
+          rowTop += h + colGap;
+          continue;
         }
-        doc.addImage(canvas.toDataURL("image/png"), "PNG", margin, cursor, imageW, imageH);
-        cursor += imageH + 16;
+
+        // gráficos: 2 por linha, menores
+        const h = (canvas.height / canvas.width) * colW;
+        if (col === 0 && rowTop + h > ph - 28) {
+          doc.addPage();
+          rowTop = drawHeader();
+          rowMaxH = 0;
+        }
+        doc.addImage(img, "PNG", margin + col * (colW + colGap), rowTop, colW, h);
+        rowMaxH = Math.max(rowMaxH, h);
+        col += 1;
+        if (col === 2) {
+          rowTop += rowMaxH + colGap;
+          col = 0;
+          rowMaxH = 0;
+        }
       }
+      if (col !== 0) rowTop += rowMaxH + colGap;
+      cursor = rowTop;
+
 
       const addRanking = (title: string, rows: { name: string; value: string; extra: string }[], headers: string[]) => {
         doc.addPage();
