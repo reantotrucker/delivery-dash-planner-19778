@@ -236,14 +236,10 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
 
   const toggleStatus = async (route: Route) => {
     const isDelivering = route.status !== "ENTREGUE";
-    // Ao entregar, pedir a assinatura do cliente na tela antes de concluir
-    if (isDelivering && canUploadReceipts && !(signatureCounts[route.id] > 0)) {
-      setPendingDeliverId(route.id);
-      setSignatureRoute(route);
-      return;
-    }
+    // Assinatura é opcional: o status muda direto ao apertar
     await setStatus(route.id, isDelivering ? "ENTREGUE" : "NAO_ENTREGUE");
   };
+
 
 
   const deleteRoute = async (routeId: string) => {
