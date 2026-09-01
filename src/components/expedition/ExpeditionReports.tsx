@@ -450,7 +450,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
                 </div>
               </div>
 
-              <NeighborhoodHeatMap data={stats.neighborhoodsAll} />
+              <NeighborhoodHeatMap data={stats.neighborhoodsAll} rows={orders} />
 
               {/* Rankings */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

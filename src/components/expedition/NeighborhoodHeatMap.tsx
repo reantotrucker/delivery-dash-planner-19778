@@ -126,16 +126,61 @@ interface Item {
   valor: number;
 }
 
-export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
+interface Row {
+  seller?: string | null;
+  neighborhood?: string | null;
+  total_value?: number | null;
+}
+
+export default function NeighborhoodHeatMap({
+  data,
+  rows = [],
+}: {
+  data: Item[];
+  rows?: Row[];
+}) {
   const [metric, setMetric] = useState<"total" | "valor">("total");
   const [expanded, setExpanded] = useState(false);
   const [labels, setLabels] = useState(true);
+  const [seller, setSeller] = useState<string>("__all__");
 
+  const sellers = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => {
+      const s = (r.seller || "").trim();
+      if (!s) return;
+      m.set(s, (m.get(s) || 0) + 1);
+    });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
+  }, [rows]);
+
+  const activeData = useMemo(() => {
+    if (seller === "__all__" || !rows.length) return data;
+    const m = new Map<string, Item>();
+    rows
+      .filter((r) => (r.seller || "").trim() === seller)
+      .forEach((r) => {
+        const name = (r.neighborhood || "—").trim() || "—";
+        const e = m.get(name) || { name, total: 0, valor: 0 };
+        e.total += 1;
+        e.valor += Number(r.total_value || 0);
+        m.set(name, e);
+      });
+    return [...m.values()].sort((a, b) => b.total - a.total);
+  }, [seller, rows, data]);
+
+  const sellerTotals = useMemo(() => {
+    const t = activeData.reduce(
+      (acc, d) => ({ total: acc.total + d.total, valor: acc.valor + d.valor }),
+      { total: 0, valor: 0 }
+    );
+    return t;
+  }, [activeData]);
 
   const { points, unmapped, max } = useMemo(() => {
     const points: (Item & { lat: number; lng: number })[] = [];
     const unmapped: Item[] = [];
-    data.forEach((d) => {
+    activeData.forEach((d) => {
       if (!d.name || d.name === "—") return;
       const c = findCoord(d.name);
       if (c) points.push({ ...d, lat: c[0], lng: c[1] });
@@ -143,7 +188,7 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
     });
     const max = Math.max(1, ...points.map((p) => (metric === "total" ? p.total : p.valor)));
     return { points, unmapped, max };
-  }, [data, metric]);
+  }, [activeData, metric]);
 
   return (
     <div
@@ -157,7 +202,21 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
         <h3 className="font-semibold text-sm flex items-center gap-2">
           <MapPinned className="w-4 h-4 text-primary" /> Mapa de calor de vendas por bairro
         </h3>
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-1 flex-wrap items-center">
+          {sellers.length > 0 && (
+            <select
+              value={seller}
+              onChange={(e) => setSeller(e.target.value)}
+              className="text-xs px-2 py-1 rounded-md border border-border bg-background text-foreground max-w-[190px]"
+            >
+              <option value="__all__">Todos os vendedores</option>
+              {sellers.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
           {(["total", "valor"] as const).map((m) => (
             <button
               key={m}
@@ -253,6 +312,10 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
           <span className="w-3 h-3 rounded-full" style={{ background: "#dc2626" }} /> Muito alto
         </span>
         <span>· {points.length} bairro(s) no mapa</span>
+        <span className="text-foreground font-medium">
+          · {seller === "__all__" ? "Todos" : seller}: {sellerTotals.total} pedido(s) ·{" "}
+          {formatBRL(sellerTotals.valor)}
+        </span>
       </div>
 
       {unmapped.length > 0 && (
