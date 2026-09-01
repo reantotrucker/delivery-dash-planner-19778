@@ -15,8 +15,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function fetchInvoices(type: "nfe" | "nfce", companyId: string) {
   let lastErr = "";
   // Omie recusa chamadas muito próximas ("Consumo redundante"): tenta de novo com pausa
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) await sleep(6000);
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (attempt > 0) await sleep(5000 + Math.random() * 5000);
     const res = await fetch(`${SUPABASE_URL}/functions/v1/omie-invoices`, {
       method: "POST",
       headers: {
