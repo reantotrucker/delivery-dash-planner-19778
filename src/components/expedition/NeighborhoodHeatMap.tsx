@@ -140,12 +140,18 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
   }, [data, metric]);
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div
+      className={
+        expanded
+          ? "fixed inset-0 z-[9999] bg-background p-4 overflow-auto"
+          : "bg-card border border-border rounded-xl p-4"
+      }
+    >
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <h3 className="font-semibold text-sm flex items-center gap-2">
           <MapPinned className="w-4 h-4 text-primary" /> Mapa de calor de vendas por bairro
         </h3>
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap">
           {(["total", "valor"] as const).map((m) => (
             <button
               key={m}
@@ -159,13 +165,33 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
               {m === "total" ? "Pedidos" : "Valor"}
             </button>
           ))}
+          <button
+            onClick={() => setLabels((v) => !v)}
+            className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
+              labels
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-muted-foreground border-border hover:bg-muted"
+            }`}
+          >
+            Rótulos
+          </button>
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="text-xs px-2.5 py-1 rounded-md border border-border bg-background text-muted-foreground hover:bg-muted flex items-center gap-1"
+          >
+            {expanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+            {expanded ? "Fechar" : "Tela cheia"}
+          </button>
         </div>
       </div>
 
-      <div className="h-[360px] rounded-lg overflow-hidden border border-border">
+      <div
+        className={`${expanded ? "h-[calc(100vh-160px)]" : "h-[620px]"} rounded-lg overflow-hidden border border-border`}
+      >
         <MapContainer
           center={[-3.1019, -60.0251]}
           zoom={11}
+          minZoom={9}
           style={{ height: "100%", width: "100%" }}
           scrollWheelZoom
         >
@@ -173,7 +199,10 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
             attribution="&copy; OpenStreetMap"
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <FitPoints points={points.map((p) => [p.lat, p.lng] as [number, number])} />
+          <FitPoints
+            points={points.map((p) => [p.lat, p.lng] as [number, number])}
+            resizeKey={expanded}
+          />
           {points.map((p) => {
             const v = metric === "total" ? p.total : p.valor;
             const t = v / max;
@@ -182,16 +211,19 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
               <CircleMarker
                 key={p.name}
                 center={[p.lat, p.lng]}
-                radius={10 + t * 26}
+                radius={9 + t * 22}
                 pathOptions={{ color, fillColor: color, fillOpacity: 0.45, weight: 2 }}
               >
-                <LTooltip direction="top">
-                  <div className="text-xs">
+                <LTooltip
+                  direction="top"
+                  permanent={labels}
+                  opacity={labels ? 0.95 : 1}
+                  className="!bg-background/90 !text-foreground !border-border"
+                >
+                  <div className="text-[10px] leading-tight">
                     <strong>{p.name}</strong>
                     <br />
-                    {p.total} pedido(s)
-                    <br />
-                    {formatBRL(p.valor)}
+                    {p.total} pedido(s) · {formatBRL(p.valor)}
                   </div>
                 </LTooltip>
               </CircleMarker>
@@ -199,6 +231,7 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
           })}
         </MapContainer>
       </div>
+
 
       <div className="flex items-center gap-3 mt-3 flex-wrap text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1">
