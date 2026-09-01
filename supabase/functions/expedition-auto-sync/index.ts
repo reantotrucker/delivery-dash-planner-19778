@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     const results: Record<string, unknown> = {};
     for (const c of companies || []) {
       try {
-        results[c.name] = await syncCompany(c.id);
+        results[c.name] = await syncCompany(c.id, types);
       } catch (e) {
         console.error("sync error", c.name, e);
         results[c.name] = `erro: ${(e as Error).message}`;
