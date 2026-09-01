@@ -581,6 +581,15 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
     return isSaida;
   });
 
+  console.log(
+    'NFe situações:',
+    validInvoices
+      .map((nf: any) => `${nf.ide?.nNF}:dCan=${nf.ide?.dCan || '-'}/deneg=${nf.ide?.cDeneg || '-'}`)
+      .join(' | ')
+  );
+
+
+
   const orderIdSet = new Set<number>();
   const clientIdSet = new Set<number>();
   validInvoices.forEach((nf: any) => {
@@ -609,6 +618,7 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
   });
 
   const invoices = validInvoices.map((nf: any) => {
+
     const orderId = nf.compl?.nIdPedido || 0;
     const orderObs = orderObservations.get(orderId) || '';
     const vendedorName = orderVendedorNames.get(orderId) || null;
@@ -625,7 +635,8 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
       address: clientId ? clientAddresses.get(clientId) || null : null,
       totalValue: nf.total?.ICMSTot?.vNF || 0,
       status: nf.ide?.cSitNFe,
-      canceled: nf.ide?.cSitNFe === 'C' || nf.ide?.cSitNFe === 'CANCELADA',
+      canceled: isNfeCanceled(nf),
+
       paymentMethod: nf.pag?.[0]?.tPag,
       accessKey: nf.compl?.cChaveNFe,
       orderId,
@@ -653,6 +664,25 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
     invoices,
   };
 }
+
+// A Omie marca a situação da NF-e em ide: dCan (data de cancelamento),
+// dInut (inutilizada) e cDeneg (denegada). Qualquer um deles = sai da expedição.
+function isNfeCanceled(nf: any): boolean {
+  const ide = nf?.ide || {};
+  const filled = (v: unknown) => !!String(v ?? '').trim();
+  if (filled(ide.dCan) || filled(ide.dInut)) return true;
+  if (String(ide.cDeneg ?? '').trim().toUpperCase() === 'S') return true;
+
+  const extras = [ide.cSitNFe, ide.cSituacao, nf?.compl?.cSituacao, nf?.compl?.cStatus]
+    .filter((v) => v !== undefined && v !== null)
+    .map((v) => String(v).trim().toUpperCase());
+  for (const v of extras) {
+    if (v.includes('CANCEL') || v.includes('DENEG') || v.includes('INUTIL')) return true;
+    if (v === 'C' || v === 'D' || v === 'I') return true;
+  }
+  return false;
+}
+
 
 // Preenche a família de cada produto das notas
 async function attachFamilies(invoices: any[], appKey: string, appSecret: string) {
