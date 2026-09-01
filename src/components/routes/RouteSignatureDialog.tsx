@@ -19,7 +19,10 @@ interface Signature {
 }
 
 interface Props {
-  routeId: string;
+  /** Assinatura de uma rota */
+  routeId?: string;
+  /** Assinatura de uma venda de expedição (balcão) */
+  expeditionOrderId?: string;
   clientName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,6 +33,7 @@ interface Props {
 
 export const RouteSignatureDialog = ({
   routeId,
+  expeditionOrderId,
   clientName,
   open,
   onOpenChange,
@@ -47,13 +51,16 @@ export const RouteSignatureDialog = ({
   const [saving, setSaving] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
+  const targetColumn = routeId ? "route_id" : "expedition_order_id";
+  const targetId = routeId || expeditionOrderId || "";
+
   const { data: signatures = [], refetch } = useQuery({
-    queryKey: ["route-signatures", routeId],
+    queryKey: ["route-signatures", targetColumn, targetId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("route_signatures")
         .select("*")
-        .eq("route_id", routeId)
+        .eq(targetColumn, targetId)
         .order("signed_at", { ascending: false });
       if (error) throw error;
       return data as Signature[];
@@ -173,14 +180,15 @@ export const RouteSignatureDialog = ({
         flat.toBlob((b) => (b ? resolve(b) : reject(new Error("Falha ao gerar imagem"))), "image/png")
       );
 
-      const path = `${routeId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+      const path = `${targetId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
       const { error: upErr } = await supabase.storage
         .from("route-signatures")
         .upload(path, blob, { contentType: "image/png" });
       if (upErr) throw upErr;
 
       const { error: insErr } = await supabase.from("route_signatures").insert({
-        route_id: routeId,
+        route_id: routeId ?? null,
+        expedition_order_id: expeditionOrderId ?? null,
         file_path: path,
         signer_name: signerName.trim(),
         signer_document: signerDocument.trim() || null,
@@ -194,6 +202,7 @@ export const RouteSignatureDialog = ({
       setSignerDocument("");
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["route-signature-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["expedition-signature-counts"] });
       onSaved?.();
     } catch (e: any) {
       console.error(e);
