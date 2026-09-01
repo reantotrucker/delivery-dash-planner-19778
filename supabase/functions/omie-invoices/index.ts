@@ -581,10 +581,13 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
     return isSaida;
   });
 
-  if (validInvoices[0]) {
-    console.log('NFe ide:', JSON.stringify(validInvoices[0].ide));
-    console.log('NFe compl:', JSON.stringify(validInvoices[0].compl));
-  }
+  console.log(
+    'NFe situações:',
+    validInvoices
+      .map((nf: any) => `${nf.ide?.nNF}:dCan=${nf.ide?.dCan || '-'}/deneg=${nf.ide?.cDeneg || '-'}`)
+      .join(' | ')
+  );
+
 
 
   const orderIdSet = new Set<number>();
