@@ -40,6 +40,7 @@ import {
   Store,
   Truck,
   PackageCheck,
+  PenLine,
   MapPin,
   User,
   Clock,
