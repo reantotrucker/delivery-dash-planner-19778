@@ -32,17 +32,39 @@ const formatBRL = (v?: number | null) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v) || 0);
 
 let audioEl: HTMLAudioElement | null = null;
-const beep = () => {
+const getAudio = () => {
+  if (!audioEl) {
+    audioEl = new Audio(moneySfx.url);
+    audioEl.preload = "auto";
+    audioEl.volume = 1;
+  }
+  return audioEl;
+};
+
+// O navegador bloqueia áudio até o primeiro clique/toque na página
+const unlockAudio = async () => {
+  const el = getAudio();
   try {
-    if (!audioEl) {
-      audioEl = new Audio(moneySfx.url);
-      audioEl.volume = 1;
-    }
-    audioEl.currentTime = 0;
-    void audioEl.play();
+    el.muted = true;
+    await el.play();
+    el.pause();
+    el.currentTime = 0;
+    el.muted = false;
+    return true;
+  } catch {
+    el.muted = false;
+    return false;
+  }
+};
+
+const beep = () => {
+  const el = getAudio();
+  try {
+    el.currentTime = 0;
   } catch {
     /* ignore */
   }
+  return el.play();
 };
 
 
