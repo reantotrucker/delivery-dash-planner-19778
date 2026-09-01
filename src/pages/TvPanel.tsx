@@ -57,14 +57,44 @@ const unlockAudio = async () => {
   }
 };
 
-const beep = () => {
-  const el = getAudio();
+// Fallback: som sintetizado (caso o mp3 não carregue no ambiente)
+let ctx: AudioContext | null = null;
+const synthBeep = () => {
   try {
-    el.currentTime = 0;
+    const AC = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return;
+    ctx = ctx || new AC();
+    void ctx.resume();
+    const now = ctx.currentTime;
+    [1046, 1568, 2093].forEach((f, i) => {
+      const osc = ctx!.createOscillator();
+      const gain = ctx!.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = f;
+      const t = now + i * 0.12;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      osc.connect(gain).connect(ctx!.destination);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    });
   } catch {
     /* ignore */
   }
-  return el.play();
+};
+
+const beep = async () => {
+  const el = getAudio();
+  try {
+    el.currentTime = 0;
+    await el.play();
+    // se o arquivo não carregou, usa o som sintetizado
+    if (!el.duration || Number.isNaN(el.duration)) synthBeep();
+  } catch (e) {
+    synthBeep();
+    throw e;
+  }
 };
 
 
