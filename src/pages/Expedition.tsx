@@ -328,7 +328,6 @@ export default function Expedition() {
         if (data?.error) throw new Error(data.error);
 
         for (const inv of data.invoices || []) {
-          if (inv.canceled) continue;
           const docNumber = String(inv.number);
           const { data: existing } = await supabase
             .from("expedition_orders")
@@ -337,7 +336,18 @@ export default function Expedition() {
             .eq("doc_type", type.toUpperCase())
             .eq("doc_number", docNumber)
             .maybeSingle();
+
+          // Nota/cupom cancelado na Omie: remove da expedição e do painel de TV
+          if (inv.canceled) {
+            if (existing) {
+              await supabase.from("expedition_order_items").delete().eq("expedition_order_id", existing.id);
+              await supabase.from("route_signatures").delete().eq("expedition_order_id", existing.id);
+              await supabase.from("expedition_orders").delete().eq("id", existing.id);
+            }
+            continue;
+          }
           if (existing) continue;
+
 
           const { data: inserted, error: insErr } = await supabase
             .from("expedition_orders")
