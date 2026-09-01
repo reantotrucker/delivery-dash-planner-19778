@@ -565,6 +565,50 @@ export type Database = {
         }
         Relationships: []
       }
+      route_signatures: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_path: string
+          id: string
+          route_id: string
+          signed_at: string
+          signer_document: string | null
+          signer_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_path: string
+          id?: string
+          route_id: string
+          signed_at?: string
+          signer_document?: string | null
+          signer_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_path?: string
+          id?: string
+          route_id?: string
+          signed_at?: string
+          signer_document?: string | null
+          signer_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "route_signatures_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       routes: {
         Row: {
           address: string | null
