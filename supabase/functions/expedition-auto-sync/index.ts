@@ -114,6 +114,7 @@ async function syncCompany(companyId: string) {
       }
     }
   }
+  if (errors.length) return `${created} criados (falhas: ${errors.join(" | ")})`;
   return created;
 }
 
