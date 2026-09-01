@@ -662,28 +662,24 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
   };
 }
 
-// Situação da NF-e na Omie chega em campos diferentes conforme o cadastro.
-// Considera cancelada/denegada/inutilizada para sair da expedição.
+// A Omie marca a situação da NF-e em ide: dCan (data de cancelamento),
+// dInut (inutilizada) e cDeneg (denegada). Qualquer um deles = sai da expedição.
 function isNfeCanceled(nf: any): boolean {
-  const candidates = [
-    nf?.ide?.cSitNFe,
-    nf?.ide?.cSituacao,
-    nf?.compl?.cSituacao,
-    nf?.compl?.cStatus,
-    nf?.compl?.cSitNFe,
-    nf?.compl?.nfeCancelada,
-    nf?.compl?.cCancelada,
-    nf?.nfeCancelada,
-  ]
+  const ide = nf?.ide || {};
+  const filled = (v: unknown) => !!String(v ?? '').trim();
+  if (filled(ide.dCan) || filled(ide.dInut)) return true;
+  if (String(ide.cDeneg ?? '').trim().toUpperCase() === 'S') return true;
+
+  const extras = [ide.cSitNFe, ide.cSituacao, nf?.compl?.cSituacao, nf?.compl?.cStatus]
     .filter((v) => v !== undefined && v !== null)
     .map((v) => String(v).trim().toUpperCase());
-
-  for (const v of candidates) {
+  for (const v of extras) {
     if (v.includes('CANCEL') || v.includes('DENEG') || v.includes('INUTIL')) return true;
-    if (v === 'C' || v === 'D' || v === 'I' || v === 'X' || v === 'S') return true;
+    if (v === 'C' || v === 'D' || v === 'I') return true;
   }
   return false;
 }
+
 
 // Preenche a família de cada produto das notas
 async function attachFamilies(invoices: any[], appKey: string, appSecret: string) {
