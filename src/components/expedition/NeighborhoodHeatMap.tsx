@@ -126,16 +126,61 @@ interface Item {
   valor: number;
 }
 
-export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
+interface Row {
+  seller?: string | null;
+  neighborhood?: string | null;
+  total_value?: number | null;
+}
+
+export default function NeighborhoodHeatMap({
+  data,
+  rows = [],
+}: {
+  data: Item[];
+  rows?: Row[];
+}) {
   const [metric, setMetric] = useState<"total" | "valor">("total");
   const [expanded, setExpanded] = useState(false);
   const [labels, setLabels] = useState(true);
+  const [seller, setSeller] = useState<string>("__all__");
 
+  const sellers = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => {
+      const s = (r.seller || "").trim();
+      if (!s) return;
+      m.set(s, (m.get(s) || 0) + 1);
+    });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
+  }, [rows]);
+
+  const activeData = useMemo(() => {
+    if (seller === "__all__" || !rows.length) return data;
+    const m = new Map<string, Item>();
+    rows
+      .filter((r) => (r.seller || "").trim() === seller)
+      .forEach((r) => {
+        const name = (r.neighborhood || "—").trim() || "—";
+        const e = m.get(name) || { name, total: 0, valor: 0 };
+        e.total += 1;
+        e.valor += Number(r.total_value || 0);
+        m.set(name, e);
+      });
+    return [...m.values()].sort((a, b) => b.total - a.total);
+  }, [seller, rows, data]);
+
+  const sellerTotals = useMemo(() => {
+    const t = activeData.reduce(
+      (acc, d) => ({ total: acc.total + d.total, valor: acc.valor + d.valor }),
+      { total: 0, valor: 0 }
+    );
+    return t;
+  }, [activeData]);
 
   const { points, unmapped, max } = useMemo(() => {
     const points: (Item & { lat: number; lng: number })[] = [];
     const unmapped: Item[] = [];
-    data.forEach((d) => {
+    activeData.forEach((d) => {
       if (!d.name || d.name === "—") return;
       const c = findCoord(d.name);
       if (c) points.push({ ...d, lat: c[0], lng: c[1] });
