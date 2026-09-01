@@ -53,7 +53,16 @@ const unlockAudio = async () => {
     return true;
   } catch {
     el.muted = false;
-    return false;
+    // tenta liberar o som sintetizado (WebAudio)
+    try {
+      const AC = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AC) return false;
+      ctx = ctx || new AC();
+      await ctx.resume();
+      return ctx.state === "running";
+    } catch {
+      return false;
+    }
   }
 };
 
