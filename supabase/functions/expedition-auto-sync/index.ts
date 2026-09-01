@@ -12,7 +12,11 @@ const sb = createClient(SUPABASE_URL, SERVICE_ROLE);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function fetchInvoices(type: "nfe" | "nfce", companyId: string) {
+async function fetchPage(
+  type: "nfe" | "nfce",
+  companyId: string,
+  opts: { fetchLastPage?: boolean; page?: number },
+) {
   let lastErr = "";
   // Omie recusa chamadas muito próximas ("Consumo redundante"): tenta de novo com pausa
   for (let attempt = 0; attempt < 6; attempt++) {
@@ -25,14 +29,38 @@ async function fetchInvoices(type: "nfe" | "nfce", companyId: string) {
         apikey: SERVICE_ROLE,
       },
       // forceRefresh: ignora o cache de 10 min, senão o job encontra vendas atrasadas
-      body: JSON.stringify({ type, fetchLastPage: true, forceRefresh: true, companyId }),
+      body: JSON.stringify({
+        type,
+        fetchLastPage: opts.fetchLastPage ?? false,
+        page: opts.page ?? 1,
+        forceRefresh: true,
+        companyId,
+      }),
     });
     const data = await res.json().catch(() => ({}));
-    if (res.ok && !data?.error) return data.invoices || [];
+    if (res.ok && !data?.error) return data;
     lastErr = data?.error || `omie-invoices ${res.status}`;
     if (!/redundante|REDUNDANT|temporariamente|SOAP-ERROR|504|timeout/i.test(lastErr)) break;
   }
   throw new Error(lastErr);
+}
+
+// Busca a última página e também a anterior: cancelamentos de notas um pouco
+// mais antigas (que já saíram da última página) precisam ser detectados.
+async function fetchInvoices(type: "nfe" | "nfce", companyId: string) {
+  const last = await fetchPage(type, companyId, { fetchLastPage: true });
+  const invoices: any[] = last.invoices || [];
+  const currentPage = Number(last.page) || 1;
+  if (currentPage > 1) {
+    try {
+      await sleep(5000);
+      const prev = await fetchPage(type, companyId, { page: currentPage - 1 });
+      invoices.push(...(prev.invoices || []));
+    } catch (e) {
+      console.error(`falha página anterior ${type}`, (e as Error).message);
+    }
+  }
+  return invoices;
 }
 
 // Converte dd/MM/yyyy + HH:mm(:ss) da Omie (horário de Manaus, UTC-4) em ISO
