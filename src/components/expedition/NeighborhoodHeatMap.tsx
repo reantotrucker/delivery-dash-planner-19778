@@ -188,7 +188,7 @@ export default function NeighborhoodHeatMap({
     });
     const max = Math.max(1, ...points.map((p) => (metric === "total" ? p.total : p.valor)));
     return { points, unmapped, max };
-  }, [data, metric]);
+  }, [activeData, metric]);
 
   return (
     <div
