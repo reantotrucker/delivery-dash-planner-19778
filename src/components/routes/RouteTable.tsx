@@ -331,6 +331,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
           const { maps: mapsLink, waze: wazeLink } = buildLocationLinks(route);
           const hasExactLocation = !!route.location_link?.trim();
           const receiptCount = receiptCounts[route.id] || 0;
+          const signatureCount = signatureCounts[route.id] || 0;
 
           return (
             <Card
