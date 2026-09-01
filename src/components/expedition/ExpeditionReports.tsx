@@ -39,6 +39,7 @@ import {
   Users,
   Timer,
 } from "lucide-react";
+import NeighborhoodHeatMap from "./NeighborhoodHeatMap";
 
 type Range = "dia" | "semana" | "mes" | "custom";
 
@@ -209,6 +210,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
       byHour,
       sellers: group("seller").slice(0, 8),
       neighborhoods: group("neighborhood").slice(0, 8),
+      neighborhoodsAll: group("neighborhood"),
       clients: group("client").slice(0, 8),
       extras: group("extra_info"),
       docs: group("doc_type"),
@@ -447,6 +449,8 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
                   </ResponsiveContainer>
                 </div>
               </div>
+
+              <NeighborhoodHeatMap data={stats.neighborhoodsAll} />
 
               {/* Rankings */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
