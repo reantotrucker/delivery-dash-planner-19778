@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { manausShort } from "@/lib/manausTime";
@@ -259,6 +259,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
   };
 
   const [pdfLoading, setPdfLoading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const exportPdf = async () => {
     const node = reportRef.current;
@@ -417,8 +418,8 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
               <Download className="w-4 h-4 mr-2" />
               Exportar CSV
             </Button>
-            <Button variant="outline" size="sm" onClick={exportPdf} disabled={!orders.length}>
-              <Download className="w-4 h-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={exportPdf} disabled={!orders.length || pdfLoading}>
+              {pdfLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
               Exportar PDF
             </Button>
           </div>
@@ -434,7 +435,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 p-1" ref={reportRef}>
               {/* KPIs */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {kpis.map((k) => (
