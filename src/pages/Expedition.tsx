@@ -644,12 +644,14 @@ export default function Expedition() {
               Automático (60s)
             </Label>
           </div>
+          <ExpeditionReports companyId={companyId} companyName={company?.name} />
           <Button variant="outline" asChild>
             <a href={`/tv?company=${companyId}`} target="_blank" rel="noopener noreferrer">
               <Tv className="w-4 h-4 mr-2" />
               Abrir painel de TV
             </a>
           </Button>
+
           <Button onClick={() => syncFromOmie(false)} disabled={syncing || !canOperate}>
             {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Buscar vendas
