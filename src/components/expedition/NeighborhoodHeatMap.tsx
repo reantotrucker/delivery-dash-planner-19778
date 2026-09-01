@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, Tooltip as LTooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { MapPinned } from "lucide-react";
+import { MapPinned, Maximize2, Minimize2 } from "lucide-react";
 
 // Coordenadas aproximadas dos bairros de Manaus (AM)
 const BAIRROS: Record<string, [number, number]> = {
