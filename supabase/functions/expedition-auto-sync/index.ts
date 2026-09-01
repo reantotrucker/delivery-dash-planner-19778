@@ -48,8 +48,17 @@ function toIsoIssuedAt(date?: string | null, time?: string | null) {
 async function syncCompany(companyId: string) {
 
   let created = 0;
-  for (const type of ["nfe", "nfce"] as const) {
-    const invoices = await fetchInvoices(type, companyId);
+  const errors: string[] = [];
+  // NFC-e (cupom balcão) primeiro: é a venda mais urgente para a separação
+  for (const type of ["nfce", "nfe"] as const) {
+    let invoices: any[] = [];
+    try {
+      invoices = await fetchInvoices(type, companyId);
+    } catch (e) {
+      console.error(`falha ${type}`, (e as Error).message);
+      errors.push(`${type}: ${(e as Error).message}`);
+      continue;
+    }
     for (const inv of invoices) {
       if (inv.canceled) continue;
       const docNumber = String(inv.number);
