@@ -45,12 +45,12 @@ function toIsoIssuedAt(date?: string | null, time?: string | null) {
   return `${y}-${pad(m)}-${pad(d)}T${pad(hh)}:${pad(mi)}:${pad(ss)}-04:00`;
 }
 
-async function syncCompany(companyId: string) {
+async function syncCompany(companyId: string, types: readonly ("nfe" | "nfce")[]) {
 
   let created = 0;
   const errors: string[] = [];
   // NFC-e (cupom balcão) primeiro: é a venda mais urgente para a separação
-  for (const type of ["nfce", "nfe"] as const) {
+  for (const type of types) {
     let invoices: any[] = [];
     try {
       invoices = await fetchInvoices(type, companyId);
