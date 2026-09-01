@@ -185,10 +185,43 @@ export default function TvPanel() {
 
 
   useEffect(() => {
-    if (lastCount !== null && pending.length > lastCount && sound) beep();
+    if (lastCount !== null && pending.length > lastCount && sound) {
+      beep()?.catch(() => setAudioBlocked(true));
+    }
     setLastCount(pending.length);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending.length]);
+
+  // Libera o áudio no primeiro clique/toque/tecla da página
+  useEffect(() => {
+    let done = false;
+    const handler = async () => {
+      if (done) return;
+      const ok = await unlockAudio();
+      if (ok) {
+        done = true;
+        setAudioBlocked(false);
+        window.removeEventListener("pointerdown", handler);
+        window.removeEventListener("keydown", handler);
+      }
+    };
+    void unlockAudio().then((ok) => {
+      if (ok) done = true;
+      else setAudioBlocked(true);
+    });
+    window.addEventListener("pointerdown", handler);
+    window.addEventListener("keydown", handler);
+    return () => {
+      window.removeEventListener("pointerdown", handler);
+      window.removeEventListener("keydown", handler);
+    };
+  }, []);
+
+  const enableSound = async () => {
+    const ok = await unlockAudio();
+    setAudioBlocked(!ok);
+    if (ok) beep()?.catch(() => setAudioBlocked(true));
+  };
 
   if (!hasExpedition) {
     return (
