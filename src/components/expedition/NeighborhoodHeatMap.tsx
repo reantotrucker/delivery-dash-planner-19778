@@ -104,12 +104,18 @@ const formatBRL = (v: number) =>
 function FitPoints({ points, resizeKey }: { points: [number, number][]; resizeKey?: unknown }) {
   const map = useMap();
   useEffect(() => {
-    setTimeout(() => {
-      map.invalidateSize();
-      if (points.length) {
-        map.fitBounds(points as L.LatLngBoundsExpression, { padding: [60, 60], maxZoom: 12 });
+    const t = setTimeout(() => {
+      try {
+        if (!map || !(map as any)._container || !(map as any)._loaded) return;
+        map.invalidateSize();
+        if (points.length) {
+          map.fitBounds(points as L.LatLngBoundsExpression, { padding: [60, 60], maxZoom: 12 });
+        }
+      } catch {
+        /* mapa desmontado */
       }
     }, 250);
+    return () => clearTimeout(t);
   }, [points, map, resizeKey]);
   return null;
 }
