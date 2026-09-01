@@ -122,6 +122,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // NF-e é caro (paginação enorme) e sufoca a chave da Omie -> só a cada 5 min.
+    // NFC-e (cupom) roda em todo ciclo para o balcão não atrasar.
+    const body = await req.json().catch(() => ({} as any));
+    const minute = new Date().getUTCMinutes();
+    const types: readonly ("nfe" | "nfce")[] =
+      body?.types ?? (minute % 5 === 0 ? (["nfce", "nfe"] as const) : (["nfce"] as const));
+
     const { data: companies, error } = await sb
       .from("companies")
       .select("id, name, has_expedition")
