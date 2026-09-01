@@ -223,8 +223,8 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
                 <LTooltip
                   direction="top"
                   permanent={labels}
-                  opacity={labels ? 0.95 : 1}
-                  className="!bg-background/90 !text-foreground !border-border"
+                  opacity={1}
+                  className="heat-label"
                 >
                   <div className="text-[10px] leading-tight">
                     <strong>{p.name}</strong>
