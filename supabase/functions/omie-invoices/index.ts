@@ -728,6 +728,10 @@ async function buildNfceResult(page: number, appKey: string, appSecret: string) 
       orderId: cupom.cabecalhoCupom?.nIdPedido || 0,
       orderNumber: '' as string,
       orderObservation: '',
+      canceled:
+        cupom.cabecalhoCupom?.info?.cCupomCancelado === 'S' ||
+        cupom.cabecalhoCupom?.info?.cCupomDevolvido === 'S',
+
 
       vendedorId: cupom.cabecalhoCupom?.idVendedor || 0,
       vendedorName: null as string | null,
