@@ -221,8 +221,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
   };
 
 
-  const toggleStatus = async (routeId: string, currentStatus: string) => {
-    const newStatus = currentStatus === "ENTREGUE" ? "NAO_ENTREGUE" : "ENTREGUE";
+  const setStatus = async (routeId: string, newStatus: "ENTREGUE" | "NAO_ENTREGUE") => {
     const { error } = await supabase
       .from("routes")
       .update({ status: newStatus })
@@ -234,6 +233,18 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
       onUpdate();
     }
   };
+
+  const toggleStatus = async (route: Route) => {
+    const isDelivering = route.status !== "ENTREGUE";
+    // Ao entregar, pedir a assinatura do cliente na tela antes de concluir
+    if (isDelivering && canUploadReceipts && !(signatureCounts[route.id] > 0)) {
+      setPendingDeliverId(route.id);
+      setSignatureRoute(route);
+      return;
+    }
+    await setStatus(route.id, isDelivering ? "ENTREGUE" : "NAO_ENTREGUE");
+  };
+
 
   const deleteRoute = async (routeId: string) => {
     try {
