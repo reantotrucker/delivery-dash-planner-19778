@@ -76,6 +76,7 @@ export default function TvPanel() {
   const urlCompanyId = searchParams.get("company") || "";
   const queryClient = useQueryClient();
   const [sound, setSound] = useState(true);
+  const [audioBlocked, setAudioBlocked] = useState(false);
   const [lastCount, setLastCount] = useState<number | null>(null);
 
   // A empresa pode vir pela URL (painel aberto em nova aba)
