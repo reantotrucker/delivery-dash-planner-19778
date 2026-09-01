@@ -171,3 +171,20 @@ All colors MUST be HSL.
 .theme-uniprint {
   --primary: 0 84% 48%;
 }
+
+/* Rótulos do mapa de calor: fundo transparente */
+.leaflet-tooltip.heat-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: hsl(var(--foreground)) !important;
+  font-weight: 600;
+  text-shadow:
+    0 0 3px hsl(var(--background)),
+    0 0 3px hsl(var(--background)),
+    0 0 5px hsl(var(--background));
+}
+.leaflet-tooltip.heat-label::before {
+  display: none !important;
+}

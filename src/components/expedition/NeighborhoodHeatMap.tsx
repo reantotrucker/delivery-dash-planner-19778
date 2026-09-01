@@ -104,12 +104,18 @@ const formatBRL = (v: number) =>
 function FitPoints({ points, resizeKey }: { points: [number, number][]; resizeKey?: unknown }) {
   const map = useMap();
   useEffect(() => {
-    setTimeout(() => {
-      map.invalidateSize();
-      if (points.length) {
-        map.fitBounds(points as L.LatLngBoundsExpression, { padding: [60, 60], maxZoom: 12 });
+    const t = setTimeout(() => {
+      try {
+        if (!map || !(map as any)._container || !(map as any)._loaded) return;
+        map.invalidateSize();
+        if (points.length) {
+          map.fitBounds(points as L.LatLngBoundsExpression, { padding: [60, 60], maxZoom: 12 });
+        }
+      } catch {
+        /* mapa desmontado */
       }
     }, 250);
+    return () => clearTimeout(t);
   }, [points, map, resizeKey]);
   return null;
 }
@@ -217,8 +223,8 @@ export default function NeighborhoodHeatMap({ data }: { data: Item[] }) {
                 <LTooltip
                   direction="top"
                   permanent={labels}
-                  opacity={labels ? 0.95 : 1}
-                  className="!bg-background/90 !text-foreground !border-border"
+                  opacity={1}
+                  className="heat-label"
                 >
                   <div className="text-[10px] leading-tight">
                     <strong>{p.name}</strong>
