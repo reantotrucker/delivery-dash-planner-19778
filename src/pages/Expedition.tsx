@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { RouteSignatureDialog } from "@/components/routes/RouteSignatureDialog";
 
 import { format } from "date-fns";
 import {
@@ -39,6 +40,7 @@ import {
   Store,
   Truck,
   PackageCheck,
+  PenLine,
   MapPin,
   User,
   Clock,
@@ -132,6 +134,8 @@ export default function Expedition() {
   const [obsText, setObsText] = useState("");
   const [obsSaving, setObsSaving] = useState(false);
   const [infoOrder, setInfoOrder] = useState<ExpeditionOrder | null>(null);
+  const [signatureOrder, setSignatureOrder] = useState<ExpeditionOrder | null>(null);
+  const [pendingDeliver, setPendingDeliver] = useState<ExpeditionOrder | null>(null);
   const canTagInfo = canOperate || role === "comercial";
 
   const { data: extraInfos = [] } = useQuery({
@@ -274,6 +278,24 @@ export default function Expedition() {
         const c = (acc[r.expedition_order_id] ||= { total: 0, done: 0 });
         c.total++;
         if (r.checked2) c.done++;
+      });
+      return acc;
+    },
+  });
+
+  // Assinaturas coletadas nas vendas balcão
+  const { data: signatureCounts = {} } = useQuery({
+    queryKey: ["expedition-signature-counts", companyId, orders.map((o) => o.id).join(",")],
+    enabled: orders.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("route_signatures")
+        .select("expedition_order_id")
+        .in("expedition_order_id", orders.map((o) => o.id));
+      if (error) throw error;
+      const acc: Record<string, number> = {};
+      (data || []).forEach((r: any) => {
+        if (r.expedition_order_id) acc[r.expedition_order_id] = (acc[r.expedition_order_id] || 0) + 1;
       });
       return acc;
     },
@@ -824,6 +846,21 @@ export default function Expedition() {
                   {o.status === "AGUARDANDO" ? "Conferir" : "Ver itens"}
                 </Button>
 
+                {o.status === "BALCAO" && (signatureCounts[o.id] || 0) > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-success text-success hover:bg-success/10"
+                    onClick={() => {
+                      setPendingDeliver(null);
+                      setSignatureOrder(o);
+                    }}
+                  >
+                    <PenLine className="w-4 h-4 mr-2" />
+                    Assinatura do cliente ({signatureCounts[o.id]})
+                  </Button>
+                )}
+
                 {o.status === "BALCAO" && !o.delivered_at && canOperate && (() => {
                   const c = check2Counts[o.id];
                   const ready = !!c && c.total > 0 && c.done === c.total;
@@ -1080,7 +1117,7 @@ export default function Expedition() {
             <AlertDialogTitle>Já foi entregue ao cliente?</AlertDialogTitle>
             <AlertDialogDescription>
               {confirmDeliver?.client} — {confirmDeliver?.doc_type} {confirmDeliver?.doc_number}. Ao
-              confirmar, o pedido sai do painel de TV.
+              confirmar, o cliente assina na tela e o pedido sai do painel de TV.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1089,7 +1126,15 @@ export default function Expedition() {
               disabled={deliverLoading}
               onClick={(e) => {
                 e.preventDefault();
-                if (confirmDeliver) markDelivered(confirmDeliver);
+                if (!confirmDeliver) return;
+                const order = confirmDeliver;
+                setConfirmDeliver(null);
+                if ((signatureCounts[order.id] || 0) > 0) {
+                  markDelivered(order);
+                } else {
+                  setPendingDeliver(order);
+                  setSignatureOrder(order);
+                }
               }}
             >
               Sim, entregue
@@ -1097,6 +1142,27 @@ export default function Expedition() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {signatureOrder && (
+        <RouteSignatureDialog
+          expeditionOrderId={signatureOrder.id}
+          clientName={`${signatureOrder.client} — ${signatureOrder.doc_type} ${signatureOrder.doc_number || ""}`}
+          open={!!signatureOrder}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSignatureOrder(null);
+              setPendingDeliver(null);
+            }
+          }}
+          canSign={canOperate && !signatureOrder.delivered_at}
+          onSaved={() => {
+            const order = pendingDeliver;
+            setSignatureOrder(null);
+            setPendingDeliver(null);
+            if (order) markDelivered(order);
+          }}
+        />
+      )}
     </div>
 
   );

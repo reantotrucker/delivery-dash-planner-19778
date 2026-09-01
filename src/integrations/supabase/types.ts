@@ -569,9 +569,10 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          expedition_order_id: string | null
           file_path: string
           id: string
-          route_id: string
+          route_id: string | null
           signed_at: string
           signer_document: string | null
           signer_name: string
@@ -580,9 +581,10 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          expedition_order_id?: string | null
           file_path: string
           id?: string
-          route_id: string
+          route_id?: string | null
           signed_at?: string
           signer_document?: string | null
           signer_name: string
@@ -591,15 +593,23 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          expedition_order_id?: string | null
           file_path?: string
           id?: string
-          route_id?: string
+          route_id?: string | null
           signed_at?: string
           signer_document?: string | null
           signer_name?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "route_signatures_expedition_order_id_fkey"
+            columns: ["expedition_order_id"]
+            isOneToOne: false
+            referencedRelation: "expedition_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "route_signatures_route_id_fkey"
             columns: ["route_id"]
