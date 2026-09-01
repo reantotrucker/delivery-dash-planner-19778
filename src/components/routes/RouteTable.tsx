@@ -60,6 +60,8 @@ interface RouteTableProps {
 
 export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isComercial = false, canManageOccurrences = false }: RouteTableProps) => {
   const [receiptRoute, setReceiptRoute] = useState<Route | null>(null);
+  const [signatureRoute, setSignatureRoute] = useState<Route | null>(null);
+  const [pendingDeliverId, setPendingDeliverId] = useState<string | null>(null);
   const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
   const [savingLocationId, setSavingLocationId] = useState<string | null>(null);
   const canEditLocation = isAdmin;
