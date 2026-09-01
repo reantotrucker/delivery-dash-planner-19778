@@ -252,8 +252,24 @@ export default function TvPanel() {
           <Badge variant="outline" className="text-xl px-4 py-1 border-success text-success">
             {counter.length} balcão
           </Badge>
-          <Button variant="outline" size="icon" onClick={() => setSound((s) => !s)} aria-label="Som">
-            {sound ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          {audioBlocked && (
+            <Button variant="destructive" onClick={enableSound} className="font-bold">
+              Ativar som
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              setSound((s) => {
+                const next = !s;
+                if (next) void enableSound();
+                return next;
+              });
+            }}
+            aria-label="Som"
+          >
+            {sound && !audioBlocked ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </Button>
           <Button variant="outline" size="icon" asChild aria-label="Voltar">
             <Link to="/">
