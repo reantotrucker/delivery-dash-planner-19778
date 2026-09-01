@@ -455,7 +455,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
           ) : (
             <div className="space-y-4 p-1" ref={reportRef}>
               {/* KPIs */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div data-pdf-atomic="1" className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {kpis.map((k) => (
                   <div key={k.label} className="bg-card border border-border rounded-xl p-3">
                     <div className="flex items-center justify-between mb-1">
