@@ -364,7 +364,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <button
-                        onClick={() => toggleStatus(route.id, route.status)}
+                        onClick={() => toggleStatus(route)}
                         disabled={!isAdmin && !canManageOccurrences}
                         className="focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                       >
