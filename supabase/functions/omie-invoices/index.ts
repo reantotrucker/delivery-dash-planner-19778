@@ -581,6 +581,12 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
     return isSaida;
   });
 
+  if (validInvoices[0]) {
+    console.log('NFe ide:', JSON.stringify(validInvoices[0].ide));
+    console.log('NFe compl:', JSON.stringify(validInvoices[0].compl));
+  }
+
+
   const orderIdSet = new Set<number>();
   const clientIdSet = new Set<number>();
   validInvoices.forEach((nf: any) => {
@@ -609,6 +615,7 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
   });
 
   const invoices = validInvoices.map((nf: any) => {
+
     const orderId = nf.compl?.nIdPedido || 0;
     const orderObs = orderObservations.get(orderId) || '';
     const vendedorName = orderVendedorNames.get(orderId) || null;
@@ -625,7 +632,8 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
       address: clientId ? clientAddresses.get(clientId) || null : null,
       totalValue: nf.total?.ICMSTot?.vNF || 0,
       status: nf.ide?.cSitNFe,
-      canceled: nf.ide?.cSitNFe === 'C' || nf.ide?.cSitNFe === 'CANCELADA',
+      canceled: isNfeCanceled(nf),
+
       paymentMethod: nf.pag?.[0]?.tPag,
       accessKey: nf.compl?.cChaveNFe,
       orderId,
@@ -652,6 +660,29 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
     totalRecords: data.total_de_registros || 0,
     invoices,
   };
+}
+
+// Situação da NF-e na Omie chega em campos diferentes conforme o cadastro.
+// Considera cancelada/denegada/inutilizada para sair da expedição.
+function isNfeCanceled(nf: any): boolean {
+  const candidates = [
+    nf?.ide?.cSitNFe,
+    nf?.ide?.cSituacao,
+    nf?.compl?.cSituacao,
+    nf?.compl?.cStatus,
+    nf?.compl?.cSitNFe,
+    nf?.compl?.nfeCancelada,
+    nf?.compl?.cCancelada,
+    nf?.nfeCancelada,
+  ]
+    .filter((v) => v !== undefined && v !== null)
+    .map((v) => String(v).trim().toUpperCase());
+
+  for (const v of candidates) {
+    if (v.includes('CANCEL') || v.includes('DENEG') || v.includes('INUTIL')) return true;
+    if (v === 'C' || v === 'D' || v === 'I' || v === 'X' || v === 'S') return true;
+  }
+  return false;
 }
 
 // Preenche a família de cada produto das notas
