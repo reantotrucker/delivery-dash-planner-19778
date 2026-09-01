@@ -192,6 +192,7 @@ export default function NeighborhoodHeatMap({
 
   return (
     <div
+      data-pdf-visual="map"
       className={
         expanded
           ? "fixed inset-0 z-[9999] bg-background p-4 overflow-auto"

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import autoTable from "jspdf-autotable";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { manausShort } from "@/lib/manausTime";
@@ -271,79 +272,99 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
         import("html2canvas"),
       ]);
 
-      const bg = getComputedStyle(document.body).backgroundColor || "#ffffff";
-
-      // Blocos: cada card/gráfico é capturado separadamente para nunca ser cortado
-      const blocks: HTMLElement[] = [];
-      Array.from(node.children).forEach((child) => {
-        const el = child as HTMLElement;
-        const isGrid = getComputedStyle(el).display === "grid";
-        if (isGrid && el.children.length > 1 && !el.dataset.pdfAtomic) {
-          Array.from(el.children).forEach((c) => blocks.push(c as HTMLElement));
-        } else {
-          blocks.push(el);
-        }
-      });
-
       const periodo =
         from === to
           ? from.split("-").reverse().join("/")
           : `${from.split("-").reverse().join("/")} — ${to.split("-").reverse().join("/")}`;
 
-      const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
       const pw = doc.internal.pageSize.getWidth();
       const ph = doc.internal.pageSize.getHeight();
-      const margin = 28;
+      const margin = 34;
       const usableW = pw - margin * 2;
-      const gap = 12;
 
       const drawHeader = () => {
-        doc.setFontSize(15);
-        doc.text(`Relatório de Expedição${companyName ? ` · ${companyName}` : ""}`, margin, margin + 12);
-        doc.setFontSize(9);
-        doc.setTextColor(120);
-        doc.text(`Período: ${periodo}`, margin, margin + 28);
-        doc.setTextColor(0);
-        return margin + 46;
+        doc.setFillColor(24, 24, 27);
+        doc.rect(0, 0, pw, 68, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.text("RELATÓRIO DE EXPEDIÇÃO", margin, 30);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text(`${companyName || "Empresa"}  |  Período: ${periodo}  |  Horário de Manaus`, margin, 49);
+        doc.setTextColor(24, 24, 27);
+        return 92;
       };
 
       let cursor = drawHeader();
+      const boxGap = 10;
+      const boxW = (usableW - boxGap * 3) / 4;
+      const boxH = 62;
+      kpis.forEach((k, index) => {
+        const x = margin + (index % 4) * (boxW + boxGap);
+        const y = cursor + Math.floor(index / 4) * (boxH + boxGap);
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(x, y, boxW, boxH, 4, 4, "FD");
+        doc.setTextColor(100, 116, 139);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text(k.label.toUpperCase(), x + 12, y + 19);
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(16);
+        doc.text(String(k.value), x + 12, y + 44);
+      });
+      cursor += boxH * 2 + boxGap + 22;
 
-      for (const block of blocks) {
-        if (!block.offsetHeight) continue;
-        const canvas = await html2canvas(block, {
+      for (const visual of Array.from(node.querySelectorAll<HTMLElement>("[data-pdf-visual]"))) {
+        const canvas = await html2canvas(visual, {
           scale: 2,
           useCORS: true,
-          backgroundColor: bg,
-          windowWidth: block.scrollWidth,
+          backgroundColor: "#ffffff",
+          windowWidth: visual.scrollWidth,
         });
-        const imgW = usableW;
-        let imgH = (canvas.height / canvas.width) * imgW;
-        const maxH = ph - margin * 2;
-
-        // bloco maior que a página inteira: reduz para caber sem cortar
-        let w = imgW;
-        if (imgH > maxH) {
-          const k = maxH / imgH;
-          imgH = maxH;
-          w = imgW * k;
-        }
-
-        if (cursor + imgH > ph - margin) {
+        const targetW = visual.dataset.pdfVisual === "map" ? usableW : Math.min(usableW, 540);
+        const rawH = (canvas.height / canvas.width) * targetW;
+        const scale = Math.min(1, (ph - 118) / rawH);
+        const imageW = targetW * scale;
+        const imageH = rawH * scale;
+        if (cursor + imageH > ph - 28) {
           doc.addPage();
-          cursor = margin;
+          cursor = drawHeader();
         }
-
-        doc.addImage(canvas.toDataURL("image/jpeg", 0.95), "JPEG", margin + (usableW - w) / 2, cursor, w, imgH);
-        cursor += imgH + gap;
+        doc.addImage(canvas.toDataURL("image/png"), "PNG", margin, cursor, imageW, imageH);
+        cursor += imageH + 16;
       }
+
+      const addRanking = (title: string, rows: { name: string; value: string; extra: string }[], headers: string[]) => {
+        doc.addPage();
+        drawHeader();
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text(title, margin, 96);
+        autoTable(doc, {
+          startY: 108,
+          head: [["Nome", ...headers]],
+          body: rows.length ? rows.map((r) => [r.name, r.value, r.extra]) : [["Sem dados", "—", "—"]],
+          margin: { left: margin, right: margin, bottom: 28 },
+          theme: "striped",
+          headStyles: { fillColor: [24, 24, 27], textColor: [255, 255, 255] },
+          styles: { fontSize: 9, cellPadding: 6, overflow: "linebreak" },
+          columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "right", cellWidth: 90 }, 2: { halign: "right", cellWidth: 120 } },
+        });
+      };
+
+      addRanking("Desempenho dos conferentes", stats.conferentes.map((c) => ({ name: c.name, value: `${c.total}`, extra: fmtMin(c.media) })), ["Pedidos", "Tempo médio"]);
+      addRanking("Vendas por bairro", stats.neighborhoodsAll.map((n) => ({ name: n.name, value: `${n.total}`, extra: formatBRL(n.valor) })), ["Pedidos", "Valor"]);
+      addRanking("Principais clientes", stats.clients.map((c) => ({ name: c.name, value: `${c.total}`, extra: formatBRL(c.valor) })), ["Pedidos", "Valor"]);
 
       const pages = doc.getNumberOfPages();
       for (let i = 1; i <= pages; i++) {
         doc.setPage(i);
         doc.setFontSize(8);
         doc.setTextColor(140);
-        doc.text(`Página ${i} de ${pages}`, pw - margin - 60, ph - 12);
+        doc.text(`Página ${i} de ${pages}`, pw - margin - 62, ph - 14);
       }
 
       doc.save(`expedicao-${from}-a-${to}.pdf`);
@@ -455,7 +476,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
           ) : (
             <div className="space-y-4 p-1" ref={reportRef}>
               {/* KPIs */}
-              <div data-pdf-atomic="1" className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {kpis.map((k) => (
                   <div key={k.label} className="bg-card border border-border rounded-xl p-3">
                     <div className="flex items-center justify-between mb-1">
@@ -473,7 +494,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Evolução por dia */}
-                <div className="bg-card border border-border rounded-xl p-4">
+                <div data-pdf-visual="chart" className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-semibold text-sm mb-3">Evolução por dia</h3>
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={stats.byDay}>
@@ -489,7 +510,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
                 </div>
 
                 {/* Distribuição */}
-                <div className="bg-card border border-border rounded-xl p-4">
+                <div data-pdf-visual="chart" className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-semibold text-sm mb-3">Distribuição por destino</h3>
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
@@ -514,7 +535,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
                 </div>
 
                 {/* Faturamento por hora */}
-                <div className="bg-card border border-border rounded-xl p-4">
+                <div data-pdf-visual="chart" className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-semibold text-sm mb-3">Pedidos por hora (Manaus)</h3>
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={stats.byHour}>
@@ -528,7 +549,7 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
                 </div>
 
                 {/* Vendedores */}
-                <div className="bg-card border border-border rounded-xl p-4">
+                <div data-pdf-visual="chart" className="bg-card border border-border rounded-xl p-4">
                   <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
                     <Users className="w-4 h-4 text-primary" /> Top vendedores
                   </h3>
