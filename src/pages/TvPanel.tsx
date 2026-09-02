@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { manausShort, manausTime, manausToday } from "@/lib/manausTime";
+import { manausShort, manausTime, manausToday, manausDateISO } from "@/lib/manausTime";
 import { useCompany } from "@/hooks/useCompany";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
