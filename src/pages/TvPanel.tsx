@@ -145,9 +145,11 @@ export default function TvPanel() {
     enabled: !!companyId && hasExpedition,
     refetchInterval: 15000,
     queryFn: async () => {
+      const cols =
+        "id, doc_type, doc_number, client, neighborhood, total_value, issued_at, status, created_at, checked_at, checked_by, delivered_at";
       const { data, error } = await supabase
         .from("expedition_orders")
-        .select("id, doc_type, doc_number, client, neighborhood, total_value, issued_at, status, created_at, checked_at, checked_by, delivered_at")
+        .select(cols)
         .eq("company_id", companyId)
         .gte("created_at", `${today}T00:00:00`)
         .lte("created_at", `${today}T23:59:59`)
@@ -155,9 +157,23 @@ export default function TvPanel() {
         .limit(60);
 
       if (error) throw error;
-      return (data || []) as TvOrder[];
+
+      // Pendências dos dias anteriores continuam no painel
+      const { data: carry } = await supabase
+        .from("expedition_orders")
+        .select(cols)
+        .eq("company_id", companyId)
+        .eq("status", "AGUARDANDO")
+        .lt("created_at", `${today}T00:00:00`)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      const list = (data || []) as TvOrder[];
+      const ids = new Set(list.map((o) => o.id));
+      return [...list, ...((carry || []) as TvOrder[]).filter((o) => !ids.has(o.id))];
     },
   });
+
 
   // Realtime updates
   useEffect(() => {
