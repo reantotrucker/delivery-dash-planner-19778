@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { manausDateTime, manausShort, manausTimeSec } from "@/lib/manausTime";
+import { manausDateTime, manausShort, manausTimeSec, manausDateISO, manausToday } from "@/lib/manausTime";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
@@ -222,17 +222,37 @@ export default function Expedition() {
         .from("expedition_orders")
         .select("*")
         .eq("company_id", companyId)
-        // ordem de chegada: pedido mais antigo primeiro
-        .order("created_at", { ascending: true })
+        // pedidos novos primeiro
+        .order("created_at", { ascending: false })
         .limit(300);
       if (statusFilter !== "TODOS") q = q.eq("status", statusFilter);
       if (dateFrom) q = q.gte("created_at", `${dateFrom}T00:00:00`);
       if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59`);
       const { data, error } = await q;
       if (error) throw error;
-      return (data || []) as ExpeditionOrder[];
+
+      let list = (data || []) as ExpeditionOrder[];
+
+      // Pendências dos dias anteriores continuam aparecendo no dia atual
+      if (dateFrom && statusFilter !== "BALCAO" && statusFilter !== "ROTA") {
+        const { data: carry } = await supabase
+          .from("expedition_orders")
+          .select("*")
+          .eq("company_id", companyId)
+          .eq("status", "AGUARDANDO")
+          .lt("created_at", `${dateFrom}T00:00:00`)
+          .order("created_at", { ascending: false })
+          .limit(100);
+        const ids = new Set(list.map((o) => o.id));
+        list = [...list, ...((carry || []) as ExpeditionOrder[]).filter((o) => !ids.has(o.id))];
+      }
+
+      return list.sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
     },
   });
+
 
 
   const { data: profiles = [] } = useQuery({
@@ -727,8 +747,20 @@ export default function Expedition() {
         </Card>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((o) => (
-            <Card key={o.id} className={cn("overflow-hidden", statusStyle(o.status))}>
+          {filtered.map((o) => {
+            const isCarry =
+              o.status === "AGUARDANDO" &&
+              !!o.created_at &&
+              manausDateISO(o.created_at) < manausToday();
+            return (
+            <Card
+              key={o.id}
+              className={cn(
+                "overflow-hidden",
+                statusStyle(o.status),
+                isCarry && "border-2 border-warning border-l-4 border-l-warning bg-warning/5"
+              )}
+            >
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -737,6 +769,12 @@ export default function Expedition() {
                       {o.doc_type} {o.doc_number}
                     </p>
                   </div>
+                  <div className="flex flex-col items-end gap-1">
+                  {isCarry && (
+                    <Badge className="whitespace-nowrap bg-warning text-warning-foreground">
+                      Dia anterior
+                    </Badge>
+                  )}
                   <Badge
                     variant={o.status === "AGUARDANDO" ? "outline" : "secondary"}
                     className={cn(
@@ -747,7 +785,9 @@ export default function Expedition() {
                   >
                     {o.status === "AGUARDANDO" ? "Aguardando" : o.status === "BALCAO" ? "Venda balcão" : "Em rota"}
                   </Badge>
+                  </div>
                 </div>
+
 
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   {o.order_number && (
@@ -916,7 +956,7 @@ export default function Expedition() {
 
               </CardContent>
             </Card>
-          ))}
+          );})}
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { manausShort, manausTime, manausToday } from "@/lib/manausTime";
+import { manausShort, manausTime, manausToday, manausDateISO } from "@/lib/manausTime";
 import { useCompany } from "@/hooks/useCompany";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -145,9 +145,11 @@ export default function TvPanel() {
     enabled: !!companyId && hasExpedition,
     refetchInterval: 15000,
     queryFn: async () => {
+      const cols =
+        "id, doc_type, doc_number, client, neighborhood, total_value, issued_at, status, created_at, checked_at, checked_by, delivered_at";
       const { data, error } = await supabase
         .from("expedition_orders")
-        .select("id, doc_type, doc_number, client, neighborhood, total_value, issued_at, status, created_at, checked_at, checked_by, delivered_at")
+        .select(cols)
         .eq("company_id", companyId)
         .gte("created_at", `${today}T00:00:00`)
         .lte("created_at", `${today}T23:59:59`)
@@ -155,9 +157,23 @@ export default function TvPanel() {
         .limit(60);
 
       if (error) throw error;
-      return (data || []) as TvOrder[];
+
+      // Pendências dos dias anteriores continuam no painel
+      const { data: carry } = await supabase
+        .from("expedition_orders")
+        .select(cols)
+        .eq("company_id", companyId)
+        .eq("status", "AGUARDANDO")
+        .lt("created_at", `${today}T00:00:00`)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      const list = (data || []) as TvOrder[];
+      const ids = new Set(list.map((o) => o.id));
+      return [...list, ...((carry || []) as TvOrder[]).filter((o) => !ids.has(o.id))];
     },
   });
+
 
   // Realtime updates
   useEffect(() => {
@@ -175,12 +191,12 @@ export default function TvPanel() {
     };
   }, [companyId, queryClient]);
 
-  // Pendentes: só saem da tela quando o expedidor confirma Balcão ou Rota (ordem de chegada)
+  // Pendentes: só saem da tela quando o expedidor confirma Balcão ou Rota (novos primeiro)
   const pending = useMemo(
     () =>
       orders
         .filter((o) => o.status === "AGUARDANDO")
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [orders]
   );
   // Balcão conferido, aguardando o cliente retirar
@@ -188,7 +204,7 @@ export default function TvPanel() {
     () =>
       orders
         .filter((o) => o.status === "BALCAO" && !o.delivered_at)
-        .sort((a, b) => new Date(a.checked_at || a.created_at).getTime() - new Date(b.checked_at || b.created_at).getTime()),
+        .sort((a, b) => new Date(b.checked_at || b.created_at).getTime() - new Date(a.checked_at || a.created_at).getTime()),
     [orders]
   );
   // Cards que acabaram de ser finalizados: ficam em tela desintegrando
@@ -219,7 +235,7 @@ export default function TvPanel() {
   const display = useMemo(() => {
     const ids = new Set(pending.map((o) => o.id));
     return [...pending, ...leaving.filter((o) => !ids.has(o.id))].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   }, [pending, leaving]);
 
@@ -334,19 +350,27 @@ export default function TvPanel() {
               {display.map((o) => {
                 const isLeaving = !pending.some((p) => p.id === o.id);
                 const inConference = !!o.checked_by;
+                const isCarry = manausDateISO(o.created_at) < today;
                 return (
                   <div
                     key={o.id}
                     className={cn(
                       "rounded-lg border-2 bg-card p-2 transition-colors duration-500",
                       inConference ? "border-success bg-success/10" : "border-primary",
+                      isCarry && !isLeaving && "border-warning bg-warning/10",
                       !inConference && !isLeaving && o.id === pending[0]?.id && "animate-pulse",
                       isLeaving && "tv-disintegrate border-destructive bg-destructive/10"
                     )}
                   >
+                    {isCarry && (
+                      <span className="inline-block mb-0.5 rounded bg-warning px-1.5 py-0.5 text-[10px] font-black text-warning-foreground">
+                        DIA ANTERIOR
+                      </span>
+                    )}
                     <p className="text-[11px] font-semibold text-muted-foreground">
                       {o.doc_type} {o.doc_number} · {manausShort(o.created_at)}
                     </p>
+
                     {o.issued_at && (
                       <p className="text-[10px] text-muted-foreground">
                         Faturado {manausTime(o.issued_at)}

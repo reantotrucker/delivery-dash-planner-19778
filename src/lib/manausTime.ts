@@ -44,10 +44,14 @@ export const manausTimeSec = (value: string | Date) => {
   return `${p.hour}:${p.minute}:${p.second}`;
 };
 
-/** yyyy-MM-dd do dia atual em Manaus */
-export const manausToday = () => {
-  const p = parts(new Date());
+/** yyyy-MM-dd de uma data no fuso de Manaus */
+export const manausDateISO = (value: string | Date) => {
+  const p = parts(value);
   return `${p.year}-${p.month}-${p.day}`;
 };
+
+/** yyyy-MM-dd do dia atual em Manaus */
+export const manausToday = () => manausDateISO(new Date());
+
 
 export { pad };
