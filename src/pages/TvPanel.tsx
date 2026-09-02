@@ -350,19 +350,27 @@ export default function TvPanel() {
               {display.map((o) => {
                 const isLeaving = !pending.some((p) => p.id === o.id);
                 const inConference = !!o.checked_by;
+                const isCarry = manausDateISO(o.created_at) < today;
                 return (
                   <div
                     key={o.id}
                     className={cn(
                       "rounded-lg border-2 bg-card p-2 transition-colors duration-500",
                       inConference ? "border-success bg-success/10" : "border-primary",
+                      isCarry && !isLeaving && "border-warning bg-warning/10",
                       !inConference && !isLeaving && o.id === pending[0]?.id && "animate-pulse",
                       isLeaving && "tv-disintegrate border-destructive bg-destructive/10"
                     )}
                   >
+                    {isCarry && (
+                      <span className="inline-block mb-0.5 rounded bg-warning px-1.5 py-0.5 text-[10px] font-black text-warning-foreground">
+                        DIA ANTERIOR
+                      </span>
+                    )}
                     <p className="text-[11px] font-semibold text-muted-foreground">
                       {o.doc_type} {o.doc_number} · {manausShort(o.created_at)}
                     </p>
+
                     {o.issued_at && (
                       <p className="text-[10px] text-muted-foreground">
                         Faturado {manausTime(o.issued_at)}
