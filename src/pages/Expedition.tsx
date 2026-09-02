@@ -222,17 +222,37 @@ export default function Expedition() {
         .from("expedition_orders")
         .select("*")
         .eq("company_id", companyId)
-        // ordem de chegada: pedido mais antigo primeiro
-        .order("created_at", { ascending: true })
+        // pedidos novos primeiro
+        .order("created_at", { ascending: false })
         .limit(300);
       if (statusFilter !== "TODOS") q = q.eq("status", statusFilter);
       if (dateFrom) q = q.gte("created_at", `${dateFrom}T00:00:00`);
       if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59`);
       const { data, error } = await q;
       if (error) throw error;
-      return (data || []) as ExpeditionOrder[];
+
+      let list = (data || []) as ExpeditionOrder[];
+
+      // Pendências dos dias anteriores continuam aparecendo no dia atual
+      if (dateFrom && statusFilter !== "BALCAO" && statusFilter !== "ROTA") {
+        const { data: carry } = await supabase
+          .from("expedition_orders")
+          .select("*")
+          .eq("company_id", companyId)
+          .eq("status", "AGUARDANDO")
+          .lt("created_at", `${dateFrom}T00:00:00`)
+          .order("created_at", { ascending: false })
+          .limit(100);
+        const ids = new Set(list.map((o) => o.id));
+        list = [...list, ...((carry || []) as ExpeditionOrder[]).filter((o) => !ids.has(o.id))];
+      }
+
+      return list.sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
     },
   });
+
 
 
   const { data: profiles = [] } = useQuery({
