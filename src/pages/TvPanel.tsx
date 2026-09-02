@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { manausShort, manausTime, manausToday, manausDateISO } from "@/lib/manausTime";
+import { manausShort, manausTime, manausToday, manausDateISO, prevDayISO } from "@/lib/manausTime";
 import { useCompany } from "@/hooks/useCompany";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -158,12 +158,13 @@ export default function TvPanel() {
 
       if (error) throw error;
 
-      // Pendências dos dias anteriores continuam no painel
+      // Pendências apenas do dia anterior continuam no painel
       const { data: carry } = await supabase
         .from("expedition_orders")
         .select(cols)
         .eq("company_id", companyId)
         .eq("status", "AGUARDANDO")
+        .gte("created_at", `${prevDayISO(today)}T00:00:00`)
         .lt("created_at", `${today}T00:00:00`)
         .order("created_at", { ascending: false })
         .limit(30);

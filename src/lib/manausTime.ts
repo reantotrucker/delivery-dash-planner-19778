@@ -54,4 +54,12 @@ export const manausDateISO = (value: string | Date) => {
 export const manausToday = () => manausDateISO(new Date());
 
 
+/** yyyy-MM-dd do dia anterior a uma data yyyy-MM-dd */
+export const prevDayISO = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+};
+
 export { pad };

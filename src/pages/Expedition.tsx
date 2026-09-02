@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { manausDateTime, manausShort, manausTimeSec, manausDateISO, manausToday } from "@/lib/manausTime";
+import { manausDateTime, manausShort, manausTimeSec, manausDateISO, manausToday, prevDayISO } from "@/lib/manausTime";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
@@ -233,13 +233,15 @@ export default function Expedition() {
 
       let list = (data || []) as ExpeditionOrder[];
 
-      // Pendências dos dias anteriores continuam aparecendo no dia atual
+      // Pendências apenas do dia anterior continuam aparecendo no dia atual
       if (dateFrom && statusFilter !== "BALCAO" && statusFilter !== "ROTA") {
+        const prev = prevDayISO(dateFrom);
         const { data: carry } = await supabase
           .from("expedition_orders")
           .select("*")
           .eq("company_id", companyId)
           .eq("status", "AGUARDANDO")
+          .gte("created_at", `${prev}T00:00:00`)
           .lt("created_at", `${dateFrom}T00:00:00`)
           .order("created_at", { ascending: false })
           .limit(100);
