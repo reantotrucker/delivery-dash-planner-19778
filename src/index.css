@@ -35,6 +35,9 @@ All colors MUST be HSL.
     --success: 120 60% 45%;
     --success-foreground: 0 0% 100%;
 
+    --warning: 45 100% 55%;
+    --warning-foreground: 0 0% 10%;
+
     --border: 0 0% 15%;
     --input: 0 0% 15%;
     --ring: 25 100% 50%;
