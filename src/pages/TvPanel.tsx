@@ -191,12 +191,12 @@ export default function TvPanel() {
     };
   }, [companyId, queryClient]);
 
-  // Pendentes: só saem da tela quando o expedidor confirma Balcão ou Rota (ordem de chegada)
+  // Pendentes: só saem da tela quando o expedidor confirma Balcão ou Rota (novos primeiro)
   const pending = useMemo(
     () =>
       orders
         .filter((o) => o.status === "AGUARDANDO")
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
     [orders]
   );
   // Balcão conferido, aguardando o cliente retirar
@@ -204,7 +204,7 @@ export default function TvPanel() {
     () =>
       orders
         .filter((o) => o.status === "BALCAO" && !o.delivered_at)
-        .sort((a, b) => new Date(a.checked_at || a.created_at).getTime() - new Date(b.checked_at || b.created_at).getTime()),
+        .sort((a, b) => new Date(b.checked_at || b.created_at).getTime() - new Date(a.checked_at || a.created_at).getTime()),
     [orders]
   );
   // Cards que acabaram de ser finalizados: ficam em tela desintegrando
