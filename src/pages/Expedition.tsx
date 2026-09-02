@@ -956,7 +956,7 @@ export default function Expedition() {
 
               </CardContent>
             </Card>
-          ))}
+          );})}
         </div>
       )}
 
