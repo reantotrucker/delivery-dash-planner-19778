@@ -747,8 +747,20 @@ export default function Expedition() {
         </Card>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((o) => (
-            <Card key={o.id} className={cn("overflow-hidden", statusStyle(o.status))}>
+          {filtered.map((o) => {
+            const isCarry =
+              o.status === "AGUARDANDO" &&
+              !!o.created_at &&
+              manausDateISO(o.created_at) < manausToday();
+            return (
+            <Card
+              key={o.id}
+              className={cn(
+                "overflow-hidden",
+                statusStyle(o.status),
+                isCarry && "border-2 border-warning border-l-4 border-l-warning bg-warning/5"
+              )}
+            >
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -757,6 +769,12 @@ export default function Expedition() {
                       {o.doc_type} {o.doc_number}
                     </p>
                   </div>
+                  <div className="flex flex-col items-end gap-1">
+                  {isCarry && (
+                    <Badge className="whitespace-nowrap bg-warning text-warning-foreground">
+                      Dia anterior
+                    </Badge>
+                  )}
                   <Badge
                     variant={o.status === "AGUARDANDO" ? "outline" : "secondary"}
                     className={cn(
@@ -767,7 +785,9 @@ export default function Expedition() {
                   >
                     {o.status === "AGUARDANDO" ? "Aguardando" : o.status === "BALCAO" ? "Venda balcão" : "Em rota"}
                   </Badge>
+                  </div>
                 </div>
+
 
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   {o.order_number && (
