@@ -158,12 +158,13 @@ export default function TvPanel() {
 
       if (error) throw error;
 
-      // Pendências dos dias anteriores continuam no painel
+      // Pendências apenas do dia anterior continuam no painel
       const { data: carry } = await supabase
         .from("expedition_orders")
         .select(cols)
         .eq("company_id", companyId)
         .eq("status", "AGUARDANDO")
+        .gte("created_at", `${prevDayISO(today)}T00:00:00`)
         .lt("created_at", `${today}T00:00:00`)
         .order("created_at", { ascending: false })
         .limit(30);
