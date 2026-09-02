@@ -235,7 +235,7 @@ export default function TvPanel() {
   const display = useMemo(() => {
     const ids = new Set(pending.map((o) => o.id));
     return [...pending, ...leaving.filter((o) => !ids.has(o.id))].sort(
-      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   }, [pending, leaving]);
 
