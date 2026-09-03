@@ -211,6 +211,7 @@ export const RouteSignatureDialog = ({
       console.error(e);
       toast({ title: "Erro ao salvar assinatura", description: e.message, variant: "destructive" });
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
