@@ -49,6 +49,7 @@ export const RouteSignatureDialog = ({
   const [signerName, setSignerName] = useState("");
   const [signerDocument, setSignerDocument] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   const targetColumn = routeId ? "route_id" : "expedition_order_id";
@@ -154,6 +155,7 @@ export const RouteSignatureDialog = ({
   };
 
   const saveSignature = async () => {
+    if (savingRef.current) return;
     if (!hasStrokeRef.current) {
       toast({ title: "Peça para o cliente assinar na tela", variant: "destructive" });
       return;
@@ -164,6 +166,7 @@ export const RouteSignatureDialog = ({
     }
     const canvas = canvasRef.current;
     if (!canvas) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       // Flatten onto white background for readability
@@ -208,6 +211,7 @@ export const RouteSignatureDialog = ({
       console.error(e);
       toast({ title: "Erro ao salvar assinatura", description: e.message, variant: "destructive" });
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
