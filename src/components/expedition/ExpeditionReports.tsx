@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from "react";
-import autoTable from "jspdf-autotable";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { manausShort } from "@/lib/manausTime";
@@ -263,152 +262,77 @@ export function ExpeditionReports({ companyId, companyName }: Props) {
   const reportRef = useRef<HTMLDivElement>(null);
 
   const exportPdf = async () => {
-    const node = reportRef.current;
-    if (!node) return;
     setPdfLoading(true);
     try {
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import("jspdf"),
-        import("html2canvas"),
-      ]);
+      const [{ createRoot }, { default: RelatorioExpedicaoPDF }, { aggregateNeighborhoods }] =
+        await Promise.all([
+          import("react-dom/client"),
+          import("./RelatorioExpedicaoPDF"),
+          import("./RelatorioExpedicaoPDF"),
+        ]);
 
       const periodo =
         from === to
           ? from.split("-").reverse().join("/")
           : `${from.split("-").reverse().join("/")} — ${to.split("-").reverse().join("/")}`;
 
-      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-      const pw = doc.internal.pageSize.getWidth();
-      const ph = doc.internal.pageSize.getHeight();
-      const margin = 34;
-      const usableW = pw - margin * 2;
-
-      const drawHeader = () => {
-        doc.setFillColor(24, 24, 27);
-        doc.rect(0, 0, pw, 68, "F");
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(18);
-        doc.text("RELATÓRIO DE EXPEDIÇÃO", margin, 30);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.text(`${companyName || "Empresa"}  |  Período: ${periodo}  |  Horário de Manaus`, margin, 49);
-        doc.setTextColor(24, 24, 27);
-        return 92;
+      const data = {
+        companyName: companyName || "Empresa",
+        periodo,
+        geradoEm: manausShort(new Date()),
+        kpis: kpis.map((k) => ({ label: k.label, value: String(k.value) })),
+        byDay: stats.byDay,
+        byHour: stats.byHour,
+        sellers: stats.sellers,
+        conferentes: stats.conferentes,
+        clients: stats.clients,
+        docs: stats.docs,
+        neighborhoods: aggregateNeighborhoods(stats.neighborhoodsAll),
+        distribution: pieData,
+        totalPedidos: stats.total,
+        aguardando: stats.aguardando,
+        fmtMin,
+        formatBRL: (v: number) => formatBRL(v),
       };
 
-      let cursor = drawHeader();
-      const boxGap = 10;
-      const boxW = (usableW - boxGap * 3) / 4;
-      const boxH = 62;
-      kpis.forEach((k, index) => {
-        const x = margin + (index % 4) * (boxW + boxGap);
-        const y = cursor + Math.floor(index / 4) * (boxH + boxGap);
-        doc.setFillColor(248, 250, 252);
-        doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(x, y, boxW, boxH, 4, 4, "FD");
-        doc.setTextColor(100, 116, 139);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
-        doc.text(k.label.toUpperCase(), x + 12, y + 19);
-        doc.setTextColor(15, 23, 42);
-        doc.setFontSize(16);
-        doc.text(String(k.value), x + 12, y + 44);
-      });
-      cursor += boxH * 2 + boxGap + 22;
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+      document.body.appendChild(iframe);
+      const idoc = iframe.contentDocument!;
+      idoc.open();
+      idoc.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Relatório de Expedição — ${companyName || "Empresa"} — ${periodo}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 10mm; }
+  html, body { margin: 0; padding: 0; background: #FAFAF7; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  * { box-sizing: border-box; }
+</style></head><body><div id="print-root"></div></body></html>`);
+      idoc.close();
 
-      const visuals = Array.from(node.querySelectorAll<HTMLElement>("[data-pdf-visual]"));
-      const colGap = 14;
-      const colW = (usableW - colGap) / 2;
-      let col = 0;
-      let rowTop = cursor;
-      let rowMaxH = 0;
+      const root = createRoot(idoc.getElementById("print-root")!);
+      root.render(<RelatorioExpedicaoPDF data={data} />);
 
-      for (const visual of visuals) {
-        const canvas = await html2canvas(visual, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          windowWidth: visual.scrollWidth,
-        });
-        const isMap = visual.dataset.pdfVisual === "map";
-        const img = canvas.toDataURL("image/png");
-
-        if (isMap) {
-          // fecha a linha de gráficos em andamento
-          if (col !== 0) {
-            rowTop += rowMaxH + colGap;
-            col = 0;
-            rowMaxH = 0;
-          }
-          const rawH = (canvas.height / canvas.width) * usableW;
-          const scale = Math.min(1, (ph - 118) / rawH);
-          const w = usableW * scale;
-          const h = rawH * scale;
-          if (rowTop + h > ph - 28) {
-            doc.addPage();
-            rowTop = drawHeader();
-          }
-          doc.addImage(img, "PNG", margin, rowTop, w, h);
-          rowTop += h + colGap;
-          continue;
-        }
-
-        // gráficos: 2 por linha, menores
-        const h = (canvas.height / canvas.width) * colW;
-        if (col === 0 && rowTop + h > ph - 28) {
-          doc.addPage();
-          rowTop = drawHeader();
-          rowMaxH = 0;
-        }
-        doc.addImage(img, "PNG", margin + col * (colW + colGap), rowTop, colW, h);
-        rowMaxH = Math.max(rowMaxH, h);
-        col += 1;
-        if (col === 2) {
-          rowTop += rowMaxH + colGap;
-          col = 0;
-          rowMaxH = 0;
-        }
-      }
-      if (col !== 0) rowTop += rowMaxH + colGap;
-      cursor = rowTop;
-
-
-      const addRanking = (title: string, rows: { name: string; value: string; extra: string }[], headers: string[]) => {
-        doc.addPage();
-        drawHeader();
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.text(title, margin, 96);
-        autoTable(doc, {
-          startY: 108,
-          head: [["Nome", ...headers]],
-          body: rows.length ? rows.map((r) => [r.name, r.value, r.extra]) : [["Sem dados", "—", "—"]],
-          margin: { left: margin, right: margin, bottom: 28 },
-          theme: "striped",
-          headStyles: { fillColor: [24, 24, 27], textColor: [255, 255, 255] },
-          styles: { fontSize: 9, cellPadding: 6, overflow: "linebreak" },
-          columnStyles: { 0: { cellWidth: "auto" }, 1: { halign: "right", cellWidth: 90 }, 2: { halign: "right", cellWidth: 120 } },
-        });
-      };
-
-      addRanking("Desempenho dos conferentes", stats.conferentes.map((c) => ({ name: c.name, value: `${c.total}`, extra: fmtMin(c.media) })), ["Pedidos", "Tempo médio"]);
-      addRanking("Vendas por bairro", stats.neighborhoodsAll.map((n) => ({ name: n.name, value: `${n.total}`, extra: formatBRL(n.valor) })), ["Pedidos", "Valor"]);
-      addRanking("Principais clientes", stats.clients.map((c) => ({ name: c.name, value: `${c.total}`, extra: formatBRL(c.valor) })), ["Pedidos", "Valor"]);
-
-      const pages = doc.getNumberOfPages();
-      for (let i = 1; i <= pages; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(140);
-        doc.text(`Página ${i} de ${pages}`, pw - margin - 62, ph - 14);
+      await new Promise((r) => setTimeout(r, 600));
+      try {
+        await (idoc as any).fonts?.ready;
+      } catch {
+        /* fontes opcionais */
       }
 
-      doc.save(`expedicao-${from}-a-${to}.pdf`);
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+
+      setTimeout(() => {
+        root.unmount();
+        iframe.remove();
+      }, 1500);
     } finally {
       setPdfLoading(false);
     }
   };
+
 
 
 
