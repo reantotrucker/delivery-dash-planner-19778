@@ -49,6 +49,7 @@ export const RouteSignatureDialog = ({
   const [signerName, setSignerName] = useState("");
   const [signerDocument, setSignerDocument] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   const targetColumn = routeId ? "route_id" : "expedition_order_id";
