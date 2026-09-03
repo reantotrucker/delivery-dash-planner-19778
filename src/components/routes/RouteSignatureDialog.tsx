@@ -154,6 +154,7 @@ export const RouteSignatureDialog = ({
   };
 
   const saveSignature = async () => {
+    if (savingRef.current) return;
     if (!hasStrokeRef.current) {
       toast({ title: "Peça para o cliente assinar na tela", variant: "destructive" });
       return;
