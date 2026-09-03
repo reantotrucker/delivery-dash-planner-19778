@@ -127,8 +127,8 @@ async function syncCompany(companyId: string, types: readonly ("nfe" | "nfce")[]
           cep: inv.address?.cep || null,
           seller: inv.vendedorName || null,
           total_value: inv.totalValue ?? null,
-          // NF-e traz a hora no fuso de Brasília (UTC-3); o cupom já vem em Manaus
-          issued_at: toIsoIssuedAt(inv.emissionDate, inv.emissionTime, type === "nfe" ? "-03:00" : "-04:00"),
+          // Omie devolve o horário no fuso de Manaus (UTC-4) para NF-e e cupom
+          issued_at: toIsoIssuedAt(inv.emissionDate, inv.emissionTime, "-04:00"),
           observation: inv.orderObservation || null,
           status: "AGUARDANDO",
         })
