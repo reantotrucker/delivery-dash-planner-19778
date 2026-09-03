@@ -468,7 +468,8 @@ export default function Expedition() {
     };
   }, []);
 
-  // Sincronização automática a cada 60s (intervalo ágil e seguro para a API Omie)
+  // O servidor já sincroniza a cada 1 min. A busca do navegador é só reforço:
+  // rodar de 60s sufocava a API Omie ("consumo redundante") e atrasava o cron.
   const syncRef = useRef(syncFromOmie);
   syncRef.current = syncFromOmie;
 
@@ -476,9 +477,10 @@ export default function Expedition() {
     localStorage.setItem("expedition-auto-sync", autoSync ? "1" : "0");
     if (!autoSync || !hasExpedition || !companyId || !canOperate) return;
     syncRef.current(true);
-    const id = setInterval(() => syncRef.current(true), 60000);
+    const id = setInterval(() => syncRef.current(true), 300000);
     return () => clearInterval(id);
   }, [autoSync, hasExpedition, companyId, canOperate]);
+
 
   // Ao abrir o card, marca que está em conferência (fica verde no painel de TV)
   const openConference = async (order: ExpeditionOrder) => {
