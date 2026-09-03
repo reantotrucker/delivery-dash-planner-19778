@@ -143,7 +143,7 @@ export default function TvPanel() {
   const { data: orders = [] } = useQuery({
     queryKey: ["tv-orders", companyId, today],
     enabled: !!companyId && hasExpedition,
-    refetchInterval: 15000,
+    refetchInterval: 8000,
     queryFn: async () => {
       const cols =
         "id, doc_type, doc_number, client, neighborhood, total_value, issued_at, status, created_at, checked_at, checked_by, delivered_at";
