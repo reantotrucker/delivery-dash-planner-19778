@@ -166,6 +166,7 @@ export const RouteSignatureDialog = ({
     }
     const canvas = canvasRef.current;
     if (!canvas) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       // Flatten onto white background for readability
