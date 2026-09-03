@@ -64,13 +64,13 @@ async function fetchInvoices(type: "nfe" | "nfce", companyId: string) {
 }
 
 // Converte dd/MM/yyyy + HH:mm(:ss) da Omie (horário de Manaus, UTC-4) em ISO
-function toIsoIssuedAt(date?: string | null, time?: string | null) {
+function toIsoIssuedAt(date?: string | null, time?: string | null, tz = "-04:00") {
   if (!date) return null;
   const [d, m, y] = date.split("/");
   if (!d || !m || !y) return null;
   const [hh = "00", mi = "00", ss = "00"] = (time || "").split(":");
   const pad = (v: string) => v.padStart(2, "0");
-  return `${y}-${pad(m)}-${pad(d)}T${pad(hh)}:${pad(mi)}:${pad(ss)}-04:00`;
+  return `${y}-${pad(m)}-${pad(d)}T${pad(hh)}:${pad(mi)}:${pad(ss)}${tz}`;
 }
 
 async function syncCompany(companyId: string, types: readonly ("nfe" | "nfce")[]) {
@@ -127,7 +127,8 @@ async function syncCompany(companyId: string, types: readonly ("nfe" | "nfce")[]
           cep: inv.address?.cep || null,
           seller: inv.vendedorName || null,
           total_value: inv.totalValue ?? null,
-          issued_at: toIsoIssuedAt(inv.emissionDate, inv.emissionTime),
+          // NF-e traz a hora no fuso de Brasília (UTC-3); o cupom já vem em Manaus
+          issued_at: toIsoIssuedAt(inv.emissionDate, inv.emissionTime, type === "nfe" ? "-03:00" : "-04:00"),
           observation: inv.orderObservation || null,
           status: "AGUARDANDO",
         })
