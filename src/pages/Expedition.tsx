@@ -139,7 +139,8 @@ export default function Expedition() {
   const [signatureOrder, setSignatureOrder] = useState<ExpeditionOrder | null>(null);
   const [pendingDeliver, setPendingDeliver] = useState<ExpeditionOrder | null>(null);
   const canTagInfo = canOperate || role === "comercial";
-  const canEditObs = canOperate || role === "comercial";
+  // Observação liberada para qualquer usuário com acesso à empresa (RLS garante o resto)
+  const canEditObs = true;
 
   const { data: extraInfos = [] } = useQuery({
     queryKey: ["expedition-infos", companyId],
