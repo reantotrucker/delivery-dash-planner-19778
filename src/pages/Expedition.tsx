@@ -255,6 +255,27 @@ export default function Expedition() {
     },
   });
 
+  // Realtime: pedidos novos (criados pelo cron do servidor) aparecem na hora
+  useEffect(() => {
+    if (!companyId || !hasExpedition) return;
+    const channel = supabase
+      .channel("expedition-orders-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "expedition_orders" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
+          queryClient.invalidateQueries({ queryKey: ["expedition-check2-counts"] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [companyId, hasExpedition, queryClient]);
+
+
+
 
 
   const { data: profiles = [] } = useQuery({
