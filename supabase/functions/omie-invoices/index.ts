@@ -578,8 +578,9 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
 
   const validInvoices = (data.nfCadastro || []).filter((nf: any) => {
     const isSaida = nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1;
-    return isSaida;
+    return isSaida && !isDevolucao(nf);
   });
+
 
   console.log(
     'NFe situações:',
@@ -682,6 +683,20 @@ function isNfeCanceled(nf: any): boolean {
   }
   return false;
 }
+
+// Notas de devolução (ex.: devolução de compra para fornecedor) não são vendas
+// e não devem entrar na expedição. finNFe = 4 é "devolução/retorno" no layout
+// da NF-e; também checamos a natureza da operação por texto.
+function isDevolucao(nf: any): boolean {
+  const ide = nf?.ide || {};
+  if (String(ide.finNFe ?? '').trim() === '4') return true;
+  const texts = [ide.natOp, ide.cNatOp, ide.cDescOperacao, nf?.compl?.cNatOp]
+    .filter((v) => v !== undefined && v !== null)
+    .map((v) => String(v).toUpperCase());
+  return texts.some((t) => t.includes('DEVOLU') || t.includes('RETORNO'));
+}
+
+
 
 
 // Preenche a família de cada produto das notas
