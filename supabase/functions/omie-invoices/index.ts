@@ -578,8 +578,9 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
 
   const validInvoices = (data.nfCadastro || []).filter((nf: any) => {
     const isSaida = nf.ide?.tpNF === '1' || nf.ide?.tpNF === 1;
-    return isSaida;
+    return isSaida && !isDevolucao(nf);
   });
+
 
   console.log(
     'NFe situações:',
