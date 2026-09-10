@@ -154,7 +154,8 @@ export default function Stock() {
       if (byCode) seen.add(normalize(p.code));
       else if (byName) seen.add(normalize(p.name));
       const needed = byCode?.needed ?? byName?.needed ?? 0;
-      return { ...p, needed, missing: Math.max(0, needed - p.balance) };
+      const exits = p.exits || exitsByKey.get(normalize(p.code)) || exitsByKey.get(normalize(p.name)) || 0;
+      return { ...p, exits, needed, missing: Math.max(0, needed - p.balance) };
     });
 
     // Itens pedidos que não existem na posição de estoque da Omie
@@ -169,7 +170,7 @@ export default function Stock() {
         physical: 0,
         reserved: 0,
         entries: 0,
-        exits: 0,
+        exits: exitsByKey.get(key) ?? 0,
         needed: value.needed,
         missing: value.needed,
       });
@@ -180,18 +181,20 @@ export default function Stock() {
       .filter((r) => (!onlyMissing || r.missing > 0))
       .filter((r) => !term || normalize(r.name).includes(term) || normalize(r.code).includes(term))
       .sort((a, b) => b.missing - a.missing || a.name.localeCompare(b.name, "pt-BR"));
-  }, [stockQuery.data, demandByKey, search, onlyMissing]);
+  }, [stockQuery.data, demandByKey, exitsByKey, search, onlyMissing]);
 
   const totals = useMemo(() => {
     const products = stockQuery.data?.products ?? [];
+    let exits = 0;
+    exitsByKey.forEach((v) => { exits += v; });
     return {
       products: products.length,
       entries: products.reduce((s, p) => s + p.entries, 0),
-      exits: products.reduce((s, p) => s + p.exits, 0),
+      exits: products.reduce((s, p) => s + p.exits, 0) || exits,
       balance: products.reduce((s, p) => s + p.balance, 0),
       missingItems: rows.filter((r) => r.missing > 0).length,
     };
-  }, [stockQuery.data, rows]);
+  }, [stockQuery.data, exitsByKey, rows]);
 
   if (!hasExpedition) {
     return (
@@ -288,8 +291,8 @@ export default function Stock() {
         <Alert>
           <TriangleAlert className="h-4 w-4" />
           <AlertDescription>
-            As movimentações detalhadas não foram liberadas pela Omie nesta loja, então entradas e saídas aparecem
-            zeradas. O saldo por produto continua atualizado.
+            A Omie não liberou as movimentações detalhadas desta loja, então as entradas aparecem zeradas. As saídas
+            são calculadas pelas notas e cupons do período e o saldo por produto continua vindo da Omie.
           </AlertDescription>
         </Alert>
       )}
