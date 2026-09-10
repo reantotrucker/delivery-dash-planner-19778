@@ -73,6 +73,13 @@ function toIsoIssuedAt(date?: string | null, time?: string | null, tz = "-04:00"
   return `${y}-${pad(m)}-${pad(d)}T${pad(hh)}:${pad(mi)}:${pad(ss)}${tz}`;
 }
 
+// Data de hoje (YYYY-MM-DD) no horário de Manaus
+function manausTodayISO() {
+  return new Date(Date.now() - 4 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+
+
 async function syncCompany(companyId: string, types: readonly ("nfe" | "nfce")[]) {
 
   let created = 0;
