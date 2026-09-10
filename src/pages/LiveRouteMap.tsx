@@ -132,6 +132,7 @@ export default function LiveRouteMap() {
   const city = CITIES[company?.slug || "default"] || CITIES.default;
   const [date, setDate] = useState(manausToday());
   const [driverFilter, setDriverFilter] = useState<string>("all");
+  const [periodFilter, setPeriodFilter] = useState<string>("all");
   const [points, setPoints] = useState<Point[]>([]);
   const [resolving, setResolving] = useState(false);
   const runId = useRef(0);
