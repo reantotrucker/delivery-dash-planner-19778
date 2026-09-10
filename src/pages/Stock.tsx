@@ -59,13 +59,15 @@ export default function Stock() {
   const dateFrom = periodStart(period);
   const dateTo = manausToday();
 
+  const [forceNext, setForceNext] = useState(false);
+
   const stockQuery = useQuery({
     queryKey: ["omie-stock", companyId, dateFrom, dateTo],
     enabled: !!companyId && hasExpedition,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("omie-stock", {
-        body: { companyId, dateFrom, dateTo },
+        body: { companyId, dateFrom, dateTo, forceRefresh: forceNext },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
@@ -193,7 +195,7 @@ export default function Stock() {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => stockQuery.refetch()}
+            onClick={async () => { setForceNext(true); await stockQuery.refetch(); setForceNext(false); }}
             disabled={stockQuery.isFetching}
             title="Atualizar"
           >

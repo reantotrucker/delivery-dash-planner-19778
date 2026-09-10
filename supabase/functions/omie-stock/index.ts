@@ -127,9 +127,11 @@ async function fetchMovements(key: string, secret: string, fromISO: string, toIS
         }
         page++;
       } while (page <= totalPages && page <= 12);
+      console.log(`Movimentos via ${attempt.call}: ${matched} itens casados`);
       return { ok: true, source: attempt.call, matched };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
+      console.log(`Falha em ${attempt.call}: ${lastError}`);
     }
   }
   return { ok: false, error: lastError };
@@ -202,7 +204,7 @@ serve(async (req) => {
       dateFrom,
       dateTo,
       products: Array.from(rows.values()).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
-      movementsAvailable: movements.ok,
+      movementsAvailable: movements.ok && ((movements as any).matched ?? 0) > 0,
       movementsError: movements.ok ? null : (movements as any).error ?? null,
       generatedAt: new Date().toISOString(),
     };
