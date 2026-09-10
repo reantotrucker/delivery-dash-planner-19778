@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword";
 import UserManagement from "./pages/UserManagement";
 import OmieImport from "./pages/OmieImport";
 import Locations from "./pages/Locations";
+import NeighborhoodDeliveries from "./pages/NeighborhoodDeliveries";
 import Expedition from "./pages/Expedition";
 import TvPanel from "./pages/TvPanel";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -115,6 +116,14 @@ const App = () => (
               element={
                 <ProtectedWithLayout>
                   <Locations />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/neighborhoods"
+              element={
+                <ProtectedWithLayout>
+                  <NeighborhoodDeliveries />
                 </ProtectedWithLayout>
               }
             />
