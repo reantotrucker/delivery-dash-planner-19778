@@ -132,6 +132,7 @@ export default function LiveRouteMap() {
   const city = CITIES[company?.slug || "default"] || CITIES.default;
   const [date, setDate] = useState(manausToday());
   const [driverFilter, setDriverFilter] = useState<string>("all");
+  const [periodFilter, setPeriodFilter] = useState<string>("all");
   const [points, setPoints] = useState<Point[]>([]);
   const [resolving, setResolving] = useState(false);
   const runId = useRef(0);
@@ -162,10 +163,16 @@ export default function LiveRouteMap() {
 
   const visible = useMemo(
     () =>
-      driverFilter === "all"
-        ? routes
-        : routes.filter((r) => (r.driver?.name || "Sem motorista") === driverFilter),
-    [routes, driverFilter]
+      routes.filter((r) => {
+        const okDriver =
+          driverFilter === "all" || (r.driver?.name || "Sem motorista") === driverFilter;
+        const p = (r.period || "").toUpperCase();
+        const okPeriod =
+          periodFilter === "all" ||
+          (periodFilter === "MANHA" ? p.startsWith("MANH") : p.startsWith("TARDE"));
+        return okDriver && okPeriod;
+      }),
+    [routes, driverFilter, periodFilter]
   );
 
   // Resolve coordenadas: link exato primeiro, depois busca pelo endereço
@@ -259,6 +266,18 @@ export default function LiveRouteMap() {
               </option>
             ))}
             <option value="Sem motorista">Sem motorista</option>
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Período</label>
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="all">Todos</option>
+            <option value="MANHA">Manhã</option>
+            <option value="TARDE">Tarde</option>
           </select>
         </div>
         <div className="flex flex-wrap gap-2 ml-auto">
