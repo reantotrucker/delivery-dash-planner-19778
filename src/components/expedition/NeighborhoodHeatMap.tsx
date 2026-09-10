@@ -315,7 +315,8 @@ export default function NeighborhoodHeatMap({
         className={`${expanded ? "h-[calc(100vh-160px)]" : "h-[620px]"} rounded-lg overflow-hidden border border-border`}
       >
         <MapContainer
-          center={[-3.1019, -60.0251]}
+          key={city.label}
+          center={city.center}
           zoom={11}
           minZoom={9}
           style={{ height: "100%", width: "100%" }}
