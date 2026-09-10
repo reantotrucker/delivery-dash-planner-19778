@@ -163,10 +163,16 @@ export default function LiveRouteMap() {
 
   const visible = useMemo(
     () =>
-      driverFilter === "all"
-        ? routes
-        : routes.filter((r) => (r.driver?.name || "Sem motorista") === driverFilter),
-    [routes, driverFilter]
+      routes.filter((r) => {
+        const okDriver =
+          driverFilter === "all" || (r.driver?.name || "Sem motorista") === driverFilter;
+        const p = (r.period || "").toUpperCase();
+        const okPeriod =
+          periodFilter === "all" ||
+          (periodFilter === "MANHA" ? p.startsWith("MANH") : p.startsWith("TARDE"));
+        return okDriver && okPeriod;
+      }),
+    [routes, driverFilter, periodFilter]
   );
 
   // Resolve coordenadas: link exato primeiro, depois busca pelo endereço
