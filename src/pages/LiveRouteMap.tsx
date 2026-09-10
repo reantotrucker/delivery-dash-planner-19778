@@ -175,9 +175,8 @@ export default function LiveRouteMap() {
     const run = async () => {
       setResolving(true);
       const resolved: Point[] = [];
-      let seq = 0;
+      const seqByDriver = new Map<string, number>();
       for (const r of visible) {
-        seq += 1;
         let coord = coordsFromLink(r.location_link);
         if (!coord) {
           const q = [r.address, r.neighborhood, city.suffix].filter(Boolean).join(", ");
@@ -188,7 +187,10 @@ export default function LiveRouteMap() {
         }
         if (cancelled || id !== runId.current) return;
         if (coord) {
-          resolved.push({ ...r, lat: coord[0], lng: coord[1], seq: r.order_number ?? seq });
+          const key = r.driver?.name || "Sem motorista";
+          const next = (seqByDriver.get(key) ?? 0) + 1;
+          seqByDriver.set(key, next);
+          resolved.push({ ...r, lat: coord[0], lng: coord[1], seq: next });
           setPoints([...resolved]);
         }
       }
