@@ -99,6 +99,40 @@ export default function Stock() {
     },
   });
 
+  // Saídas do período conforme as notas/cupons já faturados no app
+  const exitsQuery = useQuery({
+    queryKey: ["stock-period-exits", companyId, dateFrom, dateTo],
+    enabled: !!companyId && hasExpedition,
+    queryFn: async () => {
+      const { data: orders, error: ordersError } = await supabase
+        .from("expedition_orders")
+        .select("id")
+        .eq("company_id", companyId)
+        .gte("issued_at", `${dateFrom}T00:00:00-04:00`)
+        .lte("issued_at", `${dateTo}T23:59:59-04:00`);
+      if (ordersError) throw ordersError;
+      const ids = (orders ?? []).map((o) => o.id);
+      if (!ids.length) return [] as { code: string; name: string; quantity: number }[];
+
+      const { data: items, error: itemsError } = await supabase
+        .from("expedition_order_items")
+        .select("code, name, quantity")
+        .in("expedition_order_id", ids);
+      if (itemsError) throw itemsError;
+      return (items ?? []) as { code: string; name: string; quantity: number }[];
+    },
+  });
+
+  const exitsByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of exitsQuery.data ?? []) {
+      const key = normalize(item.code || item.name || "");
+      if (!key) continue;
+      map.set(key, (map.get(key) ?? 0) + Number(item.quantity || 0));
+    }
+    return map;
+  }, [exitsQuery.data]);
+
   const demandByKey = useMemo(() => {
     const map = new Map<string, { name: string; needed: number }>();
     for (const item of demandQuery.data ?? []) {
