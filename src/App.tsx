@@ -155,14 +155,6 @@ const App = () => (
                 </ProtectedWithLayout>
               }
             />
-            <Route
-              path="/live-map"
-              element={
-                <ProtectedWithLayout>
-                  <LiveRouteMap />
-                </ProtectedWithLayout>
-              }
-            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </CompanyProvider>
