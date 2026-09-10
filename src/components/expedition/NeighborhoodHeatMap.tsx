@@ -248,7 +248,7 @@ export default function NeighborhoodHeatMap({
     });
     const max = Math.max(1, ...points.map((p) => (metric === "total" ? p.total : p.valor)));
     return { points, unmapped, max };
-  }, [activeData, metric]);
+  }, [activeData, metric, city]);
 
   return (
     <div
@@ -261,7 +261,7 @@ export default function NeighborhoodHeatMap({
     >
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <h3 className="font-semibold text-sm flex items-center gap-2">
-          <MapPinned className="w-4 h-4 text-primary" /> Mapa de calor de vendas por bairro
+          <MapPinned className="w-4 h-4 text-primary" /> Mapa de calor de vendas por bairro · {city.label}
         </h3>
         <div className="flex gap-1 flex-wrap items-center">
           {sellers.length > 0 && (
