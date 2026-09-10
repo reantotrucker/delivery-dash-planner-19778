@@ -72,11 +72,12 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     [companies, companyId]
   );
 
-  // Tema por empresa: Uniprint usa vermelho, Stock 360 mantém laranja
+  // Tema por empresa: Uniprint Manaus vermelho, Boa Vista vermelho + cinza, Stock 360 laranja
   useEffect(() => {
     const root = document.documentElement;
+    root.classList.remove("theme-uniprint", "theme-uniprint-bv");
     if (company?.slug === "uniprint") root.classList.add("theme-uniprint");
-    else root.classList.remove("theme-uniprint");
+    else if (company?.slug === "uniprint_bv") root.classList.add("theme-uniprint-bv");
   }, [company?.slug]);
 
 
