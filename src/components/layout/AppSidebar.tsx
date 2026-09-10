@@ -1,4 +1,4 @@
-import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, PackageCheck } from "lucide-react";
+import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, MapPinned, PackageCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +23,7 @@ const navItems: NavItem[] = [
   { title: "Expedição", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
+  { title: "Bairros", url: "/neighborhoods", icon: MapPinned, adminOnly: false },
   { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true, hideWhenExpedition: true },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },
   { title: "Configurações", url: "/settings", icon: Settings, adminOnly: true },

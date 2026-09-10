@@ -1,4 +1,4 @@
-import { Home, BarChart3, Settings, Shield, LogOut, AlertTriangle, MapPin, PackageCheck } from "lucide-react";
+import { Home, BarChart3, Settings, Shield, LogOut, AlertTriangle, MapPin, MapPinned, PackageCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,6 +9,7 @@ const navItems = [
   { title: "Exped.", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
   { title: "Ocorr.", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Locais", url: "/locations", icon: MapPin, adminOnly: false },
+  { title: "Bairros", url: "/neighborhoods", icon: MapPinned, adminOnly: false },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },
   { title: "Config", url: "/settings", icon: Settings, adminOnly: true },
   { title: "Usuários", url: "/admin/users", icon: Shield, adminOnly: true },
