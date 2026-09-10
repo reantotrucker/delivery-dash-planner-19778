@@ -261,6 +261,18 @@ export default function LiveRouteMap() {
             <option value="Sem motorista">Sem motorista</option>
           </select>
         </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Período</label>
+          <select
+            value={periodFilter}
+            onChange={(e) => setPeriodFilter(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="all">Todos</option>
+            <option value="MANHA">Manhã</option>
+            <option value="TARDE">Tarde</option>
+          </select>
+        </div>
         <div className="flex flex-wrap gap-2 ml-auto">
           <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">{done} entregues</Badge>
           <Badge className="bg-amber-500 text-white hover:bg-amber-500">{pending} a entregar</Badge>
