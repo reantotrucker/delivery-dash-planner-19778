@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveCompanyId } from "@/lib/company";
+import { useCompany } from "@/hooks/useCompany";
+import { RouteReports } from "@/components/routes/RouteReports";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -10,6 +12,7 @@ import { Trophy, BarChart3, PieChart, AlertTriangle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line } from "recharts";
 
 const Reports = () => {
+  const { company } = useCompany();
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
 
@@ -161,8 +164,9 @@ const Reports = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold text-primary">Relatórios</h1>
+          <RouteReports companyId={getActiveCompanyId()} companyName={company?.name} />
         </div>
       </header>
 
