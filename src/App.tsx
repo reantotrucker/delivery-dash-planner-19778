@@ -13,11 +13,9 @@ import ResetPassword from "./pages/ResetPassword";
 import UserManagement from "./pages/UserManagement";
 import OmieImport from "./pages/OmieImport";
 import Locations from "./pages/Locations";
-import NeighborhoodDeliveries from "./pages/NeighborhoodDeliveries";
 import DailySummary from "./pages/DailySummary";
 import StoreComparison from "./pages/StoreComparison";
 import ClientHistory from "./pages/ClientHistory";
-import LiveRouteMap from "./pages/LiveRouteMap";
 import Expedition from "./pages/Expedition";
 import TvPanel from "./pages/TvPanel";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -124,14 +122,6 @@ const App = () => (
               }
             />
             <Route
-              path="/neighborhoods"
-              element={
-                <ProtectedWithLayout>
-                  <NeighborhoodDeliveries />
-                </ProtectedWithLayout>
-              }
-            />
-            <Route
               path="/daily-summary"
               element={
                 <ProtectedWithLayout>
@@ -152,14 +142,6 @@ const App = () => (
               element={
                 <ProtectedWithLayout>
                   <ClientHistory />
-                </ProtectedWithLayout>
-              }
-            />
-            <Route
-              path="/live-map"
-              element={
-                <ProtectedWithLayout>
-                  <LiveRouteMap />
                 </ProtectedWithLayout>
               }
             />

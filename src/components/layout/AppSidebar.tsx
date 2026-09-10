@@ -23,8 +23,6 @@ const navItems: NavItem[] = [
   { title: "Expedição", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
-  { title: "Bairros", url: "/neighborhoods", icon: MapPinned, adminOnly: false },
-  { title: "Rota ao vivo", url: "/live-map", icon: Radio, adminOnly: false },
   { title: "Resumo do dia", url: "/daily-summary", icon: ClipboardList, adminOnly: false },
   { title: "Clientes", url: "/clients", icon: Users, adminOnly: false },
   { title: "Comparativo", url: "/comparison", icon: GitCompare, adminOnly: true },

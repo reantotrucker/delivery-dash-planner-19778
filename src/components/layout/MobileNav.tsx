@@ -9,8 +9,6 @@ const navItems = [
   { title: "Exped.", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
   { title: "Ocorr.", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Locais", url: "/locations", icon: MapPin, adminOnly: false },
-  { title: "Bairros", url: "/neighborhoods", icon: MapPinned, adminOnly: false },
-  { title: "Ao vivo", url: "/live-map", icon: Radio, adminOnly: false },
   { title: "Resumo", url: "/daily-summary", icon: ClipboardList, adminOnly: false },
   { title: "Clientes", url: "/clients", icon: Users, adminOnly: false },
   { title: "Lojas", url: "/comparison", icon: GitCompare, adminOnly: true },
