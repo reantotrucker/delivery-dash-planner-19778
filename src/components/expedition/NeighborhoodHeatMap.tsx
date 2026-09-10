@@ -136,13 +136,16 @@ const norm = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const findCoord = (name: string): [number, number] | null => {
+const findCoord = (
+  name: string,
+  table: Record<string, [number, number]>
+): [number, number] | null => {
   const n = norm(name);
   if (!n) return null;
-  if (BAIRROS[n]) return BAIRROS[n];
-  const keys = Object.keys(BAIRROS);
+  if (table[n]) return table[n];
+  const keys = Object.keys(table);
   const hit = keys.find((k) => n.includes(k) || k.includes(n));
-  return hit ? BAIRROS[hit] : null;
+  return hit ? table[hit] : null;
 };
 
 const heatColor = (t: number) => {
