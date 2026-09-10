@@ -24,7 +24,7 @@ const navItems: NavItem[] = [
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Resumo do dia", url: "/daily-summary", icon: ClipboardList, adminOnly: false },
-  { title: "Clientes", url: "/clients", icon: Users, adminOnly: false },
+  
   { title: "Comparativo", url: "/comparison", icon: GitCompare, adminOnly: true },
   { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true, hideWhenExpedition: true },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },

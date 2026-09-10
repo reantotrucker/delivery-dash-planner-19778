@@ -15,7 +15,7 @@ import OmieImport from "./pages/OmieImport";
 import Locations from "./pages/Locations";
 import DailySummary from "./pages/DailySummary";
 import StoreComparison from "./pages/StoreComparison";
-import ClientHistory from "./pages/ClientHistory";
+
 import Expedition from "./pages/Expedition";
 import TvPanel from "./pages/TvPanel";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -134,14 +134,6 @@ const App = () => (
               element={
                 <ProtectedWithLayout requireAdmin>
                   <StoreComparison />
-                </ProtectedWithLayout>
-              }
-            />
-            <Route
-              path="/clients"
-              element={
-                <ProtectedWithLayout>
-                  <ClientHistory />
                 </ProtectedWithLayout>
               }
             />

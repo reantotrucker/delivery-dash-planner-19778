@@ -10,7 +10,7 @@ const navItems = [
   { title: "Ocorr.", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Locais", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Resumo", url: "/daily-summary", icon: ClipboardList, adminOnly: false },
-  { title: "Clientes", url: "/clients", icon: Users, adminOnly: false },
+  
   { title: "Lojas", url: "/comparison", icon: GitCompare, adminOnly: true },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },
   { title: "Config", url: "/settings", icon: Settings, adminOnly: true },
