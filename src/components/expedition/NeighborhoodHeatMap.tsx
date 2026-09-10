@@ -3,9 +3,10 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip as LTooltip, useMap } fr
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPinned, Maximize2, Minimize2 } from "lucide-react";
+import { useCompany } from "@/hooks/useCompany";
 
 // Coordenadas aproximadas dos bairros de Manaus (AM)
-const BAIRROS: Record<string, [number, number]> = {
+const BAIRROS_MANAUS: Record<string, [number, number]> = {
   "adrianopolis": [-3.1027, -60.0089],
   "aleixo": [-3.0946, -59.9846],
   "alvorada": [-3.0693, -60.0399],
