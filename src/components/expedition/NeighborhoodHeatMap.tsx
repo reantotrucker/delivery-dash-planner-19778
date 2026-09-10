@@ -197,6 +197,8 @@ export default function NeighborhoodHeatMap({
   data: Item[];
   rows?: Row[];
 }) {
+  const { company } = useCompany();
+  const city = company?.slug === "uniprint_bv" ? CITIES.boavista : CITIES.manaus;
   const [metric, setMetric] = useState<"total" | "valor">("total");
   const [expanded, setExpanded] = useState(false);
   const [labels, setLabels] = useState(true);
