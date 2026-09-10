@@ -395,6 +395,12 @@ export default function Expedition() {
           }
           if (existing) continue;
 
+          // Só cria vendas emitidas de hoje em diante (histórico não entra na expedição)
+          const emissionISO = inv.emissionDate
+            ? String(inv.emissionDate).split("/").reverse().join("-")
+            : null;
+          if (emissionISO && emissionISO < manausToday()) continue;
+
 
           const { data: inserted, error: insErr } = await supabase
             .from("expedition_orders")
