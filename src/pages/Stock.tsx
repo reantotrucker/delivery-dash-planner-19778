@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowDownToLine, ArrowUpFromLine, Boxes, RefreshCw, Search, TriangleAlert } from "lucide-react";
-import { todayISO, prevDayISO } from "@/lib/manausTime";
+import { manausToday, prevDayISO } from "@/lib/manausTime";
 
 interface StockProduct {
   code: string;
@@ -40,7 +40,7 @@ const normalize = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
 
 function periodStart(period: "hoje" | "7d" | "mes") {
-  const today = todayISO();
+  const today = manausToday();
   if (period === "hoje") return today;
   if (period === "7d") {
     let d = today;
@@ -57,7 +57,7 @@ export default function Stock() {
   const [onlyMissing, setOnlyMissing] = useState(false);
 
   const dateFrom = periodStart(period);
-  const dateTo = todayISO();
+  const dateTo = manausToday();
 
   const stockQuery = useQuery({
     queryKey: ["omie-stock", companyId, dateFrom, dateTo],
