@@ -109,6 +109,12 @@ async function syncCompany(companyId: string, types: readonly ("nfe" | "nfce")[]
       }
       if (existing) continue;
 
+      // Só cria vendas emitidas de hoje em diante (horário de Manaus)
+      const emissionISO = inv.emissionDate
+        ? String(inv.emissionDate).split("/").reverse().join("-")
+        : null;
+      if (emissionISO && emissionISO < manausTodayISO()) continue;
+
 
       const { data: inserted, error: insErr } = await sb
         .from("expedition_orders")
