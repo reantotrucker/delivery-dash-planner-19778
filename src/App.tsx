@@ -124,14 +124,6 @@ const App = () => (
               }
             />
             <Route
-              path="/neighborhoods"
-              element={
-                <ProtectedWithLayout>
-                  <NeighborhoodDeliveries />
-                </ProtectedWithLayout>
-              }
-            />
-            <Route
               path="/daily-summary"
               element={
                 <ProtectedWithLayout>
