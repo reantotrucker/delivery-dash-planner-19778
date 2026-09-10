@@ -1,4 +1,4 @@
-import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, PackageCheck } from "lucide-react";
+import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, PackageCheck, Boxes } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { title: "Rotas", url: "/", icon: Home, adminOnly: false },
   { title: "Expedição", url: "/expedition", icon: PackageCheck, adminOnly: false, expeditionOnly: true },
+  { title: "Estoque", url: "/stock", icon: Boxes, adminOnly: true, expeditionOnly: true },
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true, hideWhenExpedition: true },

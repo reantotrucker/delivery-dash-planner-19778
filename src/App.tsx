@@ -14,6 +14,7 @@ import UserManagement from "./pages/UserManagement";
 import OmieImport from "./pages/OmieImport";
 import Locations from "./pages/Locations";
 import Expedition from "./pages/Expedition";
+import Stock from "./pages/Stock";
 import TvPanel from "./pages/TvPanel";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -83,6 +84,14 @@ const App = () => (
               element={
                 <ProtectedWithLayout>
                   <Expedition />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/stock"
+              element={
+                <ProtectedWithLayout requireAdmin>
+                  <Stock />
                 </ProtectedWithLayout>
               }
             />
