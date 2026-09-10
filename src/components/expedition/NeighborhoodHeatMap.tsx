@@ -3,9 +3,10 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip as LTooltip, useMap } fr
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapPinned, Maximize2, Minimize2 } from "lucide-react";
+import { useCompany } from "@/hooks/useCompany";
 
 // Coordenadas aproximadas dos bairros de Manaus (AM)
-const BAIRROS: Record<string, [number, number]> = {
+const BAIRROS_MANAUS: Record<string, [number, number]> = {
   "adrianopolis": [-3.1027, -60.0089],
   "aleixo": [-3.0946, -59.9846],
   "alvorada": [-3.0693, -60.0399],
@@ -71,6 +72,60 @@ const BAIRROS: Record<string, [number, number]> = {
   "manoa": [-3.0068, -59.9612],
 };
 
+// Coordenadas aproximadas dos bairros de Boa Vista (RR)
+const BAIRROS_BOA_VISTA: Record<string, [number, number]> = {
+  "centro": [2.8195, -60.6714],
+  "cacari": [2.806, -60.682],
+  "paraviana": [2.829, -60.665],
+  "aparecida": [2.833, -60.679],
+  "sao pedro": [2.841, -60.69],
+  "sao francisco": [2.834, -60.672],
+  "sao vicente": [2.818, -60.68],
+  "canarinho": [2.829, -60.683],
+  "mecejana": [2.846, -60.684],
+  "buritis": [2.856, -60.7],
+  "pricuma": [2.85, -60.706],
+  "asa branca": [2.864, -60.716],
+  "cinturao verde": [2.87, -60.71],
+  "jardim floresta": [2.86, -60.69],
+  "jardim tropical": [2.862, -60.708],
+  "liberdade": [2.842, -60.67],
+  "calunga": [2.828, -60.676],
+  "trinta e um de marco": [2.813, -60.687],
+  "31 de marco": [2.813, -60.687],
+  "cambara": [2.818, -60.693],
+  "tancredo neves": [2.809, -60.696],
+  "jockey clube": [2.802, -60.69],
+  "joquei clube": [2.802, -60.69],
+  "nova canaa": [2.797, -60.705],
+  "cidade satelite": [2.8, -60.715],
+  "raiar do sol": [2.872, -60.687],
+  "nova cidade": [2.88, -60.7],
+  "silvio botelho": [2.806, -60.706],
+  "dr silvio leite": [2.848, -60.672],
+  "doutor silvio leite": [2.848, -60.672],
+  "equatorial": [2.856, -60.679],
+  "santa tereza": [2.838, -60.66],
+  "bela vista": [2.846, -60.698],
+  "senador helio campos": [2.834, -60.706],
+  "pintolandia": [2.81, -60.71],
+  "operario": [2.825, -60.69],
+  "caimbe": [2.828, -60.7],
+  "cauame": [2.888, -60.71],
+  "aeroporto": [2.842, -60.69],
+  "uniao": [2.87, -60.695],
+  "murilo teixeira": [2.876, -60.71],
+  "laura moreira": [2.876, -60.69],
+  "araceli souto maior": [2.882, -60.698],
+  "13 de setembro": [2.822, -60.7],
+  "treze de setembro": [2.822, -60.7],
+};
+
+const CITIES = {
+  manaus: { label: "Manaus", center: [-3.1019, -60.0251] as [number, number], bairros: BAIRROS_MANAUS },
+  boavista: { label: "Boa Vista", center: [2.8235, -60.6758] as [number, number], bairros: BAIRROS_BOA_VISTA },
+};
+
 const norm = (s: string) =>
   s
     .normalize("NFD")
@@ -81,13 +136,16 @@ const norm = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const findCoord = (name: string): [number, number] | null => {
+const findCoord = (
+  name: string,
+  table: Record<string, [number, number]>
+): [number, number] | null => {
   const n = norm(name);
   if (!n) return null;
-  if (BAIRROS[n]) return BAIRROS[n];
-  const keys = Object.keys(BAIRROS);
+  if (table[n]) return table[n];
+  const keys = Object.keys(table);
   const hit = keys.find((k) => n.includes(k) || k.includes(n));
-  return hit ? BAIRROS[hit] : null;
+  return hit ? table[hit] : null;
 };
 
 const heatColor = (t: number) => {
@@ -139,6 +197,8 @@ export default function NeighborhoodHeatMap({
   data: Item[];
   rows?: Row[];
 }) {
+  const { company } = useCompany();
+  const city = company?.slug === "uniprint_bv" ? CITIES.boavista : CITIES.manaus;
   const [metric, setMetric] = useState<"total" | "valor">("total");
   const [expanded, setExpanded] = useState(false);
   const [labels, setLabels] = useState(true);
@@ -182,13 +242,13 @@ export default function NeighborhoodHeatMap({
     const unmapped: Item[] = [];
     activeData.forEach((d) => {
       if (!d.name || d.name === "—") return;
-      const c = findCoord(d.name);
+      const c = findCoord(d.name, city.bairros);
       if (c) points.push({ ...d, lat: c[0], lng: c[1] });
       else unmapped.push(d);
     });
     const max = Math.max(1, ...points.map((p) => (metric === "total" ? p.total : p.valor)));
     return { points, unmapped, max };
-  }, [activeData, metric]);
+  }, [activeData, metric, city]);
 
   return (
     <div
@@ -201,7 +261,7 @@ export default function NeighborhoodHeatMap({
     >
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <h3 className="font-semibold text-sm flex items-center gap-2">
-          <MapPinned className="w-4 h-4 text-primary" /> Mapa de calor de vendas por bairro
+          <MapPinned className="w-4 h-4 text-primary" /> Mapa de calor de vendas por bairro · {city.label}
         </h3>
         <div className="flex gap-1 flex-wrap items-center">
           {sellers.length > 0 && (
@@ -255,7 +315,8 @@ export default function NeighborhoodHeatMap({
         className={`${expanded ? "h-[calc(100vh-160px)]" : "h-[620px]"} rounded-lg overflow-hidden border border-border`}
       >
         <MapContainer
-          center={[-3.1019, -60.0251]}
+          key={city.label}
+          center={city.center}
           zoom={11}
           minZoom={9}
           style={{ height: "100%", width: "100%" }}
