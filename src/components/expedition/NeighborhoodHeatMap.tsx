@@ -242,7 +242,7 @@ export default function NeighborhoodHeatMap({
     const unmapped: Item[] = [];
     activeData.forEach((d) => {
       if (!d.name || d.name === "—") return;
-      const c = findCoord(d.name);
+      const c = findCoord(d.name, city.bairros);
       if (c) points.push({ ...d, lat: c[0], lng: c[1] });
       else unmapped.push(d);
     });
