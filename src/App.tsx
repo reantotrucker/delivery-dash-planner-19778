@@ -88,6 +88,14 @@ const App = () => (
               }
             />
             <Route
+              path="/stock"
+              element={
+                <ProtectedWithLayout requireAdmin>
+                  <Stock />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
               path="/tv"
               element={
                 <ProtectedRoute>
