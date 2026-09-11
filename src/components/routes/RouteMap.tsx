@@ -12,8 +12,8 @@ const ORIGIN_MANAUS = {
 };
 
 const ORIGIN_BOA_VISTA = {
-  lat: 2.8171,
-  lng: -60.6934,
+  lat: 2.8108491,
+  lng: -60.7278665,
   label: "Uniprint Distribuidora (Boa Vista)",
   address: "Av. São Sebastião, 311 - Cambará, Boa Vista - RR, 69313-438",
 };
