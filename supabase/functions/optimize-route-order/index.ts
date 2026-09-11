@@ -45,19 +45,20 @@ serve(async (req) => {
     ).join("\n");
 
     const systemPrompt = includeCoordinates
-      ? `Você é um especialista em logística e geografia de Manaus, Amazonas, Brasil.
+      ? `Você é um especialista em logística e geografia de ${CITY.name}.
 Sua tarefa é:
-1. Ordenar uma lista de entregas para minimizar o deslocamento total do motorista, partindo de R. Santa Rosa I B Mendes, 168 - Cidade de Deus, Manaus - AM.
-2. Estimar as coordenadas geográficas (latitude e longitude) de cada endereço com base no seu conhecimento de Manaus.
-Use coordenadas realistas para os bairros e ruas de Manaus. A cidade fica em torno de lat -3.1 e lng -60.0.`
-      : `Você é um especialista em logística de entregas na cidade de Manaus, Amazonas, Brasil. 
+1. Ordenar uma lista de entregas para minimizar o deslocamento total do motorista, partindo de ${CITY.origin}.
+2. Estimar as coordenadas geográficas (latitude e longitude) de cada endereço com base no seu conhecimento de ${CITY.name}.
+TODOS os endereços estão em ${CITY.name}. Nunca use coordenadas de outra cidade. ${CITY.hint}`
+      : `Você é um especialista em logística de entregas na cidade de ${CITY.name}. 
 Sua tarefa é ordenar uma lista de entregas para minimizar o deslocamento total do motorista.
-Considere a proximidade geográfica dos bairros e endereços em Manaus.
+Considere a proximidade geográfica dos bairros e endereços em ${CITY.name}.
 Responda APENAS com os IDs na ordem otimizada, sem explicação.`;
 
     const userPrompt = includeCoordinates
-      ? `Ordene estas entregas partindo da base (R. Santa Rosa I B Mendes, 168 - Cidade de Deus) para minimizar deslocamento. Retorne os IDs ordenados E as coordenadas estimadas de cada endereço:\n\n${routesList}`
-      : `Ordene estas entregas para minimizar o deslocamento do motorista em Manaus. Retorne APENAS os IDs separados por vírgula, na ordem otimizada de entrega:\n\n${routesList}`;
+      ? `Ordene estas entregas partindo da base (${CITY.origin}) para minimizar deslocamento. Todos os endereços ficam em ${CITY.name}. Retorne os IDs ordenados E as coordenadas estimadas de cada endereço:\n\n${routesList}`
+      : `Ordene estas entregas para minimizar o deslocamento do motorista em ${CITY.name}. Retorne APENAS os IDs separados por vírgula, na ordem otimizada de entrega:\n\n${routesList}`;
+
 
     const toolParams = includeCoordinates
       ? {
