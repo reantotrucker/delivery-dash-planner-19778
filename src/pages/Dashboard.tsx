@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveCompanyId } from "@/lib/company";
+import { useCompany } from "@/hooks/useCompany";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp, Route, Loader2, MapPin } from "lucide-react";
 import { format } from "date-fns";
@@ -22,6 +23,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 const Dashboard = () => {
   const { toast } = useToast();
   const { isAdmin, isMotorista, isComercial } = useAuth();
+  const { company } = useCompany();
+  const aiCity = company?.slug === "uniprint_bv" ? "boa_vista" : "manaus";
   const canManageRoutes = isAdmin;
   const canManageOccurrences = isAdmin || isMotorista;
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -245,7 +248,7 @@ const Dashboard = () => {
       }));
 
       const { data, error } = await supabase.functions.invoke("optimize-route-order", {
-        body: { routes: routeData },
+        body: { routes: routeData, city: aiCity },
       });
 
       if (error) throw error;
@@ -304,7 +307,7 @@ const Dashboard = () => {
       }));
 
       const { data, error } = await supabase.functions.invoke("optimize-route-order", {
-        body: { routes: routeData, includeCoordinates: true },
+        body: { routes: routeData, includeCoordinates: true, city: aiCity },
       });
 
       if (error) throw error;
