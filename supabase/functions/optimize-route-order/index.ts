@@ -11,7 +11,22 @@ serve(async (req) => {
   }
 
   try {
-    const { routes, includeCoordinates } = await req.json();
+    const { routes, includeCoordinates, city } = await req.json();
+
+    const CITIES: Record<string, { name: string; origin: string; hint: string }> = {
+      boa_vista: {
+        name: "Boa Vista, Roraima, Brasil",
+        origin: "Av. São Sebastião, 311 - Cambará, Boa Vista - RR, 69313-438",
+        hint: "A cidade fica em torno de lat 2.82 e lng -60.67 (hemisfério NORTE, latitude POSITIVA).",
+      },
+      manaus: {
+        name: "Manaus, Amazonas, Brasil",
+        origin: "R. Santa Rosa I B Mendes, 168 - Cidade de Deus, Manaus - AM",
+        hint: "A cidade fica em torno de lat -3.1 e lng -60.0.",
+      },
+    };
+    const CITY = CITIES[city === "boa_vista" ? "boa_vista" : "manaus"];
+
     
     if (!routes || !Array.isArray(routes) || routes.length === 0) {
       return new Response(JSON.stringify({ error: "Nenhuma rota fornecida" }), {
@@ -30,19 +45,20 @@ serve(async (req) => {
     ).join("\n");
 
     const systemPrompt = includeCoordinates
-      ? `Você é um especialista em logística e geografia de Manaus, Amazonas, Brasil.
+      ? `Você é um especialista em logística e geografia de ${CITY.name}.
 Sua tarefa é:
-1. Ordenar uma lista de entregas para minimizar o deslocamento total do motorista, partindo de R. Santa Rosa I B Mendes, 168 - Cidade de Deus, Manaus - AM.
-2. Estimar as coordenadas geográficas (latitude e longitude) de cada endereço com base no seu conhecimento de Manaus.
-Use coordenadas realistas para os bairros e ruas de Manaus. A cidade fica em torno de lat -3.1 e lng -60.0.`
-      : `Você é um especialista em logística de entregas na cidade de Manaus, Amazonas, Brasil. 
+1. Ordenar uma lista de entregas para minimizar o deslocamento total do motorista, partindo de ${CITY.origin}.
+2. Estimar as coordenadas geográficas (latitude e longitude) de cada endereço com base no seu conhecimento de ${CITY.name}.
+TODOS os endereços estão em ${CITY.name}. Nunca use coordenadas de outra cidade. ${CITY.hint}`
+      : `Você é um especialista em logística de entregas na cidade de ${CITY.name}. 
 Sua tarefa é ordenar uma lista de entregas para minimizar o deslocamento total do motorista.
-Considere a proximidade geográfica dos bairros e endereços em Manaus.
+Considere a proximidade geográfica dos bairros e endereços em ${CITY.name}.
 Responda APENAS com os IDs na ordem otimizada, sem explicação.`;
 
     const userPrompt = includeCoordinates
-      ? `Ordene estas entregas partindo da base (R. Santa Rosa I B Mendes, 168 - Cidade de Deus) para minimizar deslocamento. Retorne os IDs ordenados E as coordenadas estimadas de cada endereço:\n\n${routesList}`
-      : `Ordene estas entregas para minimizar o deslocamento do motorista em Manaus. Retorne APENAS os IDs separados por vírgula, na ordem otimizada de entrega:\n\n${routesList}`;
+      ? `Ordene estas entregas partindo da base (${CITY.origin}) para minimizar deslocamento. Todos os endereços ficam em ${CITY.name}. Retorne os IDs ordenados E as coordenadas estimadas de cada endereço:\n\n${routesList}`
+      : `Ordene estas entregas para minimizar o deslocamento do motorista em ${CITY.name}. Retorne APENAS os IDs separados por vírgula, na ordem otimizada de entrega:\n\n${routesList}`;
+
 
     const toolParams = includeCoordinates
       ? {
@@ -134,8 +150,22 @@ Responda APENAS com os IDs na ordem otimizada, sem explicação.`;
       const parsed = JSON.parse(toolCall.function.arguments);
       const result: any = { orderedIds: parsed.orderedIds };
       if (includeCoordinates && parsed.coordinates) {
-        result.coordinates = parsed.coordinates;
+        // Descarta coordenadas fora da cidade da empresa (evita cair em outra cidade)
+        const isBV = CITY.name.includes("Boa Vista");
+        const bounds = isBV
+          ? { minLat: 2.4, maxLat: 3.3, minLng: -61.1, maxLng: -60.3 }
+          : { minLat: -3.6, maxLat: -2.6, minLng: -60.5, maxLng: -59.6 };
+        result.coordinates = (parsed.coordinates as any[]).filter(
+          (c) =>
+            typeof c?.lat === "number" &&
+            typeof c?.lng === "number" &&
+            c.lat >= bounds.minLat &&
+            c.lat <= bounds.maxLat &&
+            c.lng >= bounds.minLng &&
+            c.lng <= bounds.maxLng
+        );
       }
+
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
