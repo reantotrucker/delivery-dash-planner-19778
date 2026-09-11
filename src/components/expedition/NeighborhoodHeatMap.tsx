@@ -123,7 +123,7 @@ const BAIRROS_BOA_VISTA: Record<string, [number, number]> = {
 
 const CITIES = {
   manaus: { label: "Manaus", center: [-3.1019, -60.0251] as [number, number], bairros: BAIRROS_MANAUS },
-  boavista: { label: "Boa Vista", center: [2.8235, -60.6758] as [number, number], bairros: BAIRROS_BOA_VISTA },
+  boavista: { label: "Boa Vista", center: [2.8171, -60.6934] as [number, number], bairros: BAIRROS_BOA_VISTA },
 };
 
 const norm = (s: string) =>
