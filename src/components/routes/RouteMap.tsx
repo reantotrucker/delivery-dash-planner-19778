@@ -2,8 +2,21 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useCompany } from "@/hooks/useCompany";
 
-const ORIGIN = { lat: -3.0889, lng: -59.9856 };
+const ORIGIN_MANAUS = {
+  lat: -3.0889,
+  lng: -59.9856,
+  label: "Base / Depósito",
+  address: "R. Santa Rosa I B Mendes, 168 - Cidade de Deus, Manaus - AM",
+};
+
+const ORIGIN_BOA_VISTA = {
+  lat: 2.8171,
+  lng: -60.6934,
+  label: "Uniprint Distribuidora (Boa Vista)",
+  address: "Av. São Sebastião, 311 - Cambará, Boa Vista - RR, 69313-438",
+};
 
 interface RouteCoordinate {
   id: string;
@@ -65,23 +78,33 @@ const originIcon = L.divIcon({
   iconAnchor: [17, 17],
 });
 
-function FitBounds({ driverGroups }: { driverGroups: DriverGroup[] }) {
+function FitBounds({
+  driverGroups,
+  origin,
+}: {
+  driverGroups: DriverGroup[];
+  origin: { lat: number; lng: number };
+}) {
   const map = useMap();
   useEffect(() => {
-    const allPoints: [number, number][] = [[ORIGIN.lat, ORIGIN.lng]];
+    const allPoints: [number, number][] = [[origin.lat, origin.lng]];
     driverGroups.forEach((g) =>
       g.coordinates.forEach((c) => allPoints.push([c.lat, c.lng]))
     );
     if (allPoints.length > 1) {
       map.fitBounds(allPoints as L.LatLngBoundsExpression, { padding: [40, 40] });
     }
-  }, [driverGroups, map]);
+  }, [driverGroups, map, origin]);
   return null;
 }
 
 export function RouteMap({ driverGroups }: RouteMapProps) {
+  const { company } = useCompany();
+  const ORIGIN = company?.slug === "uniprint_bv" ? ORIGIN_BOA_VISTA : ORIGIN_MANAUS;
+
   return (
     <MapContainer
+      key={ORIGIN.label}
       center={[ORIGIN.lat, ORIGIN.lng]}
       zoom={12}
       style={{ height: "100%", width: "100%", minHeight: "400px" }}
@@ -91,14 +114,14 @@ export function RouteMap({ driverGroups }: RouteMapProps) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <FitBounds driverGroups={driverGroups} />
+      <FitBounds driverGroups={driverGroups} origin={ORIGIN} />
 
       {/* Origin marker */}
       <Marker position={[ORIGIN.lat, ORIGIN.lng]} icon={originIcon}>
         <Popup>
-          <strong>Base / Depósito</strong>
+          <strong>{ORIGIN.label}</strong>
           <br />
-          R. Santa Rosa I B Mendes, 168 - Cidade de Deus
+          {ORIGIN.address}
         </Popup>
       </Marker>
 
