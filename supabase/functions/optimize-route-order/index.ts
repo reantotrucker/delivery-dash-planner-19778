@@ -150,8 +150,22 @@ Responda APENAS com os IDs na ordem otimizada, sem explicação.`;
       const parsed = JSON.parse(toolCall.function.arguments);
       const result: any = { orderedIds: parsed.orderedIds };
       if (includeCoordinates && parsed.coordinates) {
-        result.coordinates = parsed.coordinates;
+        // Descarta coordenadas fora da cidade da empresa (evita cair em outra cidade)
+        const isBV = CITY.name.includes("Boa Vista");
+        const bounds = isBV
+          ? { minLat: 2.4, maxLat: 3.3, minLng: -61.1, maxLng: -60.3 }
+          : { minLat: -3.6, maxLat: -2.6, minLng: -60.5, maxLng: -59.6 };
+        result.coordinates = (parsed.coordinates as any[]).filter(
+          (c) =>
+            typeof c?.lat === "number" &&
+            typeof c?.lng === "number" &&
+            c.lat >= bounds.minLat &&
+            c.lat <= bounds.maxLat &&
+            c.lng >= bounds.minLng &&
+            c.lng <= bounds.maxLng
+        );
       }
+
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
