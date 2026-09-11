@@ -96,7 +96,7 @@ async function getMultiCached(keys: string[]): Promise<Map<string, any>> {
     const now = new Date();
     data?.forEach((row: any) => {
       if (new Date(row.expires_at) > now) {
-        result.set(String(row.cache_key).slice(CACHE_PREFIX.length), row.cache_value);
+        result.set(String(row.cache_key).slice(cachePrefix().length), row.cache_value);
       }
     });
   } catch {
@@ -996,53 +996,60 @@ serve(async (req) => {
     if (!OMIE_APP_KEY) throw new Error(`OMIE_APP_KEY${suffix} não configurada`);
     if (!OMIE_APP_SECRET) throw new Error(`OMIE_APP_SECRET${suffix} não configurada`);
 
-    CACHE_PREFIX = `${companySlug}:`;
-
     if (!type || !['nfe', 'nfce'].includes(type)) {
       throw new Error('Tipo inválido. Use "nfe" ou "nfce".');
     }
 
-    // Clean expired cache periodically (1 in 10 chance)
-    if (Math.random() < 0.1) {
-      getSupabase().rpc('clean_omie_cache').then(() => {}).catch(() => {});
-    }
-
-    // Determine cache key for this listing
-    const listingCacheKey = type === 'nfe'
-      ? (fetchLastPage ? 'listing_nfe_last' : `listing_nfe_page_${page}`)
-      : `listing_nfce_page_${page}`;
-
-    // Check listing cache first (unless forceRefresh)
-    if (!forceRefresh) {
-      const cachedListing = await getCachedWithMeta(listingCacheKey);
-      if (cachedListing) {
-        console.log(`Servindo ${type} do cache (criado em ${cachedListing.created_at})`);
-        const result = cachedListing.value;
-        result.fromCache = true;
-        result.cachedAt = cachedListing.created_at;
-        return new Response(JSON.stringify(result), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+    // Todo o trabalho abaixo roda no namespace de cache da empresa resolvida,
+    // isolado de outras requisições simultâneas.
+    return await companyCtx.run(`${companySlug}:`, async () => {
+      // Clean expired cache periodically (1 in 10 chance)
+      if (Math.random() < 0.1) {
+        getSupabase().rpc('clean_omie_cache').then(() => {}).catch(() => {});
       }
-    }
 
-    console.log(`Cache miss ou forceRefresh para ${listingCacheKey}, buscando da API Omie...`);
+      // Determine cache key for this listing
+      const listingCacheKey = type === 'nfe'
+        ? (fetchLastPage ? 'listing_nfe_last' : `listing_nfe_page_${page}`)
+        : `listing_nfce_page_${page}`;
 
-    let result;
-    if (type === 'nfe') {
-      result = await buildNfeResult(page, fetchLastPage, OMIE_APP_KEY, OMIE_APP_SECRET);
-    } else {
-      result = await buildNfceResult(page, OMIE_APP_KEY, OMIE_APP_SECRET);
-    }
+      // Check listing cache first (unless forceRefresh)
+      if (!forceRefresh) {
+        const cachedListing = await getCachedWithMeta(listingCacheKey);
+        if (cachedListing) {
+          console.log(`Servindo ${type} do cache de ${companySlug} (criado em ${cachedListing.created_at})`);
+          const result = cachedListing.value;
+          result.fromCache = true;
+          result.cachedAt = cachedListing.created_at;
+          result.companySlug = companySlug;
+          return new Response(JSON.stringify(result), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
 
-    // Save to listing cache (10 min TTL)
-    await setCacheMinutes(listingCacheKey, result, LISTING_CACHE_TTL_MINUTES);
-    console.log(`Resultado salvo no cache: ${listingCacheKey} (TTL: ${LISTING_CACHE_TTL_MINUTES}min)`);
+      console.log(`Cache miss ou forceRefresh para ${companySlug}:${listingCacheKey}, buscando da API Omie...`);
 
-    const responseResult = { ...result, fromCache: false, cachedAt: new Date().toISOString() };
+      let result;
+      if (type === 'nfe') {
+        result = await buildNfeResult(page, fetchLastPage, OMIE_APP_KEY, OMIE_APP_SECRET);
+      } else {
+        result = await buildNfceResult(page, OMIE_APP_KEY, OMIE_APP_SECRET);
+      }
 
-    return new Response(JSON.stringify(responseResult), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      // Save to listing cache (10 min TTL)
+      await setCacheMinutes(listingCacheKey, result, LISTING_CACHE_TTL_MINUTES);
+
+      const responseResult = {
+        ...result,
+        fromCache: false,
+        cachedAt: new Date().toISOString(),
+        companySlug,
+      };
+
+      return new Response(JSON.stringify(responseResult), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     });
 
   } catch (error) {
