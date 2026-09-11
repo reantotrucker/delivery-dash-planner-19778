@@ -11,7 +11,22 @@ serve(async (req) => {
   }
 
   try {
-    const { routes, includeCoordinates } = await req.json();
+    const { routes, includeCoordinates, city } = await req.json();
+
+    const CITIES: Record<string, { name: string; origin: string; hint: string }> = {
+      boa_vista: {
+        name: "Boa Vista, Roraima, Brasil",
+        origin: "Av. São Sebastião, 311 - Cambará, Boa Vista - RR, 69313-438",
+        hint: "A cidade fica em torno de lat 2.82 e lng -60.67 (hemisfério NORTE, latitude POSITIVA).",
+      },
+      manaus: {
+        name: "Manaus, Amazonas, Brasil",
+        origin: "R. Santa Rosa I B Mendes, 168 - Cidade de Deus, Manaus - AM",
+        hint: "A cidade fica em torno de lat -3.1 e lng -60.0.",
+      },
+    };
+    const CITY = CITIES[city === "boa_vista" ? "boa_vista" : "manaus"];
+
     
     if (!routes || !Array.isArray(routes) || routes.length === 0) {
       return new Response(JSON.stringify({ error: "Nenhuma rota fornecida" }), {
