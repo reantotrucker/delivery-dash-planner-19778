@@ -78,23 +78,33 @@ const originIcon = L.divIcon({
   iconAnchor: [17, 17],
 });
 
-function FitBounds({ driverGroups }: { driverGroups: DriverGroup[] }) {
+function FitBounds({
+  driverGroups,
+  origin,
+}: {
+  driverGroups: DriverGroup[];
+  origin: { lat: number; lng: number };
+}) {
   const map = useMap();
   useEffect(() => {
-    const allPoints: [number, number][] = [[ORIGIN.lat, ORIGIN.lng]];
+    const allPoints: [number, number][] = [[origin.lat, origin.lng]];
     driverGroups.forEach((g) =>
       g.coordinates.forEach((c) => allPoints.push([c.lat, c.lng]))
     );
     if (allPoints.length > 1) {
       map.fitBounds(allPoints as L.LatLngBoundsExpression, { padding: [40, 40] });
     }
-  }, [driverGroups, map]);
+  }, [driverGroups, map, origin]);
   return null;
 }
 
 export function RouteMap({ driverGroups }: RouteMapProps) {
+  const { company } = useCompany();
+  const ORIGIN = company?.slug === "uniprint_bv" ? ORIGIN_BOA_VISTA : ORIGIN_MANAUS;
+
   return (
     <MapContainer
+      key={ORIGIN.label}
       center={[ORIGIN.lat, ORIGIN.lng]}
       zoom={12}
       style={{ height: "100%", width: "100%", minHeight: "400px" }}
@@ -104,14 +114,14 @@ export function RouteMap({ driverGroups }: RouteMapProps) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <FitBounds driverGroups={driverGroups} />
+      <FitBounds driverGroups={driverGroups} origin={ORIGIN} />
 
       {/* Origin marker */}
       <Marker position={[ORIGIN.lat, ORIGIN.lng]} icon={originIcon}>
         <Popup>
-          <strong>Base / Depósito</strong>
+          <strong>{ORIGIN.label}</strong>
           <br />
-          R. Santa Rosa I B Mendes, 168 - Cidade de Deus
+          {ORIGIN.address}
         </Popup>
       </Marker>
 
