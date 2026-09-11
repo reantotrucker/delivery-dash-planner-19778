@@ -2,8 +2,21 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useCompany } from "@/hooks/useCompany";
 
-const ORIGIN = { lat: -3.0889, lng: -59.9856 };
+const ORIGIN_MANAUS = {
+  lat: -3.0889,
+  lng: -59.9856,
+  label: "Base / Depósito",
+  address: "R. Santa Rosa I B Mendes, 168 - Cidade de Deus, Manaus - AM",
+};
+
+const ORIGIN_BOA_VISTA = {
+  lat: 2.8171,
+  lng: -60.6934,
+  label: "Uniprint Distribuidora (Boa Vista)",
+  address: "Av. São Sebastião, 311 - Cambará, Boa Vista - RR, 69313-438",
+};
 
 interface RouteCoordinate {
   id: string;
