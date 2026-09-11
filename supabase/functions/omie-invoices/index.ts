@@ -8,9 +8,12 @@ const corsHeaders = {
 
 const OMIE_API_URL = 'https://app.omie.com.br/api/v1';
 
-// Per-company cache namespace (set per request)
-let CACHE_PREFIX = '';
-const pk = (key: string) => `${CACHE_PREFIX}${key}`;
+// Per-company cache namespace.
+// IMPORTANTE: precisa ser por requisição. Uma variável global mutável vaza
+// entre requisições simultâneas (uma empresa lendo o cache da outra).
+const companyCtx = new AsyncLocalStorage<string>();
+const cachePrefix = () => companyCtx.getStore() ?? '';
+const pk = (key: string) => `${cachePrefix()}${key}`;
 
 // Cache TTL for full listing results (10 minutes)
 const LISTING_CACHE_TTL_MINUTES = 10;
