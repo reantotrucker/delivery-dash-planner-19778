@@ -1,3 +1,4 @@
+import { getActiveCity } from "@/lib/company";
 export interface Route {
   id: string;
   client: string;
@@ -51,9 +52,10 @@ const buildAddressQuery = (address?: string | null, cep?: string | null, neighbo
     parts.push(neighborhood.trim());
   }
   
-  // Sempre adiciona cidade e estado para contexto
-  parts.push("Manaus");
-  parts.push("AM");
+  // Sempre adiciona cidade e estado da empresa ativa para contexto
+  const { city, state } = getActiveCity();
+  parts.push(city);
+  parts.push(state);
   
   // Adiciona CEP no final para precisão extra (formato brasileiro)
   if (cep && cep.trim()) {

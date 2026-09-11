@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { getActiveCompanyId, setActiveCompanyId } from "@/lib/company";
+import { getActiveCompanyId, setActiveCompanyId, setActiveCompanySlug } from "@/lib/company";
 
 export interface Company {
   id: string;
@@ -71,6 +71,10 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
     () => companies.find((c) => c.id === companyId) || null,
     [companies, companyId]
   );
+
+  useEffect(() => {
+    setActiveCompanySlug(company?.slug || "");
+  }, [company?.slug]);
 
   // Tema por empresa: Uniprint Manaus vermelho, Boa Vista vermelho + cinza, Stock 360 laranja
   useEffect(() => {
