@@ -17,7 +17,7 @@ serve(async (req) => {
       boa_vista: {
         name: "Boa Vista, Roraima, Brasil",
         origin: "Av. São Sebastião, 311 - Cambará, Boa Vista - RR, 69313-438",
-        hint: "A cidade fica em torno de lat 2.82 e lng -60.67 (hemisfério NORTE, latitude POSITIVA).",
+        hint: "A cidade fica em torno de lat 2.81 e lng -60.70 (hemisfério NORTE, latitude POSITIVA). A base fica em lat 2.8108, lng -60.7279.",
       },
       manaus: {
         name: "Manaus, Amazonas, Brasil",
