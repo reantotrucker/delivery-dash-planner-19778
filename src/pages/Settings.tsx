@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -44,6 +44,7 @@ const Settings = () => {
             <TabsTrigger value="consultants">Consultores</TabsTrigger>
             <TabsTrigger value="payments">Pagamentos</TabsTrigger>
             {hasExpedition && <TabsTrigger value="infos">Informações adicional</TabsTrigger>}
+            <TabsTrigger value="sender">Dados da etiqueta</TabsTrigger>
           </TabsList>
 
           <TabsContent value="drivers">
@@ -67,6 +68,10 @@ const Settings = () => {
               <ExtraInfosSettings />
             </TabsContent>
           )}
+
+          <TabsContent value="sender">
+            <SenderSettings />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
@@ -879,6 +884,86 @@ const ExtraInfosSettings = () => {
         </div>
       </Card>
     </div>
+  );
+};
+
+const SENDER_FIELDS: { key: string; label: string; placeholder: string }[] = [
+  { key: "legal_name", label: "Razão social", placeholder: "Ex: Uniprint Distribuidora LTDA" },
+  { key: "cnpj", label: "CNPJ", placeholder: "00.000.000/0000-00" },
+  { key: "address", label: "Endereço", placeholder: "Av. São Sebastião, 311" },
+  { key: "neighborhood", label: "Bairro", placeholder: "Cambará" },
+  { key: "city", label: "Cidade", placeholder: "Boa Vista" },
+  { key: "state", label: "UF", placeholder: "RR" },
+  { key: "cep", label: "CEP", placeholder: "69313-438" },
+  { key: "phone", label: "Telefone", placeholder: "(95) 0000-0000" },
+];
+
+const SenderSettings = () => {
+  const { companyId } = useCompany();
+  const { isAdmin } = useAuth();
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const { data, refetch } = useQuery({
+    queryKey: ["company-sender", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("legal_name, cnpj, address, neighborhood, city, state, cep, phone")
+        .eq("id", companyId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (!data) return;
+    const initial: Record<string, string> = {};
+    SENDER_FIELDS.forEach((f) => (initial[f.key] = ((data as any)[f.key] as string) || ""));
+    setForm(initial);
+  }, [data]);
+
+  const save = async () => {
+    setSaving(true);
+    const payload: Record<string, string | null> = {};
+    SENDER_FIELDS.forEach((f) => (payload[f.key] = form[f.key]?.trim() || null));
+    const { error } = await supabase.from("companies").update(payload).eq("id", companyId);
+    setSaving(false);
+    if (error) {
+      toast.error("Não foi possível salvar os dados da empresa.");
+      return;
+    }
+    toast.success("Dados da etiqueta salvos!");
+    refetch();
+  };
+
+  return (
+    <Card className="p-6 bg-card border-border">
+      <h2 className="text-xl font-bold text-primary mb-1">Dados da empresa (etiqueta)</h2>
+      <p className="text-sm text-muted-foreground mb-4">
+        Usados como remetente nas etiquetas de volume (100x50 mm).
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {SENDER_FIELDS.map((f) => (
+          <div key={f.key} className="space-y-2">
+            <Label>{f.label}</Label>
+            <Input
+              value={form[f.key] || ""}
+              disabled={!isAdmin}
+              placeholder={f.placeholder}
+              onChange={(e) => setForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+            />
+          </div>
+        ))}
+      </div>
+      {isAdmin && (
+        <Button className="mt-4" onClick={save} disabled={saving}>
+          {saving ? "Salvando..." : "Salvar dados"}
+        </Button>
+      )}
+    </Card>
   );
 };
 

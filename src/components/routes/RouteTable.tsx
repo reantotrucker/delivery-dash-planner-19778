@@ -5,6 +5,8 @@ import { getActiveCompanyId } from "@/lib/company";
 import { toast } from "@/hooks/use-toast";
 import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2, Camera, ClipboardPaste, Crosshair, ExternalLink, PenLine } from "lucide-react";
 import { RouteReceiptDialog } from "./RouteReceiptDialog";
+import { RouteVolumeDialog } from "./RouteVolumeDialog";
+import { Boxes } from "lucide-react";
 import { RouteSignatureDialog } from "./RouteSignatureDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
@@ -62,6 +64,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
   const [receiptRoute, setReceiptRoute] = useState<Route | null>(null);
   const [signatureRoute, setSignatureRoute] = useState<Route | null>(null);
   const [pendingDeliverId, setPendingDeliverId] = useState<string | null>(null);
+  const [volumeRoute, setVolumeRoute] = useState<Route | null>(null);
   const [locationDrafts, setLocationDrafts] = useState<Record<string, string>>({});
   const [savingLocationId, setSavingLocationId] = useState<string | null>(null);
   const canEditLocation = isAdmin;
@@ -599,7 +602,17 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                           </span>
                         )}
                       </Button>
+
+                      <Button
+                        variant="secondary"
+                        className="relative col-span-2 flex items-center justify-center gap-2 h-10 px-3 rounded-xl font-bold text-[11px] uppercase tracking-wider active:scale-95 transition-all"
+                        onClick={() => setVolumeRoute(route)}
+                      >
+                        <Boxes className={`w-4 h-4 ${route.volumes ? 'text-primary' : 'text-muted-foreground'}`} />
+                        {route.volumes ? `Volume ${route.volumes}` : "Volume"}
+                      </Button>
                     </div>
+
 
 
                     {/* Secondary row: Ocorrência + Reagendar */}
@@ -892,6 +905,18 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
           }}
         />
       )}
+      <RouteVolumeDialog
+        route={volumeRoute}
+        open={!!volumeRoute}
+        onOpenChange={(open) => {
+          if (!open) setVolumeRoute(null);
+        }}
+        canEdit={!isComercial || isAdmin}
+        onSaved={() => {
+          onUpdate();
+          setVolumeRoute(null);
+        }}
+      />
     </>
   );
 };

@@ -75,6 +75,7 @@ interface OmieInvoice {
   orderObservation?: string;
   vendedorName?: string | null;
   products?: OmieProduct[];
+  volumes?: number | null;
   docType?: 'nfe' | 'nfce';
 }
 
@@ -337,6 +338,8 @@ export default function OmieImport() {
           : null,
         cep: invoice.address?.cep || null,
         observation: `NF ${invoice.number}${invoice.orderObservation ? ' - ' + invoice.orderObservation : ''}`,
+        nfe_number: invoice.number ? String(invoice.number) : null,
+        volumes: invoice.volumes && invoice.volumes > 0 ? invoice.volumes : null,
         date: routeDate,
         period: period,
         order_number: 1,

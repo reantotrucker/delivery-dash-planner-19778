@@ -20,6 +20,8 @@ export interface Route {
   order_number: number;
   urgent?: boolean;
   location_link?: string | null;
+  volumes?: number | null;
+  nfe_number?: string | null;
 }
 
 export const generateGoogleMapsLink = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {
