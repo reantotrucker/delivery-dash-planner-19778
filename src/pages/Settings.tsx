@@ -913,12 +913,12 @@ const SenderSettings = () => {
     },
   });
 
-  useState(() => 0);
-  if (data && Object.keys(form).length === 0) {
+  useEffect(() => {
+    if (!data) return;
     const initial: Record<string, string> = {};
     SENDER_FIELDS.forEach((f) => (initial[f.key] = ((data as any)[f.key] as string) || ""));
-    if (Object.values(initial).some((v) => v !== "") || true) setForm(initial);
-  }
+    setForm(initial);
+  }, [data]);
 
   const save = async () => {
     setSaving(true);
