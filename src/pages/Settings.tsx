@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -44,6 +44,7 @@ const Settings = () => {
             <TabsTrigger value="consultants">Consultores</TabsTrigger>
             <TabsTrigger value="payments">Pagamentos</TabsTrigger>
             {hasExpedition && <TabsTrigger value="infos">Informações adicional</TabsTrigger>}
+            <TabsTrigger value="sender">Dados da etiqueta</TabsTrigger>
           </TabsList>
 
           <TabsContent value="drivers">
