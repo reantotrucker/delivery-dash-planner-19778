@@ -68,6 +68,10 @@ const Settings = () => {
               <ExtraInfosSettings />
             </TabsContent>
           )}
+
+          <TabsContent value="sender">
+            <SenderSettings />
+          </TabsContent>
         </Tabs>
       </div>
     </div>
