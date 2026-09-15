@@ -647,6 +647,10 @@ async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: stri
       orderId,
       orderObservation: orderObs,
       vendedorName,
+      // Volumes informados na nota (transp.vol[].qVol) — usados nas etiquetas
+      volumes: Array.isArray(nf.transp?.vol)
+        ? nf.transp.vol.reduce((sum: number, v: any) => sum + (Number(v?.qVol) || 0), 0) || null
+        : null,
       products: (nf.det || []).map((item: any) => ({
         name: item.prod?.xProd || '',
         quantity: item.prod?.qCom || 0,
