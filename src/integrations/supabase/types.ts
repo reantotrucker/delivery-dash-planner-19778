@@ -16,27 +16,51 @@ export type Database = {
     Tables: {
       companies: {
         Row: {
+          address: string | null
+          cep: string | null
+          city: string | null
+          cnpj: string | null
           created_at: string
           has_expedition: boolean
           id: string
+          legal_name: string | null
           name: string
+          neighborhood: string | null
+          phone: string | null
           slug: string
+          state: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          cep?: string | null
+          city?: string | null
+          cnpj?: string | null
           created_at?: string
           has_expedition?: boolean
           id?: string
+          legal_name?: string | null
           name: string
+          neighborhood?: string | null
+          phone?: string | null
           slug: string
+          state?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          cep?: string | null
+          city?: string | null
+          cnpj?: string | null
           created_at?: string
           has_expedition?: boolean
           id?: string
+          legal_name?: string | null
           name?: string
+          neighborhood?: string | null
+          phone?: string | null
           slug?: string
+          state?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -632,6 +656,7 @@ export type Database = {
           id: string
           location_link: string | null
           neighborhood: string
+          nfe_number: string | null
           observation: string | null
           order_number: number | null
           payment_method_id: string | null
@@ -640,6 +665,7 @@ export type Database = {
           updated_at: string | null
           urgent: boolean
           vehicle_id: string | null
+          volumes: number | null
         }
         Insert: {
           address?: string | null
@@ -653,6 +679,7 @@ export type Database = {
           id?: string
           location_link?: string | null
           neighborhood: string
+          nfe_number?: string | null
           observation?: string | null
           order_number?: number | null
           payment_method_id?: string | null
@@ -661,6 +688,7 @@ export type Database = {
           updated_at?: string | null
           urgent?: boolean
           vehicle_id?: string | null
+          volumes?: number | null
         }
         Update: {
           address?: string | null
@@ -674,6 +702,7 @@ export type Database = {
           id?: string
           location_link?: string | null
           neighborhood?: string
+          nfe_number?: string | null
           observation?: string | null
           order_number?: number | null
           payment_method_id?: string | null
@@ -682,6 +711,7 @@ export type Database = {
           updated_at?: string | null
           urgent?: boolean
           vehicle_id?: string | null
+          volumes?: number | null
         }
         Relationships: [
           {
