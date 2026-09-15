@@ -647,7 +647,9 @@ export type Database = {
         Row: {
           address: string | null
           cep: string | null
+          city: string | null
           client: string
+          client_trade_name: string | null
           company_id: string
           consultant_id: string | null
           created_at: string | null
@@ -670,7 +672,9 @@ export type Database = {
         Insert: {
           address?: string | null
           cep?: string | null
+          city?: string | null
           client: string
+          client_trade_name?: string | null
           company_id?: string
           consultant_id?: string | null
           created_at?: string | null
@@ -693,7 +697,9 @@ export type Database = {
         Update: {
           address?: string | null
           cep?: string | null
+          city?: string | null
           client?: string
+          client_trade_name?: string | null
           company_id?: string
           consultant_id?: string | null
           created_at?: string | null
