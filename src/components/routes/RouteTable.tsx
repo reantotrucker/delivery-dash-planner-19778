@@ -5,6 +5,8 @@ import { getActiveCompanyId } from "@/lib/company";
 import { toast } from "@/hooks/use-toast";
 import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2, Camera, ClipboardPaste, Crosshair, ExternalLink, PenLine } from "lucide-react";
 import { RouteReceiptDialog } from "./RouteReceiptDialog";
+import { RouteVolumeDialog } from "./RouteVolumeDialog";
+import { Boxes } from "lucide-react";
 import { RouteSignatureDialog } from "./RouteSignatureDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { RouteOccurrenceDialog, Occurrence } from "./RouteOccurrenceDialog";
