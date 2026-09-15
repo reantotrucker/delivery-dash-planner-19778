@@ -59,6 +59,7 @@ interface OmieInvoice {
   clientCpfCnpj: string;
   address: {
     street: string;
+    tradeName?: string;
     number: string;
     complement: string;
     neighborhood: string;
@@ -337,6 +338,8 @@ export default function OmieImport() {
           ? `${invoice.address.street}, ${invoice.address.number}${invoice.address.complement ? ` - ${invoice.address.complement}` : ''}`
           : null,
         cep: invoice.address?.cep || null,
+        city: invoice.address?.city || null,
+        client_trade_name: invoice.address?.tradeName || null,
         observation: `NF ${invoice.number}${invoice.orderObservation ? ' - ' + invoice.orderObservation : ''}`,
         nfe_number: invoice.number ? String(invoice.number) : null,
         volumes: invoice.volumes && invoice.volumes > 0 ? invoice.volumes : null,
