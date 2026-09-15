@@ -905,6 +905,18 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
           }}
         />
       )}
+      <RouteVolumeDialog
+        route={volumeRoute}
+        open={!!volumeRoute}
+        onOpenChange={(open) => {
+          if (!open) setVolumeRoute(null);
+        }}
+        canEdit={!isComercial || isAdmin}
+        onSaved={() => {
+          onUpdate();
+          setVolumeRoute(null);
+        }}
+      />
     </>
   );
 };
