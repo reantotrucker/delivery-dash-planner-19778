@@ -602,7 +602,17 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                           </span>
                         )}
                       </Button>
+
+                      <Button
+                        variant="secondary"
+                        className="relative col-span-2 flex items-center justify-center gap-2 h-10 px-3 rounded-xl font-bold text-[11px] uppercase tracking-wider active:scale-95 transition-all"
+                        onClick={() => setVolumeRoute(route)}
+                      >
+                        <Boxes className={`w-4 h-4 ${route.volumes ? 'text-primary' : 'text-muted-foreground'}`} />
+                        {route.volumes ? `Volume ${route.volumes}` : "Volume"}
+                      </Button>
                     </div>
+
 
 
                     {/* Secondary row: Ocorrência + Reagendar */}
