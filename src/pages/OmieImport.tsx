@@ -75,6 +75,7 @@ interface OmieInvoice {
   orderObservation?: string;
   vendedorName?: string | null;
   products?: OmieProduct[];
+  volumes?: number | null;
   docType?: 'nfe' | 'nfce';
 }
 
