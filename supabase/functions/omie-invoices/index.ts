@@ -248,12 +248,12 @@ async function fetchClientsWithCache(
   const result = new Map<number, any>();
   if (clientIds.length === 0) return result;
 
-  const cacheKeys = clientIds.map(id => `client_${id}`);
+  const cacheKeys = clientIds.map(id => `client2_${id}`);
   const cachedData = await getMultiCached(cacheKeys);
   
   const uncachedIds: number[] = [];
   clientIds.forEach(id => {
-    const cached = cachedData.get(`client_${id}`);
+    const cached = cachedData.get(`client2_${id}`);
     if (cached) {
       result.set(id, cached);
     } else {
@@ -285,6 +285,7 @@ async function fetchClientsWithCache(
           if (data.faultstring) return { clientId, details: null };
           const details = {
             name: data.razao_social || data.nome_fantasia || '',
+            tradeName: data.nome_fantasia || '',
             street: data.endereco || '',
             number: data.endereco_numero || '',
             complement: data.complemento || '',
@@ -301,7 +302,7 @@ async function fetchClientsWithCache(
       batchResults.forEach(({ clientId, details }) => {
         if (details) {
           result.set(clientId, details);
-          cacheEntries.push({ key: `client_${clientId}`, value: details });
+          cacheEntries.push({ key: `client2_${clientId}`, value: details });
         }
       });
     }
