@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getActiveCompanyId } from "@/lib/company";
+import { getActiveCompanyId, getActiveCity } from "@/lib/company";
 import { useCompany } from "@/hooks/useCompany";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Printer, Search, Sun, Sunset, ChevronDown, ChevronUp, Route, Loader2, MapPin } from "lucide-react";
@@ -213,7 +213,7 @@ const Dashboard = () => {
                   <td>${route.client}</td>
                   <td>${route.client_trade_name || "-"}</td>
                   <td>${route.neighborhood}</td>
-                  <td>${route.city || "-"}</td>
+                  <td>${route.city || getActiveCity().city}</td>
                   <td>${route.address || "-"}${route.cep ? ` - ${route.cep}` : ""}</td>
                   <td>${route.consultant?.name || "-"}</td>
                   <td>${route.driver?.name || "-"}</td>
