@@ -22,6 +22,8 @@ export interface Route {
   location_link?: string | null;
   volumes?: number | null;
   nfe_number?: string | null;
+  city?: string | null;
+  client_trade_name?: string | null;
 }
 
 export const generateGoogleMapsLink = (address?: string | null, cep?: string | null, neighborhood?: string): string | null => {

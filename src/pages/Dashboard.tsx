@@ -193,7 +193,9 @@ const Dashboard = () => {
                 <th>#</th>
                 ${printPeriod === "COMPLETO" ? "<th>Período</th>" : ""}
                 <th>Cliente</th>
+                <th>Nome Fantasia</th>
                 <th>Bairro</th>
+                <th>Cidade</th>
                 <th>Endereço</th>
                 <th>Consultor</th>
                 <th>Motorista</th>
@@ -209,7 +211,9 @@ const Dashboard = () => {
                   <td style="text-align: center; font-weight: bold;">${index + 1}</td>
                   ${printPeriod === "COMPLETO" ? `<td>${route.period}</td>` : ""}
                   <td>${route.client}</td>
+                  <td>${route.client_trade_name || "-"}</td>
                   <td>${route.neighborhood}</td>
+                  <td>${route.city || "-"}</td>
                   <td>${route.address || "-"}${route.cep ? ` - ${route.cep}` : ""}</td>
                   <td>${route.consultant?.name || "-"}</td>
                   <td>${route.driver?.name || "-"}</td>

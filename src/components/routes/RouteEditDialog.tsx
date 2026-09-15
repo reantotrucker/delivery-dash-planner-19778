@@ -30,6 +30,8 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
     neighborhood: "",
     address: "",
     cep: "",
+    city: "",
+    client_trade_name: "",
     consultant_id: "",
     driver_id: "",
     vehicle_id: "",
@@ -60,6 +62,8 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
         neighborhood: route.neighborhood,
         address: route.address || "",
         cep: route.cep || "",
+        city: route.city || "",
+        client_trade_name: route.client_trade_name || "",
         consultant_id: route.consultant_id || "",
         driver_id: route.driver_id || "",
         vehicle_id: route.vehicle_id || "",
@@ -130,6 +134,8 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
           ...formData,
           address: formData.address || null,
           cep: formData.cep || null,
+          city: formData.city || null,
+          client_trade_name: formData.client_trade_name || null,
           consultant_id: formData.consultant_id || null,
           driver_id: formData.driver_id || null,
           vehicle_id: formData.vehicle_id || null,
@@ -215,6 +221,28 @@ export const RouteEditDialog = ({ route, open, onOpenChange, onSuccess }: RouteE
                   <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-city" className="text-xs">CIDADE</Label>
+              <Input
+                id="edit-city"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                placeholder="Cidade"
+                className="h-9 text-sm"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-trade-name" className="text-xs">NOME FANTASIA</Label>
+              <Input
+                id="edit-trade-name"
+                value={formData.client_trade_name}
+                onChange={(e) => setFormData({ ...formData, client_trade_name: e.target.value })}
+                placeholder="Nome fantasia do cliente"
+                className="h-9 text-sm"
+              />
             </div>
 
             <div className="space-y-2">
