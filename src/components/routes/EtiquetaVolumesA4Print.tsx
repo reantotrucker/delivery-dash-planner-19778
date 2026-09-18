@@ -17,7 +17,7 @@ const Field = ({ label, value, size = 20 }: { label: string; value?: string | nu
     </div>
   ) : null;
 
-const EtiquetaA4 = ({ d, index }: { d: EtiquetaData; index: number }) => {
+const EtiquetaA4 = ({ d }: { d: EtiquetaData }) => {
   const senderName = d.sender.legal_name || d.sender.name || "";
   const senderCity = [d.sender.city, d.sender.state].filter(Boolean).join(" - ");
   const destCity = [d.city, d.state].filter(Boolean).join(" - ");
