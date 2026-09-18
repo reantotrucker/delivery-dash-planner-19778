@@ -61,7 +61,7 @@ export const RouteVolumeDialog = ({ route, open, onOpenChange, canEdit, onSaved 
     onSaved();
   };
 
-  const print = async () => {
+  const print = async (format: "label" | "a4" = "label") => {
     if (!route) return;
     const qty = Number(volumes);
     if (!volumes || !Number.isInteger(qty) || qty < 1 || qty > 999) {
@@ -70,10 +70,11 @@ export const RouteVolumeDialog = ({ route, open, onOpenChange, canEdit, onSaved 
     }
     setPrinting(true);
     try {
-      const [{ createRoot }, { default: EtiquetaVolumesPrint }] = await Promise.all([
+      const [{ createRoot }, mod] = await Promise.all([
         import("react-dom/client"),
-        import("./EtiquetaVolumesPrint"),
+        format === "a4" ? import("./EtiquetaVolumesA4Print") : import("./EtiquetaVolumesPrint"),
       ]);
+      const PrintView = mod.default as any;
 
       const { data: company } = await supabase
         .from("companies")
