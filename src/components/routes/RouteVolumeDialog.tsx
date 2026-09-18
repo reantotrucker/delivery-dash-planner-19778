@@ -177,17 +177,23 @@ export const RouteVolumeDialog = ({ route, open, onOpenChange, canEdit, onSaved 
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="space-y-2">
             {canEdit && (
-              <Button variant="secondary" className="flex-1 gap-2" onClick={save} disabled={saving}>
+              <Button variant="secondary" className="w-full gap-2" onClick={save} disabled={saving}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Salvar
               </Button>
             )}
-            <Button className="flex-1 gap-2" onClick={print} disabled={printing}>
-              {printing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-              Imprimir etiquetas
-            </Button>
+            <div className="flex gap-2">
+              <Button className="flex-1 gap-2" onClick={() => print("label")} disabled={printing}>
+                {printing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                Etiqueta 100x50
+              </Button>
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => print("a4")} disabled={printing}>
+                {printing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                Etiqueta A4
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
