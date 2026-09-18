@@ -17,7 +17,7 @@ const Field = ({ label, value, size = 20 }: { label: string; value?: string | nu
     </div>
   ) : null;
 
-const EtiquetaA4 = ({ d, index }: { d: EtiquetaData; index: number }) => {
+const EtiquetaA4 = ({ d }: { d: EtiquetaData }) => {
   const senderName = d.sender.legal_name || d.sender.name || "";
   const senderCity = [d.sender.city, d.sender.state].filter(Boolean).join(" - ");
   const destCity = [d.city, d.state].filter(Boolean).join(" - ");
@@ -88,7 +88,7 @@ const EtiquetaA4 = ({ d, index }: { d: EtiquetaData; index: number }) => {
         >
           <div style={{ fontSize: 14, color: C.gray, textTransform: "uppercase", letterSpacing: 3 }}>Volume</div>
           <div style={{ fontSize: 120, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-            {index}/{d.volumes}
+            {d.volumes}
           </div>
           <div style={{ fontSize: 16, color: C.gray, textTransform: "uppercase", letterSpacing: 2 }}>
             Total {d.volumes} volume(s)
@@ -117,11 +117,7 @@ const EtiquetaA4 = ({ d, index }: { d: EtiquetaData; index: number }) => {
 };
 
 export const EtiquetaVolumesA4Print = ({ data }: { data: EtiquetaData }) => (
-  <>
-    {Array.from({ length: Math.max(1, data.volumes) }, (_, i) => (
-      <EtiquetaA4 key={i} d={data} index={i + 1} />
-    ))}
-  </>
+  <EtiquetaA4 d={data} />
 );
 
 export default EtiquetaVolumesA4Print;
