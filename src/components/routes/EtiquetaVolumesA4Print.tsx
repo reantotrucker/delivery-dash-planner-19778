@@ -117,11 +117,7 @@ const EtiquetaA4 = ({ d }: { d: EtiquetaData }) => {
 };
 
 export const EtiquetaVolumesA4Print = ({ data }: { data: EtiquetaData }) => (
-  <>
-    {Array.from({ length: Math.max(1, data.volumes) }, (_, i) => (
-      <EtiquetaA4 key={i} d={data} index={i + 1} />
-    ))}
-  </>
+  <EtiquetaA4 d={data} />
 );
 
 export default EtiquetaVolumesA4Print;
