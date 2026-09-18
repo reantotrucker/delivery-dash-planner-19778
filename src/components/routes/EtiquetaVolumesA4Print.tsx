@@ -88,7 +88,7 @@ const EtiquetaA4 = ({ d }: { d: EtiquetaData }) => {
         >
           <div style={{ fontSize: 14, color: C.gray, textTransform: "uppercase", letterSpacing: 3 }}>Volume</div>
           <div style={{ fontSize: 120, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-            {index}/{d.volumes}
+            {d.volumes}
           </div>
           <div style={{ fontSize: 16, color: C.gray, textTransform: "uppercase", letterSpacing: 2 }}>
             Total {d.volumes} volume(s)
