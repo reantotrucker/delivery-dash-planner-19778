@@ -109,14 +109,14 @@ export const RouteVolumeDialog = ({ route, open, onOpenChange, canEdit, onSaved 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  @page { size: 100mm 50mm; margin: 0; }
+  @page { size: ${format === "a4" ? "A4 landscape" : "100mm 50mm"}; margin: 0; }
   html, body { margin: 0; padding: 0; background: #FFFFFF; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   * { box-sizing: border-box; }
 </style></head><body><div id="print-root"></div></body></html>`);
       idoc.close();
 
       const root = createRoot(idoc.getElementById("print-root")!);
-      root.render(<EtiquetaVolumesPrint data={data} />);
+      root.render(<PrintView data={data} />);
 
       await new Promise((r) => setTimeout(r, 500));
       try {
