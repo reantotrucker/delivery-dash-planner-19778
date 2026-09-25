@@ -513,11 +513,101 @@ ${
                   )}
                 </div>
               </div>
+
+              <RouteListing routes={routes} />
             </div>
           )}
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function RouteListing({ routes }: { routes: any[] }) {
+  const [by, setBy] = useState<"consultant" | "driver">("consultant");
+  const [sel, setSel] = useState("__all");
+  const keyOf = (r: any) => (by === "driver" ? r.driver?.name : r.consultant?.name) || "Não informado";
+  const names = useMemo(() => Array.from(new Set(routes.map(keyOf))).sort(), [routes, by]);
+  const filtered = routes.filter((r) => sel === "__all" || keyOf(r) === sel);
+  const groups = useMemo(() => {
+    const m = new Map<string, any[]>();
+    filtered.forEach((r) => {
+      const k = keyOf(r);
+      m.set(k, [...(m.get(k) || []), r]);
+    });
+    return Array.from(m.entries()).sort((a, b) => b[1].length - a[1].length);
+  }, [filtered, by]);
+  const statusLabel = (s: string) =>
+    s === "ENTREGUE" ? "Entregue" : s === "NAO_ENTREGUE" ? "Não entregue" : "Pendente";
+  const statusCls = (s: string) =>
+    s === "ENTREGUE" ? "text-success" : s === "NAO_ENTREGUE" ? "text-destructive" : "text-muted-foreground";
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h3 className="font-semibold text-sm">Lista de rotas no período ({filtered.length})</h3>
+        <div className="flex flex-wrap gap-2">
+          <Tabs value={by} onValueChange={(v) => { setBy(v as any); setSel("__all"); }}>
+            <TabsList>
+              <TabsTrigger value="consultant">Por vendedor</TabsTrigger>
+              <TabsTrigger value="driver">Por motorista</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <select
+            value={sel}
+            onChange={(e) => setSel(e.target.value)}
+            className="bg-secondary text-foreground text-sm px-2 py-1 rounded border border-border"
+          >
+            <option value="__all">Todos</option>
+            {names.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {groups.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-6 text-center">Nenhuma rota no período.</p>
+      ) : (
+        <div className="space-y-4">
+          {groups.map(([name, list]) => (
+            <div key={name}>
+              <div className="font-semibold text-sm mb-1 flex justify-between">
+                <span>{name}</span>
+                <span className="text-muted-foreground font-normal">
+                  {list.length} rotas · {list.filter((r) => r.status === "ENTREGUE").length} entregues
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-muted-foreground">
+                    <tr className="border-b border-border text-left">
+                      <th className="py-1 pr-2">Data</th>
+                      <th className="pr-2">Período</th>
+                      <th className="pr-2">Cliente</th>
+                      <th className="pr-2">Bairro</th>
+                      <th className="pr-2">{by === "driver" ? "Vendedor" : "Motorista"}</th>
+                      <th className="pr-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {list.map((r) => (
+                      <tr key={r.id} className="border-b border-border/50">
+                        <td className="py-1 pr-2 whitespace-nowrap">{br(r.date)}</td>
+                        <td className="pr-2">{r.period === "MANHA" ? "Manhã" : "Tarde"}</td>
+                        <td className="pr-2">{r.client}</td>
+                        <td className="pr-2">{r.neighborhood}</td>
+                        <td className="pr-2">{(by === "driver" ? r.consultant?.name : r.driver?.name) || "—"}</td>
+                        <td className={`pr-2 ${statusCls(r.status)}`}>{statusLabel(r.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
