@@ -591,7 +591,7 @@ function RouteListing({ routes }: { routes: any[] }) {
                   </thead>
                   <tbody>
                     {list.map((r) => (
-                      <tr key={r.id} className="border-b border-border/50">
+                      <tr key={r.id} className="border-b border-border/50 even:bg-muted/60">
                         <td className="py-1 pr-2 whitespace-nowrap">{br(r.date)}</td>
                         <td className="pr-2">{r.period === "MANHA" ? "Manhã" : "Tarde"}</td>
                         <td className="pr-2">{r.client}</td>
