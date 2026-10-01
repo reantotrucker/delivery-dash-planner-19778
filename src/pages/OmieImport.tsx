@@ -693,7 +693,7 @@ export default function OmieImport() {
       </div>
 
       {/* Painel: rotas de hoje por motorista */}
-      <Card>
+      <Card className="sticky top-0 z-30 shadow-lg">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <User className="w-4 h-4 text-primary" /> Rotas de hoje por motorista
