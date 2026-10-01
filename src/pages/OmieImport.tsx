@@ -154,6 +154,27 @@ export default function OmieImport() {
       return data || [];
     },
   });
+
+  // Rotas de hoje por motorista e turno
+  const { data: driverTodayStats = [] } = useQuery({
+    queryKey: ['routes', 'driver-today-stats', getActiveCompanyId()],
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('routes')
+        .select('driver_id, period, driver:drivers(name, color)')
+        .eq('company_id', getActiveCompanyId())
+        .eq('date', format(new Date(), 'yyyy-MM-dd'))
+        .not('driver_id', 'is', null);
+      const map = new Map<string, { id: string; name: string; color: string; manha: number; tarde: number }>();
+      (data || []).forEach((r: any) => {
+        const cur = map.get(r.driver_id) || { id: r.driver_id, name: r.driver?.name || '—', color: r.driver?.color || 'hsl(var(--primary))', manha: 0, tarde: 0 };
+        if (r.period === 'MANHA') cur.manha++; else cur.tarde++;
+        map.set(r.driver_id, cur);
+      });
+      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
   const { data: vehicles } = useQuery({
     queryKey: ['vehicles', getActiveCompanyId()],
     queryFn: async () => {
@@ -670,6 +691,43 @@ export default function OmieImport() {
           </Button>
         </div>
       </div>
+
+      {/* Painel: rotas de hoje por motorista */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <User className="w-4 h-4 text-primary" /> Rotas de hoje por motorista
+          </CardTitle>
+          <CardDescription>{format(new Date(), "dd/MM/yyyy")} · atualiza sozinho</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {driverTodayStats.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma rota criada hoje ainda.</p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {driverTodayStats.map((d) => (
+                <div key={d.id} className="rounded-lg border border-border bg-muted/30 p-3" style={{ borderLeft: `4px solid ${d.color}` }}>
+                  <p className="font-semibold text-sm truncate">{d.name}</p>
+                  <div className="flex gap-3 mt-2 text-xs">
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-foreground tabular-nums">{d.manha}</p>
+                      <p className="text-muted-foreground uppercase">Manhã</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-foreground tabular-nums">{d.tarde}</p>
+                      <p className="text-muted-foreground uppercase">Tarde</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold text-primary tabular-nums">{d.manha + d.tarde}</p>
+                      <p className="text-muted-foreground uppercase">Total</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Filtros */}
       <Card>
