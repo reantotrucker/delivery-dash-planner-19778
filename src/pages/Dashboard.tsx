@@ -39,10 +39,13 @@ const Dashboard = () => {
   const [isLoadingMap, setIsLoadingMap] = useState(false);
   const [mapData, setMapData] = useState<any>(null);
 
-  const isSearching = searchTerm.trim().length > 0;
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
+  const hasRange = !!(rangeFrom || rangeTo);
+  const isSearching = searchTerm.trim().length > 0 || hasRange;
 
   const { data: routes = [], refetch } = useQuery({
-    queryKey: ["routes", getActiveCompanyId(), selectedDate, selectedPeriod, isSearching],
+    queryKey: ["routes", getActiveCompanyId(), selectedDate, selectedPeriod, isSearching, rangeFrom, rangeTo],
     queryFn: async () => {
       let query = supabase
         .from("routes")
@@ -56,11 +59,12 @@ const Dashboard = () => {
         .eq("company_id", getActiveCompanyId());
 
       if (isSearching) {
-        // Busca em todas as datas/períodos quando há termo de pesquisa
+        if (rangeFrom) query = query.gte("date", rangeFrom);
+        if (rangeTo) query = query.lte("date", rangeTo);
         query = query
           .order("date", { ascending: false })
           .order("order_number", { ascending: true })
-          .limit(500);
+          .limit(1000);
       } else {
         query = query
           .eq("date", format(selectedDate, "yyyy-MM-dd"))
@@ -447,6 +451,15 @@ const Dashboard = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 bg-secondary border-border w-full sm:w-64"
                   />
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  <span className="text-muted-foreground">De</span>
+                  <Input type="date" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} className="h-9 w-36 bg-secondary border-border" />
+                  <span className="text-muted-foreground">Até</span>
+                  <Input type="date" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} className="h-9 w-36 bg-secondary border-border" />
+                  {hasRange && (
+                    <Button size="sm" variant="ghost" onClick={() => { setRangeFrom(""); setRangeTo(""); }}>Limpar</Button>
+                  )}
                 </div>
                 {(canManageRoutes || isMotorista) && selectedDriverFilter !== "all" && (
                   <Button
