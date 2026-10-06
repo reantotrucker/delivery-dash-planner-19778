@@ -284,7 +284,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
     }
     try {
       setReschedulingId(route.id);
-      const { error } = await supabase.from("routes").insert({
+      const { data: newRoute, error } = await supabase.from("routes").insert({
         company_id: getActiveCompanyId(),
         client: route.client,
         neighborhood: route.neighborhood,
@@ -299,8 +299,26 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
         period: reschedulePeriod,
         urgent: route.urgent || false,
         status: "NAO_ENTREGUE",
-      });
+        order_number: route.order_number ?? 1,
+        nfe_number: route.nfe_number ?? null,
+        volumes: route.volumes ?? null,
+        city: route.city ?? null,
+        client_trade_name: route.client_trade_name ?? null,
+        location_link: route.location_link ?? null,
+      }).select("id").single();
       if (error) throw error;
+
+      // Copia os produtos da rota original para a conferência
+      const { data: prods } = await supabase
+        .from("route_products")
+        .select("name, code, family, quantity, unit, unit_value, total_value")
+        .eq("route_id", route.id);
+      if (prods && prods.length > 0 && newRoute) {
+        const { error: pErr } = await supabase
+          .from("route_products")
+          .insert(prods.map((p) => ({ ...p, route_id: newRoute.id })));
+        if (pErr) console.error("Error copying products:", pErr);
+      }
       toast({ title: "Rota reagendada com sucesso!" });
       onUpdate();
     } catch (error) {
