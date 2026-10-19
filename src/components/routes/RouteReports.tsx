@@ -74,7 +74,7 @@ export function RouteReports({ companyId, companyName }: Props) {
       const { data, error } = await supabase
         .from("routes")
         .select(
-          "id, date, period, client, neighborhood, address, status, urgent, order_number, observation, driver:drivers(name, color), consultant:consultants(name), payment_method:payment_methods(name)"
+          "id, date, period, client, neighborhood, address, status, urgent, is_boat, order_number, observation, driver:drivers(name, color), consultant:consultants(name), payment_method:payment_methods(name)"
         )
         .eq("company_id", companyId)
         .gte("date", from)
@@ -528,7 +528,8 @@ function RouteListing({ routes }: { routes: any[] }) {
   const [sel, setSel] = useState("__all");
   const keyOf = (r: any) => (by === "driver" ? r.driver?.name : r.consultant?.name) || "Não informado";
   const names = useMemo(() => Array.from(new Set(routes.map(keyOf))).sort(), [routes, by]);
-  const filtered = routes.filter((r) => sel === "__all" || keyOf(r) === sel);
+  const [onlyBoat, setOnlyBoat] = useState(false);
+  const filtered = routes.filter((r) => (sel === "__all" || keyOf(r) === sel) && (!onlyBoat || r.is_boat));
   const groups = useMemo(() => {
     const m = new Map<string, any[]>();
     filtered.forEach((r) => {
@@ -563,6 +564,10 @@ function RouteListing({ routes }: { routes: any[] }) {
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
+          <label className="flex items-center gap-1 text-sm px-2 py-1 rounded border border-border bg-secondary cursor-pointer">
+            <input type="checkbox" checked={onlyBoat} onChange={(e) => setOnlyBoat(e.target.checked)} />
+            🚢 Somente barcos
+          </label>
         </div>
       </div>
       {groups.length === 0 ? (
