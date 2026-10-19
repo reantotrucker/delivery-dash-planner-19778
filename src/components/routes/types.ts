@@ -19,6 +19,7 @@ export interface Route {
   period: "MANHA" | "TARDE";
   order_number: number;
   urgent?: boolean;
+  is_boat?: boolean;
   location_link?: string | null;
   volumes?: number | null;
   nfe_number?: string | null;

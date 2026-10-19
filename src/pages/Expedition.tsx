@@ -57,6 +57,7 @@ import {
   Pencil,
   Plus,
   Tag,
+  Ship,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -584,6 +585,7 @@ export default function Expedition() {
             period: now.getHours() >= 12 ? "TARDE" : "MANHA",
             order_number: 1,
             status: "NAO_ENTREGUE" as const,
+            is_boat: isBoat(openOrder.extra_info),
           })
           .select("id")
           .single();
@@ -669,7 +671,9 @@ export default function Expedition() {
     );
   }
 
-  const statusStyle = (s: Status) =>
+  const isBoat = (v?: string | null) => (v || "").trim().toUpperCase() === "BARCO";
+
+const statusStyle = (s: Status) =>
     s === "BALCAO"
       ? "border-l-4 border-l-success bg-success/5"
       : s === "ROTA"
@@ -790,7 +794,8 @@ export default function Expedition() {
               className={cn(
                 "overflow-hidden",
                 statusStyle(o.status),
-                isCarry && "border-2 border-warning border-l-4 border-l-warning bg-warning/5"
+                isCarry && "border-2 border-warning border-l-4 border-l-warning bg-warning/5",
+                isBoat(o.extra_info) && "border-2 border-sky-500 bg-sky-500/10"
               )}
             >
               <CardContent className="p-4 space-y-2">
@@ -903,7 +908,7 @@ export default function Expedition() {
                     disabled={!canTagInfo}
                     onClick={() => setInfoOrder(o)}
                   >
-                    <Tag className="w-3.5 h-3.5 mr-1.5" />
+                    {isBoat(o.extra_info) ? <Ship className="w-3.5 h-3.5 mr-1.5" /> : <Tag className="w-3.5 h-3.5 mr-1.5" />}
                     {o.extra_info || "Informações adicional"}
                   </Button>
                 )}
@@ -1178,7 +1183,7 @@ export default function Expedition() {
                 disabled={!canTagInfo}
                 onClick={() => infoOrder && setExtraInfo(infoOrder, i.name)}
               >
-                <Tag className="w-4 h-4 mr-2" />
+                {isBoat(i.name) ? <Ship className="w-4 h-4 mr-2" /> : <Tag className="w-4 h-4 mr-2" />}
                 {i.name}
               </Button>
             ))}

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveCompanyId } from "@/lib/company";
 import { toast } from "@/hooks/use-toast";
-import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2, Camera, ClipboardPaste, Crosshair, ExternalLink, PenLine } from "lucide-react";
+import { Trash2, Pencil, FileText, Plus, Edit, X, MapPin, Navigation, Package, CheckCircle2, AlertCircle, Truck, Car, User, RotateCcw, Loader2, Camera, ClipboardPaste, Crosshair, ExternalLink, PenLine, Ship } from "lucide-react";
 import { RouteReceiptDialog } from "./RouteReceiptDialog";
 import { RouteVolumeDialog } from "./RouteVolumeDialog";
 import { Boxes } from "lucide-react";
@@ -353,13 +353,19 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
           return (
             <Card
               key={route.id}
-              className={`relative overflow-hidden flex transition-all hover:border-border/80 ${route.urgent ? "ring-2 ring-red-500/50" : ""}`}
+              className={`relative overflow-hidden flex transition-all hover:border-border/80 ${route.urgent ? "ring-2 ring-red-500/50" : ""} ${route.is_boat ? "border-2 border-sky-500 bg-sky-500/10" : ""}`}
             >
               {/* Driver color accent bar */}
               <div
                 className="w-2 shrink-0"
                 style={{ backgroundColor: driverColor || 'hsl(var(--border))' }}
               />
+
+              {route.is_boat && (
+                <div className="absolute top-0 left-2 bg-sky-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-br-md z-10 flex items-center gap-1">
+                  <Ship className="w-3 h-3" /> BARCO
+                </div>
+              )}
 
               {/* Urgent indicator */}
               {route.urgent && (
