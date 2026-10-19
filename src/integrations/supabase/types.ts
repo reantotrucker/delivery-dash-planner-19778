@@ -656,6 +656,7 @@ export type Database = {
           date: string
           driver_id: string | null
           id: string
+          is_boat: boolean
           location_link: string | null
           neighborhood: string
           nfe_number: string | null
@@ -681,6 +682,7 @@ export type Database = {
           date?: string
           driver_id?: string | null
           id?: string
+          is_boat?: boolean
           location_link?: string | null
           neighborhood: string
           nfe_number?: string | null
@@ -706,6 +708,7 @@ export type Database = {
           date?: string
           driver_id?: string | null
           id?: string
+          is_boat?: boolean
           location_link?: string | null
           neighborhood?: string
           nfe_number?: string | null
