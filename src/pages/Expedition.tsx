@@ -671,7 +671,7 @@ export default function Expedition() {
     );
   }
 
-  const isBoat = (v?: string | null) => (v || "").trim().toUpperCase() === "BARCO";
+const isBoat = (v?: string | null) => (v || "").trim().toUpperCase() === "BARCO";
 
 const statusStyle = (s: Status) =>
     s === "BALCAO"
