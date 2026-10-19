@@ -564,6 +564,10 @@ function RouteListing({ routes }: { routes: any[] }) {
               <option key={n} value={n}>{n}</option>
             ))}
           </select>
+          <label className="flex items-center gap-1 text-sm px-2 py-1 rounded border border-border bg-secondary cursor-pointer">
+            <input type="checkbox" checked={onlyBoat} onChange={(e) => setOnlyBoat(e.target.checked)} />
+            🚢 Somente barcos
+          </label>
         </div>
       </div>
       {groups.length === 0 ? (
