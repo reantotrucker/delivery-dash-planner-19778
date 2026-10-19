@@ -528,7 +528,8 @@ function RouteListing({ routes }: { routes: any[] }) {
   const [sel, setSel] = useState("__all");
   const keyOf = (r: any) => (by === "driver" ? r.driver?.name : r.consultant?.name) || "Não informado";
   const names = useMemo(() => Array.from(new Set(routes.map(keyOf))).sort(), [routes, by]);
-  const filtered = routes.filter((r) => sel === "__all" || keyOf(r) === sel);
+  const [onlyBoat, setOnlyBoat] = useState(false);
+  const filtered = routes.filter((r) => (sel === "__all" || keyOf(r) === sel) && (!onlyBoat || r.is_boat));
   const groups = useMemo(() => {
     const m = new Map<string, any[]>();
     filtered.forEach((r) => {
