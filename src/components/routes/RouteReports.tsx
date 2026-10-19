@@ -74,7 +74,7 @@ export function RouteReports({ companyId, companyName }: Props) {
       const { data, error } = await supabase
         .from("routes")
         .select(
-          "id, date, period, client, neighborhood, address, status, urgent, order_number, observation, driver:drivers(name, color), consultant:consultants(name), payment_method:payment_methods(name)"
+          "id, date, period, client, neighborhood, address, status, urgent, is_boat, order_number, observation, driver:drivers(name, color), consultant:consultants(name), payment_method:payment_methods(name)"
         )
         .eq("company_id", companyId)
         .gte("date", from)
