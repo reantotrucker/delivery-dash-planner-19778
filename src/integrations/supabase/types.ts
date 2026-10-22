@@ -242,6 +242,7 @@ export type Database = {
       expedition_orders: {
         Row: {
           address: string | null
+          boat_info: string | null
           cep: string | null
           checked_at: string | null
           checked_by: string | null
@@ -267,6 +268,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          boat_info?: string | null
           cep?: string | null
           checked_at?: string | null
           checked_by?: string | null
@@ -292,6 +294,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          boat_info?: string | null
           cep?: string | null
           checked_at?: string | null
           checked_by?: string | null
@@ -646,6 +649,7 @@ export type Database = {
       routes: {
         Row: {
           address: string | null
+          boat_info: string | null
           cep: string | null
           city: string | null
           client: string
@@ -672,6 +676,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          boat_info?: string | null
           cep?: string | null
           city?: string | null
           client: string
@@ -698,6 +703,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          boat_info?: string | null
           cep?: string | null
           city?: string | null
           client?: string

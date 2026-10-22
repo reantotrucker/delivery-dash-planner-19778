@@ -8,6 +8,13 @@
       "when": 1792432285842,
       "tag": "0000_boat_routes",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792674426808,
+      "tag": "0001_boat_info",
+      "breakpoints": true
     }
   ]
 }
