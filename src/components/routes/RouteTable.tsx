@@ -305,6 +305,8 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
         city: route.city ?? null,
         client_trade_name: route.client_trade_name ?? null,
         location_link: route.location_link ?? null,
+        is_boat: route.is_boat ?? false,
+        boat_info: route.boat_info ?? null,
       }).select("id").single();
       if (error) throw error;
 
