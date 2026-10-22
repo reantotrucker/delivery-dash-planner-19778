@@ -20,6 +20,7 @@ export interface Route {
   order_number: number;
   urgent?: boolean;
   is_boat?: boolean;
+  boat_info?: string | null;
   location_link?: string | null;
   volumes?: number | null;
   nfe_number?: string | null;

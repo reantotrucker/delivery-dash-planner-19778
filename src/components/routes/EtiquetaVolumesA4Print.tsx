@@ -73,6 +73,14 @@ const EtiquetaA4 = ({ d }: { d: EtiquetaData }) => {
             <Field label="Motorista" value={d.driver || "—"} />
             <Field label="Veículo" value={d.plate || "—"} />
           </div>
+          {d.boatInfo && (
+            <div style={{ marginTop: "2mm", border: `2px solid ${C.line}`, padding: "3mm" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase" }}>
+                Entrega por barco
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2, whiteSpace: "pre-wrap" }}>{d.boatInfo}</div>
+            </div>
+          )}
         </div>
 
         <div

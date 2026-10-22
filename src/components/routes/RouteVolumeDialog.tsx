@@ -5,6 +5,7 @@ import { getActiveCity, getActiveCompanyId } from "@/lib/company";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Printer, Save } from "lucide-react";
 import {
@@ -31,6 +32,7 @@ const extractNf = (observation?: string | null) => {
 export const RouteVolumeDialog = ({ route, open, onOpenChange, canEdit, onSaved }: Props) => {
   const [volumes, setVolumes] = useState("");
   const [nfeNumber, setNfeNumber] = useState("");
+  const [boatInfo, setBoatInfo] = useState("");
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
 
@@ -38,6 +40,7 @@ export const RouteVolumeDialog = ({ route, open, onOpenChange, canEdit, onSaved 
     if (!route) return;
     setVolumes(route.volumes ? String(route.volumes) : "");
     setNfeNumber(route.nfe_number || extractNf(route.observation));
+    setBoatInfo(route.boat_info || "");
   }, [route]);
 
   const save = async () => {
@@ -50,7 +53,11 @@ export const RouteVolumeDialog = ({ route, open, onOpenChange, canEdit, onSaved 
     setSaving(true);
     const { error } = await supabase
       .from("routes")
-      .update({ volumes: qty, nfe_number: nfeNumber.trim() || null })
+      .update({
+        volumes: qty,
+        nfe_number: nfeNumber.trim() || null,
+        ...(route.is_boat ? { boat_info: boatInfo.trim() || null } : {}),
+      })
       .eq("id", route.id);
     setSaving(false);
     if (error) {
@@ -97,6 +104,7 @@ export const RouteVolumeDialog = ({ route, open, onOpenChange, canEdit, onSaved 
         driver: route.driver?.name || null,
         plate: route.vehicle?.plate || null,
         volumes: qty,
+        boatInfo: route.is_boat ? boatInfo.trim() || null : null,
       };
 
       const iframe = document.createElement("iframe");
@@ -176,6 +184,21 @@ export const RouteVolumeDialog = ({ route, open, onOpenChange, canEdit, onSaved 
               placeholder="Ex: 00100264"
             />
           </div>
+
+          {route?.is_boat && (
+            <div className="space-y-1.5">
+              <Label htmlFor="boat-info">Entrega pelo barco</Label>
+              <Textarea
+                id="boat-info"
+                rows={3}
+                value={boatInfo}
+                disabled={!canEdit}
+                onChange={(e) => setBoatInfo(e.target.value)}
+                placeholder="Barco, porto e destino"
+              />
+              <p className="text-[11px] text-muted-foreground">Sai impresso nas etiquetas de volume.</p>
+            </div>
+          )}
 
           <div className="space-y-2">
             {canEdit && (
