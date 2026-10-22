@@ -23,6 +23,7 @@ export interface EtiquetaData {
   driver?: string | null;
   plate?: string | null;
   volumes: number;
+  boatInfo?: string | null;
 }
 
 const C = {
@@ -86,6 +87,23 @@ const Etiqueta = ({ d, index }: { d: EtiquetaData; index: number }) => {
             <Row label="Cidade" value={destCity} />
             <Row label="CEP" value={d.cep} />
           </div>
+          {d.boatInfo && (
+            <div
+              style={{
+                marginTop: "1mm",
+                border: `1px solid ${C.line}`,
+                padding: "0.6mm 1.2mm",
+                fontSize: 7,
+                lineHeight: 1.15,
+                fontWeight: 600,
+                maxHeight: "9mm",
+                overflow: "hidden",
+              }}
+            >
+              <span style={{ fontWeight: 800, letterSpacing: 0.6 }}>BARCO: </span>
+              {d.boatInfo}
+            </div>
+          )}
         </div>
 
         {/* Volume */}

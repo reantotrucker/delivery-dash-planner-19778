@@ -84,6 +84,7 @@ interface ExpeditionOrder {
   created_at: string | null;
   observation: string | null;
   extra_info?: string | null;
+  boat_info?: string | null;
   delivered_at?: string | null;
 }
 
@@ -157,20 +158,54 @@ export default function Expedition() {
     },
   });
 
-  const setExtraInfo = async (order: ExpeditionOrder, value: string | null) => {
+  const setExtraInfo = async (order: ExpeditionOrder, value: string | null, boatInfo?: string | null) => {
+    const boat = isBoat(value);
+    const boat_info = boat ? (boatInfo ?? order.boat_info ?? null) : null;
     const { error } = await supabase
       .from("expedition_orders")
-      .update({ extra_info: value } as any)
+      .update({ extra_info: value, boat_info })
       .eq("id", order.id);
     if (error) {
       toast.error("Erro ao salvar informação adicional");
-      return;
+      return false;
+    }
+    // Se o pedido já foi para rota, mantém a rota sincronizada
+    if (order.route_id) {
+      await supabase.from("routes").update({ is_boat: boat, boat_info }).eq("id", order.route_id);
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
     }
     toast.success(value ? `Marcado como ${value}` : "Informação removida");
     setInfoOrder(null);
+    setBoatMode(false);
     queryClient.invalidateQueries({ queryKey: ["expedition-orders"] });
     queryClient.invalidateQueries({ queryKey: ["tv-orders"] });
+    return true;
   };
+
+  const [boatMode, setBoatMode] = useState(false);
+  const [boatText, setBoatText] = useState("");
+  const [boatSaving, setBoatSaving] = useState(false);
+
+  const openBoat = (order: ExpeditionOrder) => {
+    setBoatText(
+      order.boat_info ||
+        [order.address, order.neighborhood, order.cep ? `CEP ${order.cep}` : null].filter(Boolean).join(" - ")
+    );
+    setBoatMode(true);
+  };
+
+  const saveBoat = async (order: ExpeditionOrder) => {
+    const barco = extraInfos.find((i) => isBoat(i.name))?.name || "BARCO";
+    setBoatSaving(true);
+    await setExtraInfo(order, barco, boatText.trim() || null);
+    setBoatSaving(false);
+  };
+
+  useEffect(() => {
+    if (infoOrder && isBoat(infoOrder.extra_info)) openBoat(infoOrder);
+    else setBoatMode(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [infoOrder?.id]);
 
   const openObsEditor = (order: ExpeditionOrder) => {
     setObsOrder(order);
@@ -586,6 +621,7 @@ export default function Expedition() {
             order_number: 1,
             status: "NAO_ENTREGUE" as const,
             is_boat: isBoat(openOrder.extra_info),
+            boat_info: isBoat(openOrder.extra_info) ? openOrder.boat_info || null : null,
           })
           .select("id")
           .single();
@@ -1169,6 +1205,43 @@ const statusStyle = (s: Status) =>
               )}
             </DialogTitle>
           </DialogHeader>
+          {boatMode && infoOrder ? (
+            <div className="space-y-3">
+              <div className="rounded-md border border-sky-500/50 bg-sky-500/10 p-3 text-sm space-y-0.5">
+                <div className="flex items-center gap-1.5 font-semibold text-sky-600 dark:text-sky-400">
+                  <Ship className="w-4 h-4" /> Endereço do destinatário
+                </div>
+                <div className="font-medium">{infoOrder.client}</div>
+                <div className="text-muted-foreground">
+                  {[infoOrder.address, infoOrder.neighborhood, infoOrder.cep].filter(Boolean).join(" · ") || "Sem endereço na nota"}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="boat-info">Entrega pelo barco (sai na etiqueta de volume)</Label>
+                <Textarea
+                  id="boat-info"
+                  rows={4}
+                  value={boatText}
+                  disabled={!canTagInfo}
+                  onChange={(e) => setBoatText(e.target.value)}
+                  placeholder="Ex: Barco Comandante X — Porto da Manaus Moderna — destino Parintins/AM"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setBoatMode(false)}>
+                  Voltar
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
+                  disabled={!canTagInfo || boatSaving}
+                  onClick={() => saveBoat(infoOrder)}
+                >
+                  {boatSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ship className="w-4 h-4" />}
+                  Salvar barco
+                </Button>
+              </div>
+            </div>
+          ) : (
           <div className="space-y-2">
             {extraInfos.length === 0 && (
               <p className="text-sm text-muted-foreground">
@@ -1181,13 +1254,18 @@ const statusStyle = (s: Status) =>
                 variant={infoOrder?.extra_info === i.name ? "default" : "outline"}
                 className="w-full justify-start"
                 disabled={!canTagInfo}
-                onClick={() => infoOrder && setExtraInfo(infoOrder, i.name)}
+                onClick={() => {
+                  if (!infoOrder) return;
+                  if (isBoat(i.name)) openBoat(infoOrder);
+                  else setExtraInfo(infoOrder, i.name);
+                }}
               >
                 {isBoat(i.name) ? <Ship className="w-4 h-4 mr-2" /> : <Tag className="w-4 h-4 mr-2" />}
                 {i.name}
               </Button>
             ))}
           </div>
+          )}
           {infoOrder?.extra_info && canTagInfo && (
             <DialogFooter>
               <Button
