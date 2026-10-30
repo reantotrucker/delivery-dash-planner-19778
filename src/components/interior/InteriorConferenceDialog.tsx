@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2 } from "lucide-react";
+import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -278,23 +278,47 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                           className={`border-t border-border ${idx % 2 ? "bg-muted/30" : ""} ${isRemoved ? "opacity-50" : ""}`}
                         >
                           <td className="p-2 align-middle min-w-0">
-                            <p
-                              className={`font-medium text-xs sm:text-sm leading-snug break-words ${isRemoved ? "line-through" : ""}`}
-                            >
-                              {decodeHtml(i.descricao)}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground break-words">
-                              {i.codigo_sku && (
-                                <span className="font-mono font-semibold text-foreground/80">Cód. {i.codigo_sku}</span>
-                              )}
-                              <span className="sm:hidden">
-                                {i.codigo_sku ? " · " : ""}
-                                {brl(i.preco_unitario)} un. ·{" "}
-                                <b className="tabular-nums">{brl(isRemoved ? 0 : n * (Number(i.preco_unitario) || 0))}</b>
-                              </span>
-                            </p>
-                            {changed && <p className="text-[11px] text-primary">Original: {i.quantidade}</p>}
-                            {isRemoved && <p className="text-[11px] text-destructive">Excluído</p>}
+                            <div className="flex items-center gap-2 min-w-0">
+                              <a
+                                href={i.imagem_url || undefined}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={i.imagem_url ? "Ver foto maior" : "Sem foto"}
+                                className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-md border border-border bg-muted overflow-hidden flex items-center justify-center"
+                                onClick={(e) => !i.imagem_url && e.preventDefault()}
+                              >
+                                {i.imagem_url ? (
+                                  <img
+                                    src={i.imagem_url}
+                                    alt=""
+                                    loading="lazy"
+                                    className="w-full h-full object-contain bg-background"
+                                    onError={(e) => (e.currentTarget.style.display = "none")}
+                                  />
+                                ) : (
+                                  <Package className="w-4 h-4 text-muted-foreground" />
+                                )}
+                              </a>
+                              <div className="min-w-0">
+                                <p
+                                  className={`font-medium text-xs sm:text-sm leading-snug break-words ${isRemoved ? "line-through" : ""}`}
+                                >
+                                  {decodeHtml(i.descricao)}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground break-words">
+                                  {i.codigo_sku && (
+                                    <span className="font-mono font-semibold text-foreground/80">Cód. {i.codigo_sku}</span>
+                                  )}
+                                  <span className="sm:hidden">
+                                    {i.codigo_sku ? " · " : ""}
+                                    {brl(i.preco_unitario)} un. ·{" "}
+                                    <b className="tabular-nums">{brl(isRemoved ? 0 : n * (Number(i.preco_unitario) || 0))}</b>
+                                  </span>
+                                </p>
+                                {changed && <p className="text-[11px] text-primary">Original: {i.quantidade}</p>}
+                                {isRemoved && <p className="text-[11px] text-destructive">Excluído</p>}
+                              </div>
+                            </div>
                           </td>
                           <td className="p-1 sm:p-2 text-right align-middle">
                             <Input
