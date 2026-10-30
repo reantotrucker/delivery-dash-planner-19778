@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import {
   interiorCall,
   InteriorPedido,
@@ -41,6 +42,10 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [omieError, setOmieError] = useState<string | null>(null);
+  const { isAdmin } = useAuth();
+  const [confirmPedidoDel, setConfirmPedidoDel] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["interior-detalhe", pedidoId],
@@ -143,6 +148,30 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
     }
   };
 
+  const excluirPedido = async () => {
+    if (!pedido) return;
+    setDeleting(true);
+    try {
+      await interiorCall({
+        acao: "excluir",
+        pedido_id: pedido.id,
+        numero_pedido: pedido.numero_pedido,
+        cliente: clienteNome(pedido),
+        motivo: motivo.trim() || null,
+      });
+      toast.success(`Pedido ${pedido.numero_pedido ? `#${pedido.numero_pedido} ` : ""}excluído`);
+      qc.invalidateQueries({ queryKey: ["interior-lista"] });
+      qc.invalidateQueries({ queryKey: ["interior-relatorio"] });
+      setConfirmPedidoDel(false);
+      setMotivo("");
+      onClose();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const itens = pedido?.itens || [];
   const totalAtual = itens.reduce((s, i) => {
     if (removed.has(i.produto_id)) return s;
@@ -162,7 +191,17 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
               <Badge variant="outline" className="text-[10px] sm:text-xs">
                 {STATUS_LABEL[pedido.status] || pedido.status}
               </Badge>
-              <span className="text-xs text-muted-foreground truncate min-w-0">{clienteNome(pedido)}</span>
+              <span className="text-xs text-muted-foreground truncate min-w-0 flex-1">{clienteNome(pedido)}</span>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setConfirmPedidoDel(true)}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir pedido
+                </Button>
+              )}
             </div>
           )}
         </DialogHeader>
@@ -357,6 +396,45 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
             </div>
           </div>
         )}
+
+        <AlertDialog
+          open={confirmPedidoDel}
+          onOpenChange={(o) => {
+            if (!o && !deleting) {
+              setConfirmPedidoDel(false);
+              setMotivo("");
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir pedido</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deseja excluir o pedido {pedido?.numero_pedido ? `#${pedido.numero_pedido}` : ""} da Entrega para
+                interior? Ele some da lista e dos relatórios.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-1">
+              <Label htmlFor="motivo" className="text-xs">
+                Motivo (opcional)
+              </Label>
+              <Input
+                id="motivo"
+                value={motivo}
+                maxLength={500}
+                onChange={(e) => setMotivo(e.target.value)}
+                placeholder="Ex.: pedido duplicado"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+              <Button variant="destructive" onClick={excluirPedido} disabled={deleting}>
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Trash2 className="w-4 h-4 mr-1" />}
+                Excluir
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
           <AlertDialogContent>
