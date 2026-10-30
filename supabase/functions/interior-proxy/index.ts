@@ -90,11 +90,26 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
-    const upstream = await fetch(UPSTREAM, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-interior-key": apiKey },
-      body: JSON.stringify({ ...body, usuario }),
-    });
+    const callUpstream = (b: Record<string, unknown>) =>
+      fetch(UPSTREAM, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-interior-key": apiKey },
+        body: JSON.stringify({ ...b, usuario }),
+      });
+
+    // Antes de enviar: a Omie recusa itens excluídos sem quantidade quando o Stock360 Vendas
+    // altera o pedido. Aqui apagamos na Omie os itens retirados na conferência; depois o
+    // envio normal só ajusta quantidades e volumes.
+    if (acao === "enviar_omie") {
+      try {
+        const msg = await removerItensExcluidosNaOmie(callUpstream, String(body.pedido_id ?? ""));
+        if (msg) return json({ success: false, error: msg });
+      } catch (e) {
+        return json({ success: false, error: (e as Error).message || "Erro ao preparar o pedido na Omie" });
+      }
+    }
+
+    const upstream = await callUpstream(body);
     const text = await upstream.text();
 
     // Remove pedidos excluídos pelo admin da lista e dos relatórios
