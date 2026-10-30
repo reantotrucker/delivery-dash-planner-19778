@@ -9,6 +9,7 @@ import {
   InteriorAlteracao,
   InteriorPedido,
   brl,
+  decodeHtml,
   fmtDateTime,
 } from "@/lib/interior";
 
@@ -20,7 +21,7 @@ const isEnviado = (p: InteriorPedido) =>
   !!p.interior_enviado_omie_em || ["enviado_omie", "faturado"].includes(p.status);
 
 const altPedido = (a: InteriorAlteracao) => String(a.numero_pedido ?? a.pedido_id ?? "—");
-const altProduto = (a: InteriorAlteracao) => String(a.descricao ?? a.produto ?? a.produto_id ?? "—");
+const altProduto = (a: InteriorAlteracao) => decodeHtml(String(a.descricao ?? a.produto ?? a.produto_id ?? "—"));
 const altAntes = (a: InteriorAlteracao) => {
   const v = a.quantidade_anterior ?? a.antes;
   return v == null ? "—" : String(v);
