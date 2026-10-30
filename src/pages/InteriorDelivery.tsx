@@ -53,28 +53,30 @@ export default function InteriorDelivery() {
     [pedidos, vendedor, transporte, data]
   );
 
+  const hasFilter = vendedor !== ALL || transporte !== ALL || !!data;
+
   return (
-    <div className="p-4 lg:p-6 space-y-4 max-w-7xl mx-auto">
-      <header>
-        <h1 className="text-xl lg:text-2xl font-bold flex items-center gap-2">
-          <Ship className="w-6 h-6 text-primary" />
+    <div className="p-3 sm:p-4 lg:p-6 space-y-3 sm:space-y-4 max-w-7xl mx-auto w-full min-w-0 overflow-x-hidden">
+      <header className="min-w-0">
+        <h1 className="text-lg sm:text-xl lg:text-2xl font-bold flex items-center gap-2">
+          <Ship className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
           Entrega para interior
         </h1>
-        <p className="text-sm text-muted-foreground">Pedidos recebidos do Stock360 Vendas para conferência</p>
+        <p className="text-xs sm:text-sm text-muted-foreground">Pedidos recebidos do Stock360 Vendas para conferência</p>
       </header>
 
-      <Tabs defaultValue="recebidos">
-        <TabsList>
-          <TabsTrigger value="recebidos">Recebidos</TabsTrigger>
+      <Tabs defaultValue="recebidos" className="min-w-0">
+        <TabsList className="grid grid-cols-2 w-full sm:inline-flex sm:w-auto">
+          <TabsTrigger value="recebidos">Recebidos{pedidos.length ? ` (${pedidos.length})` : ""}</TabsTrigger>
           <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="recebidos" className="space-y-4 mt-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
+        <TabsContent value="recebidos" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4 min-w-0">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+            <div className="space-y-1 min-w-0">
               <label className="text-xs text-muted-foreground">Vendedor</label>
               <Select value={vendedor} onValueChange={setVendedor}>
-                <SelectTrigger className="h-9 w-[180px]">
+                <SelectTrigger className="h-9 w-full sm:w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -87,10 +89,10 @@ export default function InteriorDelivery() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <label className="text-xs text-muted-foreground">Transporte</label>
               <Select value={transporte} onValueChange={setTransporte}>
-                <SelectTrigger className="h-9 w-[160px]">
+                <SelectTrigger className="h-9 w-full sm:w-[160px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -103,27 +105,47 @@ export default function InteriorDelivery() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Data de recebimento</label>
-              <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="h-9 w-[160px]" />
+            <div className="space-y-1 min-w-0">
+              <label className="text-xs text-muted-foreground">Recebido em</label>
+              <Input
+                type="date"
+                value={data}
+                onChange={(e) => setData(e.target.value)}
+                className="h-9 w-full min-w-0 sm:w-[160px]"
+              />
             </div>
-            {(vendedor !== ALL || transporte !== ALL || data) && (
+            <div className="flex items-end gap-2 min-w-0 sm:ml-auto">
+              {hasFilter && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-2 sm:px-3"
+                  onClick={() => {
+                    setVendedor(ALL);
+                    setTransporte(ALL);
+                    setData("");
+                  }}
+                >
+                  Limpar
+                </Button>
+              )}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={() => {
-                  setVendedor(ALL);
-                  setTransporte(ALL);
-                  setData("");
-                }}
+                className="h-9 flex-1 sm:flex-none"
+                onClick={() => refetch()}
+                disabled={isFetching}
               >
-                Limpar
+                <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} /> Atualizar
               </Button>
-            )}
-            <Button variant="outline" size="sm" className="ml-auto" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={cn("w-4 h-4 mr-1", isFetching && "animate-spin")} /> Atualizar
-            </Button>
+            </div>
           </div>
+
+          {!isLoading && !error && pedidos.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {filtrados.length} de {pedidos.length} pedidos
+            </p>
+          )}
 
           {isLoading && (
             <div className="flex justify-center py-10">
@@ -137,46 +159,51 @@ export default function InteriorDelivery() {
             <p className="text-sm text-muted-foreground py-6 text-center">Nenhum pedido encontrado.</p>
           )}
 
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
             {filtrados.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setOpen(p.id)}
-                className="text-left bg-card border border-border rounded-xl p-4 space-y-2 hover:border-primary/60 hover:shadow-md transition-all"
+                className="w-full min-w-0 text-left bg-card border border-border rounded-xl p-3 sm:p-4 space-y-2 hover:border-primary/60 hover:shadow-md active:scale-[0.99] transition-all"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Pedido #{p.numero_pedido ?? "—"}</p>
-                    <p className="font-semibold truncate">{clienteNome(p)}</p>
-                  </div>
-                  <Badge variant="outline" className={cn("flex-shrink-0", statusClass(p.status))}>
+                <div className="flex items-center justify-between gap-2 min-w-0">
+                  <p className="text-xs text-muted-foreground flex-shrink-0">Pedido #{p.numero_pedido ?? "—"}</p>
+                  <Badge
+                    variant="outline"
+                    className={cn("text-[10px] sm:text-xs whitespace-nowrap min-w-0 truncate", statusClass(p.status))}
+                  >
                     {STATUS_LABEL[p.status] || p.status}
                   </Badge>
                 </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1 truncate">
+                <p className="font-semibold leading-snug line-clamp-2 break-words">{clienteNome(p)}</p>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground min-w-0">
+                  <span className="flex items-center gap-1 min-w-0">
                     <MapPin className="w-3 h-3 flex-shrink-0" />
-                    {[p.clientes?.cidade, p.clientes?.uf].filter(Boolean).join("/") || "—"}
+                    <span className="truncate">
+                      {[p.clientes?.cidade, p.clientes?.uf].filter(Boolean).join("/") || "—"}
+                    </span>
                   </span>
-                  <span className="flex items-center gap-1 truncate">
+                  <span className="flex items-center gap-1 min-w-0">
                     <User className="w-3 h-3 flex-shrink-0" />
-                    {p.vendedor_nome || "—"}
+                    <span className="truncate">{p.vendedor_nome || "—"}</span>
                   </span>
-                  <span className="flex items-center gap-1 truncate">
+                  <span className="flex items-center gap-1 min-w-0">
                     <Ship className="w-3 h-3 flex-shrink-0" />
-                    {p.transporte_interior || "—"}
+                    <span className="truncate">{p.transporte_interior || "—"}</span>
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 min-w-0">
                     <Package className="w-3 h-3 flex-shrink-0" />
-                    {p.qtd_volumes != null ? `${p.qtd_volumes} vol.` : "Sem volumes"}
+                    <span className="truncate">
+                      {p.qtd_volumes != null ? `${p.qtd_volumes} vol.` : "Sem volumes"}
+                    </span>
                   </span>
                 </div>
-                <div className="flex items-center justify-between pt-1 border-t border-border">
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
                   <span className="text-xs text-muted-foreground">{(p.itens || []).length} itens</span>
-                  <span className="font-bold tabular-nums">{brl(p.valor_total)}</span>
+                  <span className="font-bold tabular-nums whitespace-nowrap">{brl(p.valor_total)}</span>
                 </div>
                 {p.erro_omie_mensagem && (
-                  <p className="text-xs text-destructive line-clamp-2">Omie: {p.erro_omie_mensagem}</p>
+                  <p className="text-xs text-destructive line-clamp-2 break-words">Omie: {p.erro_omie_mensagem}</p>
                 )}
               </button>
             ))}
