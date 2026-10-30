@@ -140,6 +140,15 @@ Deno.serve(async (req) => {
           } catch (e) {
             console.error("Código do produto:", (e as Error).message);
           }
+          try {
+            const pedidos: any[] = [
+              ...(Array.isArray(parsed?.pedidos) ? parsed.pedidos : []),
+              ...(parsed?.pedido ? [parsed.pedido] : []),
+            ];
+            await marcarFaturados(pedidos);
+          } catch (e) {
+            console.error("Faturamento Omie:", (e as Error).message);
+          }
         }
         return json(parsed, upstream.status);
       } catch {
@@ -322,5 +331,107 @@ async function preencherCodigosProduto(pedidos: any[]) {
   for (const i of faltando) {
     const c = mapa[String(i.codigo_produto_omie)];
     if (c) i.codigo_sku = c;
+  }
+}
+
+// ---------------- Faturamento (Omie da Stock 360) ----------------
+const FAT_OK_TTL_MS = 30 * 24 * 60 * 60 * 1000; // faturado não muda
+const FAT_PENDENTE_TTL_MS = 3 * 60 * 1000; // ainda não faturado: confere de novo a cada 3 min
+
+async function omieCallUrl(path: string, call: string, param: Record<string, unknown>) {
+  const app_key = Deno.env.get("OMIE_APP_KEY");
+  const app_secret = Deno.env.get("OMIE_APP_SECRET");
+  if (!app_key || !app_secret) throw new Error("Chave da Omie da Stock 360 não configurada");
+  let last = "";
+  for (let i = 0; i < 3; i++) {
+    const r = await fetch(`https://app.omie.com.br/api/v1/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ call, app_key, app_secret, param: [param] }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && !j?.faultstring) return j;
+    last = j?.faultstring || `Omie ${r.status}`;
+    if (!/consumo redundante|bloqueada|tente novamente|limite/i.test(last)) break;
+    await new Promise((res) => setTimeout(res, 3000));
+  }
+  throw new Error(last);
+}
+
+type FatInfo = { faturado: boolean; numero_nfe?: string | null; faturado_em?: string | null };
+
+const brDateTimeToIso = (d?: string, h?: string) => {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(d || ""));
+  if (!m) return null;
+  const hh = /^\d{2}:\d{2}(:\d{2})?$/.test(String(h || "")) ? String(h).padEnd(8, ":00").slice(0, 8) : "00:00:00";
+  return `${m[3]}-${m[2]}-${m[1]}T${hh}-04:00`; // horário de Manaus
+};
+
+async function consultarFaturamento(numeroOmie: string): Promise<FatInfo> {
+  const j = await omieCallUrl("produtos/pedido/", "ConsultarPedido", { numero_pedido: numeroOmie });
+  const ped = j?.pedido_venda_produto;
+  const cab = ped?.cabecalho ?? {};
+  const info = ped?.infoCadastro ?? {};
+  const cancelado = String(info.cancelado || "").toUpperCase() === "S";
+  const faturado = !cancelado && (String(info.faturado || "").toUpperCase() === "S" || ["60", "70"].includes(String(cab.etapa)));
+  if (!faturado) return { faturado: false };
+  let numero_nfe: string | null = null;
+  let faturado_em = brDateTimeToIso(info.dFat, info.hFat);
+  try {
+    if (cab.codigo_pedido) {
+      const nf = await omieCallUrl("produtos/nfconsultar/", "ConsultarNF", { nCodPed: cab.codigo_pedido });
+      numero_nfe = nf?.ide?.nNF ? String(Number(nf.ide.nNF)) : null;
+      faturado_em = faturado_em || brDateTimeToIso(nf?.ide?.dEmi, nf?.ide?.hEmi);
+    }
+  } catch (e) {
+    console.error(`NF do pedido ${numeroOmie}:`, (e as Error).message);
+  }
+  return { faturado: true, numero_nfe, faturado_em };
+}
+
+async function marcarFaturados(pedidos: any[]) {
+  const alvo = pedidos.filter(
+    (p) => p?.numero_pedido_omie && (p.interior_enviado_omie_em || String(p.status || "").startsWith("enviado")),
+  );
+  if (!alvo.length) return;
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const keys = alvo.map((p) => `stock360_interior_fat_${p.numero_pedido_omie}`);
+  const { data: rows } = await admin
+    .from("omie_cache")
+    .select("cache_key, cache_value, expires_at")
+    .in("cache_key", keys);
+  const cache = new Map<string, FatInfo>();
+  for (const r of rows || []) {
+    if (new Date(r.expires_at).getTime() > Date.now()) cache.set(r.cache_key, r.cache_value as FatInfo);
+  }
+
+  const pendentes = alvo.filter((p) => !cache.has(`stock360_interior_fat_${p.numero_pedido_omie}`));
+  // Consulta poucos por vez para não estourar o limite da Omie
+  for (let i = 0; i < pendentes.length; i += 3) {
+    await Promise.all(
+      pendentes.slice(i, i + 3).map(async (p) => {
+        const key = `stock360_interior_fat_${p.numero_pedido_omie}`;
+        try {
+          const info = await consultarFaturamento(String(p.numero_pedido_omie));
+          cache.set(key, info);
+          await admin.from("omie_cache").upsert({
+            cache_key: key,
+            cache_value: info,
+            created_at: new Date().toISOString(),
+            expires_at: new Date(Date.now() + (info.faturado ? FAT_OK_TTL_MS : FAT_PENDENTE_TTL_MS)).toISOString(),
+          });
+        } catch (e) {
+          console.error(`Pedido Omie ${p.numero_pedido_omie}:`, (e as Error).message);
+        }
+      }),
+    );
+  }
+
+  for (const p of alvo) {
+    const info = cache.get(`stock360_interior_fat_${p.numero_pedido_omie}`);
+    if (!info?.faturado) continue;
+    p.status = "faturado";
+    if (info.numero_nfe && !p.numero_nfe) p.numero_nfe = info.numero_nfe;
+    p.faturado_em = info.faturado_em ?? null;
   }
 }
