@@ -8,6 +8,7 @@ export interface InteriorItem {
   quantidade: number;
   preco_unitario: number | null;
   codigo_sku: string | null;
+  imagem_url?: string | null;
 }
 
 export interface InteriorCliente {
