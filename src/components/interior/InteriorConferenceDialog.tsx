@@ -279,26 +279,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                         >
                           <td className="p-2 align-middle min-w-0">
                             <div className="flex items-center gap-2 min-w-0">
-                              <a
-                                href={i.imagem_url || undefined}
-                                target="_blank"
-                                rel="noreferrer"
-                                title={i.imagem_url ? "Ver foto maior" : "Sem foto"}
-                                className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-md border border-border bg-muted overflow-hidden flex items-center justify-center"
-                                onClick={(e) => !i.imagem_url && e.preventDefault()}
-                              >
-                                {i.imagem_url ? (
-                                  <img
-                                    src={i.imagem_url}
-                                    alt=""
-                                    loading="lazy"
-                                    className="w-full h-full object-contain bg-background"
-                                    onError={(e) => (e.currentTarget.style.display = "none")}
-                                  />
-                                ) : (
-                                  <Package className="w-4 h-4 text-muted-foreground" />
-                                )}
-                              </a>
+                              <ProdutoFoto url={i.imagem_url} />
                               <div className="min-w-0">
                                 <p
                                   className={`font-medium text-xs sm:text-sm leading-snug break-words ${isRemoved ? "line-through" : ""}`}
@@ -531,5 +512,36 @@ function Info({ l, v, className = "" }: { l: string; v: string; className?: stri
         {v}
       </p>
     </div>
+  );
+}
+
+function ProdutoFoto({ url }: { url?: string | null }) {
+  const [falhou, setFalhou] = useState(false);
+  useEffect(() => setFalhou(false), [url]);
+  const temFoto = !!url && !falhou;
+  return (
+    <a
+      href={temFoto ? url! : undefined}
+      target="_blank"
+      rel="noreferrer"
+      title={temFoto ? "Ver foto maior" : "Sem foto"}
+      className="shrink-0 w-10 h-10 rounded-md border border-border bg-muted overflow-hidden flex items-center justify-center"
+      onClick={(e) => !temFoto && e.preventDefault()}
+    >
+      {temFoto ? (
+        <img
+          src={url!}
+          alt=""
+          width={40}
+          height={40}
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className="block w-full h-full object-contain bg-background"
+          onError={() => setFalhou(true)}
+        />
+      ) : (
+        <Package className="w-4 h-4 text-muted-foreground" />
+      )}
+    </a>
   );
 }
