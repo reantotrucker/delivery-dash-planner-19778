@@ -14,7 +14,7 @@ import { InteriorReports } from "@/components/interior/InteriorReports";
 const ALL = "__all__";
 
 const statusClass = (s: string) =>
-  s === "conferido"
+  s === "conferido" || s.startsWith("enviado") || s === "faturado"
     ? "bg-success/15 text-success border-success/40"
     : s === "aguardando_conferencia"
       ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
@@ -26,13 +26,39 @@ export default function InteriorDelivery() {
   const [data, setData] = useState("");
   const [open, setOpen] = useState<string | null>(null);
 
-  const { data: lista, isLoading, error, refetch, isFetching } = useQuery({
+  const [tab, setTab] = useState("recebidos");
+
+  const { data: lista, isLoading: l1, error: e1, refetch: r1, isFetching: f1 } = useQuery({
     queryKey: ["interior-lista"],
     refetchInterval: 60000,
-    queryFn: () => interiorCall<{ pedidos: InteriorPedido[] }>({ acao: "listar" }),
+    queryFn: () => interiorCall<{ pedidos: InteriorPedido[] }>({ acao: "listar", status: ["aguardando_conferencia"] }),
+  });
+  const { data: listaConf, isLoading: l2, error: e2, refetch: r2, isFetching: f2 } = useQuery({
+    queryKey: ["interior-lista", "conferidos"],
+    refetchInterval: 60000,
+    queryFn: () =>
+      interiorCall<{ pedidos: InteriorPedido[] }>({
+        acao: "listar",
+        status: ["conferido", "enviado", "enviado_omie", "faturado"],
+      }),
   });
 
-  const pedidos = lista?.pedidos || [];
+  const recebidos = lista?.pedidos || [];
+  const conferidos = useMemo(
+    () =>
+      [...(listaConf?.pedidos || [])].sort((a, b) =>
+        String(b.interior_conferido_em || b.interior_recebido_em || "").localeCompare(
+          String(a.interior_conferido_em || a.interior_recebido_em || "")
+        )
+      ),
+    [listaConf]
+  );
+  const isConf = tab === "conferidos";
+  const pedidos = isConf ? conferidos : recebidos;
+  const isLoading = isConf ? l2 : l1;
+  const error = isConf ? e2 : e1;
+  const isFetching = isConf ? f2 : f1;
+  const refetch = () => (isConf ? r2() : r1());
   const vendedores = useMemo(
     () => [...new Set(pedidos.map((p) => p.vendedor_nome).filter(Boolean) as string[])].sort(),
     [pedidos]
@@ -65,13 +91,21 @@ export default function InteriorDelivery() {
         <p className="text-xs sm:text-sm text-muted-foreground">Pedidos recebidos do Stock360 Vendas para conferência</p>
       </header>
 
-      <Tabs defaultValue="recebidos" className="min-w-0">
-        <TabsList className="grid grid-cols-2 w-full sm:inline-flex sm:w-auto">
-          <TabsTrigger value="recebidos">Recebidos{pedidos.length ? ` (${pedidos.length})` : ""}</TabsTrigger>
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
+        <TabsList className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto">
+          <TabsTrigger value="recebidos">Recebidos{recebidos.length ? ` (${recebidos.length})` : ""}</TabsTrigger>
+          <TabsTrigger value="conferidos">Conferidos{conferidos.length ? ` (${conferidos.length})` : ""}</TabsTrigger>
           <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="recebidos" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4 min-w-0">
+        {(tab === "recebidos" || tab === "conferidos") && (
+        <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4 min-w-0">
+          {isConf && (
+            <p className="text-xs text-muted-foreground">
+              Toque no card para rever a conferência. Pedidos ainda não enviados podem ser editados; os já enviados à
+              Omie ficam só para consulta.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
             <div className="space-y-1 min-w-0">
               <label className="text-xs text-muted-foreground">Vendedor</label>
@@ -161,7 +195,7 @@ export default function InteriorDelivery() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
             {filtrados.map((p) => {
-              const conferido = !!p.interior_conferido_em || p.status === "conferido";
+              const conferido = !!p.interior_conferido_em || p.status !== "aguardando_conferencia";
               return (
               <button
                 key={p.id}
@@ -225,7 +259,8 @@ export default function InteriorDelivery() {
               );
             })}
           </div>
-        </TabsContent>
+        </div>
+        )}
 
         <TabsContent value="relatorios" className="mt-4">
           <InteriorReports />

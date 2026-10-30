@@ -67,6 +67,8 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   });
 
   const pedido = data?.pedido;
+  // Depois de enviado à Omie o Stock360 Vendas não aceita mais alterações
+  const editavel = !!pedido && ["aguardando_conferencia", "conferido"].includes(pedido.status);
   const historico = data?.historico || [];
 
   useEffect(() => {
@@ -236,6 +238,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 <Info l="Recebido" v={fmtDateTime(pedido.interior_recebido_em)} />
                 <Info l="Pedido Omie" v={pedido.numero_pedido_omie ? String(pedido.numero_pedido_omie) : "—"} />
                 <Info l="NF-e" v={pedido.numero_nfe || "—"} />
+                {!editavel && <Info l="Volumes" v={pedido.qtd_volumes != null ? String(pedido.qtd_volumes) : "—"} />}
                 <Info
                   l="Conferido por"
                   v={
@@ -296,7 +299,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                               type="number"
                               inputMode="decimal"
                               min={0}
-                              disabled={isRemoved}
+                              disabled={isRemoved || !editavel}
                               value={qty[i.produto_id] ?? ""}
                               onChange={(e) => setQty((q) => ({ ...q, [i.produto_id]: e.target.value }))}
                               className={`h-10 sm:h-9 w-full sm:w-24 ml-auto px-2 text-right tabular-nums text-base sm:text-sm ${changed ? "border-primary" : ""}`}
@@ -307,7 +310,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                             {brl(isRemoved ? 0 : n * (Number(i.preco_unitario) || 0))}
                           </td>
                           <td className="p-1 text-center align-middle">
-                            {isRemoved ? (
+                            {!editavel ? null : isRemoved ? (
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -342,6 +345,14 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 </table>
               </div>
 
+              {!editavel && (
+                <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Este pedido já foi enviado à Omie
+                  {pedido.interior_enviado_omie_em ? ` em ${fmtDateTime(pedido.interior_enviado_omie_em)}` : ""}. Aqui é
+                  só para consulta; qualquer mudança agora precisa ser feita direto na Omie.
+                </div>
+              )}
+
               {omieError && (
                 <div className="flex gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
                   <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -370,7 +381,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
           )}
         </div>
 
-        {pedido && (
+        {pedido && editavel && (
           <div className="flex-shrink-0 border-t border-border bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-4 space-y-2">
             <div className="flex items-end justify-between gap-3">
               <div className="space-y-1">
