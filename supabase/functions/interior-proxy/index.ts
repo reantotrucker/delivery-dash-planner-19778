@@ -112,20 +112,33 @@ Deno.serve(async (req) => {
     const upstream = await callUpstream(body);
     const text = await upstream.text();
 
-    // Remove pedidos excluídos pelo admin da lista e dos relatórios
-    if (upstream.ok && (acao === "listar" || acao === "relatorio")) {
+    // Remove pedidos excluídos pelo admin da lista e dos relatórios; acrescenta o código do produto
+    if (upstream.ok && (acao === "listar" || acao === "relatorio" || acao === "detalhe")) {
       try {
         const parsed = JSON.parse(text || "{}");
-        const { data: excl } = await supabase.from("interior_excluded_orders").select("pedido_id");
-        const ids = new Set((excl || []).map((e: { pedido_id: string }) => String(e.pedido_id)));
-        if (ids.size && parsed && typeof parsed === "object") {
-          if (Array.isArray(parsed.pedidos)) {
-            parsed.pedidos = parsed.pedidos.filter((p: { id?: unknown }) => !ids.has(String(p?.id)));
+        if (acao !== "detalhe") {
+          const { data: excl } = await supabase.from("interior_excluded_orders").select("pedido_id");
+          const ids = new Set((excl || []).map((e: { pedido_id: string }) => String(e.pedido_id)));
+          if (ids.size && parsed && typeof parsed === "object") {
+            if (Array.isArray(parsed.pedidos)) {
+              parsed.pedidos = parsed.pedidos.filter((p: { id?: unknown }) => !ids.has(String(p?.id)));
+            }
+            if (Array.isArray(parsed.alteracoes)) {
+              parsed.alteracoes = parsed.alteracoes.filter(
+                (a: { pedido_id?: unknown }) => !a?.pedido_id || !ids.has(String(a.pedido_id)),
+              );
+            }
           }
-          if (Array.isArray(parsed.alteracoes)) {
-            parsed.alteracoes = parsed.alteracoes.filter(
-              (a: { pedido_id?: unknown }) => !a?.pedido_id || !ids.has(String(a.pedido_id)),
-            );
+        }
+        if (acao !== "relatorio") {
+          try {
+            const pedidos: any[] = [
+              ...(Array.isArray(parsed?.pedidos) ? parsed.pedidos : []),
+              ...(parsed?.pedido ? [parsed.pedido] : []),
+            ];
+            await preencherCodigosProduto(pedidos);
+          } catch (e) {
+            console.error("Código do produto:", (e as Error).message);
           }
         }
         return json(parsed, upstream.status);
