@@ -23,6 +23,7 @@ import {
   STATUS_LABEL,
   brl,
   clienteNome,
+  decodeHtml,
   fmtDateTime,
 } from "@/lib/interior";
 
@@ -382,9 +383,9 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   );
 }
 
-function Info({ l, v }: { l: string; v: string }) {
+function Info({ l, v, className = "" }: { l: string; v: string; className?: string }) {
   return (
-    <div className="rounded-lg border border-border p-2 min-w-0">
+    <div className={`rounded-lg border border-border p-2 min-w-0 ${className}`}>
       <p className="text-[10px] uppercase text-muted-foreground">{l}</p>
       <p className="font-medium truncate" title={v}>
         {v}
