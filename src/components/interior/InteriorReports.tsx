@@ -9,6 +9,7 @@ import {
   InteriorAlteracao,
   InteriorPedido,
   brl,
+  clienteNome,
   decodeHtml,
   fmtDateTime,
 } from "@/lib/interior";
@@ -23,11 +24,12 @@ const isEnviado = (p: InteriorPedido) =>
 const altPedido = (a: InteriorAlteracao) => String(a.numero_pedido ?? a.pedido_id ?? "—");
 const altProduto = (a: InteriorAlteracao) => decodeHtml(String(a.descricao ?? a.produto ?? a.produto_id ?? "—"));
 const altAntes = (a: InteriorAlteracao) => {
-  const v = a.quantidade_anterior ?? a.antes;
+  const v = a.quantidade_anterior ?? a.quantidade_antes ?? a.antes;
   return v == null ? "—" : String(v);
 };
 const altDepois = (a: InteriorAlteracao) => {
-  const v = "quantidade_nova" in a ? a.quantidade_nova : a.depois;
+  const v =
+    "quantidade_nova" in a ? a.quantidade_nova : "quantidade_depois" in a ? a.quantidade_depois : a.depois;
   return v == null ? "Excluído" : String(v);
 };
 const altQuem = (a: InteriorAlteracao) => String(a.usuario ?? a.quem ?? "—");
@@ -77,6 +79,24 @@ export function InteriorReports() {
   };
   const porVendedor = useMemo(() => group((p) => p.vendedor_nome || ""), [pedidos]);
   const porTransporte = useMemo(() => group((p) => p.transporte_interior || ""), [pedidos]);
+  const porConferente = useMemo(() => {
+    const m = new Map<string, { nome: string; qtd: number; valor: number }>();
+    pedidos.filter(isConferido).forEach((p) => {
+      const k = (p.interior_conferido_por || "").trim() || "Não informado";
+      const g = m.get(k) || { nome: k, qtd: 0, valor: 0 };
+      g.qtd += 1;
+      g.valor += Number(p.valor_total) || 0;
+      m.set(k, g);
+    });
+    return [...m.values()].sort((a, b) => b.qtd - a.qtd);
+  }, [pedidos]);
+  const conferidosLista = useMemo(
+    () =>
+      pedidos
+        .filter(isConferido)
+        .sort((a, b) => String(b.interior_conferido_em || "").localeCompare(String(a.interior_conferido_em || ""))),
+    [pedidos]
+  );
 
   const imprimir = () => {
     const tbl = (head: string[], rows: (string | number)[][]) =>
@@ -112,6 +132,16 @@ section{break-inside:avoid}
 <div class="kpi">Faturados<b>${resumo.faturados}</b></div></div></section>
 <section><h2>Por vendedor</h2>${tbl(["Vendedor", "Pedidos", "Valor"], porVendedor.map((g) => [g.nome, g.qtd, brl(g.valor)]))}</section>
 <section><h2>Por transporte</h2>${tbl(["Transporte", "Pedidos", "Valor"], porTransporte.map((g) => [g.nome, g.qtd, brl(g.valor)]))}</section>
+<section><h2>Por conferente</h2>${tbl(["Conferente", "Pedidos", "Valor"], porConferente.map((g) => [g.nome, g.qtd, brl(g.valor)]))}</section>
+<section><h2>Pedidos conferidos</h2>${tbl(
+      ["Pedido", "Cliente", "Conferido por", "Quando"],
+      conferidosLista.map((p) => [
+        String(p.numero_pedido ?? "—"),
+        clienteNome(p),
+        p.interior_conferido_por || "Não informado",
+        fmtDateTime(p.interior_conferido_em),
+      ])
+    )}</section>
 <section><h2>Itens alterados ou excluídos</h2>${tbl(
       ["Pedido", "Produto", "Antes", "Depois", "Quem", "Quando"],
       alteracoes.map((a) => [altPedido(a), altProduto(a), altAntes(a), altDepois(a), altQuem(a), altQuando(a)])
@@ -182,6 +212,43 @@ section{break-inside:avoid}
             </Section>
             <Section title="Por transporte">
               <GroupTable label="Transporte" rows={porTransporte} />
+            </Section>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-4">
+            <Section title="Por conferente">
+              <GroupTable label="Conferente" rows={porConferente} />
+            </Section>
+            <Section title="Pedidos conferidos">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs uppercase text-muted-foreground">
+                    <tr className="border-b border-border">
+                      <th className="text-left p-2">Pedido</th>
+                      <th className="text-left p-2">Cliente</th>
+                      <th className="text-left p-2">Conferido por</th>
+                      <th className="text-left p-2">Quando</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {conferidosLista.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-3 text-center text-muted-foreground">
+                          Nenhum pedido conferido no período
+                        </td>
+                      </tr>
+                    )}
+                    {conferidosLista.map((p, i) => (
+                      <tr key={p.id} className={i % 2 ? "bg-muted/30" : ""}>
+                        <td className="p-2 tabular-nums">#{p.numero_pedido ?? "—"}</td>
+                        <td className="p-2">{clienteNome(p)}</td>
+                        <td className="p-2 font-medium">{p.interior_conferido_por || "Não informado"}</td>
+                        <td className="p-2 whitespace-nowrap">{fmtDateTime(p.interior_conferido_em)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Section>
           </div>
 
