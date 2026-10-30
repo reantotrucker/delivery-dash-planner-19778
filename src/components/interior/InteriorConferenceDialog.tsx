@@ -238,6 +238,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 <Info l="Recebido" v={fmtDateTime(pedido.interior_recebido_em)} />
                 <Info l="Pedido Omie" v={pedido.numero_pedido_omie ? String(pedido.numero_pedido_omie) : "—"} />
                 <Info l="NF-e" v={pedido.numero_nfe || "—"} />
+                {!editavel && <Info l="Volumes" v={pedido.qtd_volumes != null ? String(pedido.qtd_volumes) : "—"} />}
                 <Info
                   l="Conferido por"
                   v={
