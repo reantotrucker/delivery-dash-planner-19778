@@ -5,9 +5,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Ship, RefreshCw, Package, MapPin, User } from "lucide-react";
+import { Loader2, Ship, RefreshCw, Package, MapPin, User, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { interiorCall, InteriorPedido, STATUS_LABEL, brl, clienteNome, recebidoDia } from "@/lib/interior";
+import { interiorCall, InteriorPedido, STATUS_LABEL, brl, clienteNome, fmtDateTime, recebidoDia } from "@/lib/interior";
 import { InteriorConferenceDialog } from "@/components/interior/InteriorConferenceDialog";
 import { InteriorReports } from "@/components/interior/InteriorReports";
 
@@ -198,6 +198,15 @@ export default function InteriorDelivery() {
                     </span>
                   </span>
                 </div>
+                {p.interior_conferido_por && (
+                  <p className="flex items-center gap-1 text-xs text-primary min-w-0">
+                    <UserCheck className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">
+                      Conferido por <b>{p.interior_conferido_por}</b>
+                      {p.interior_conferido_em ? ` · ${fmtDateTime(p.interior_conferido_em)}` : ""}
+                    </span>
+                  </p>
+                )}
                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
                   <span className="text-xs text-muted-foreground">{(p.itens || []).length} itens</span>
                   <span className="font-bold tabular-nums whitespace-nowrap">{brl(p.valor_total)}</span>

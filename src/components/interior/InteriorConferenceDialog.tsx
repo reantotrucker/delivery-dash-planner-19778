@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   interiorCall,
   InteriorPedido,
@@ -42,7 +43,15 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [omieError, setOmieError] = useState<string | null>(null);
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const { data: meuNome } = useQuery({
+    queryKey: ["meu-nome", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("full_name, email").eq("id", user!.id).maybeSingle();
+      return (data?.full_name && data.full_name.trim()) || data?.email || user?.email || "";
+    },
+  });
   const [confirmPedidoDel, setConfirmPedidoDel] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -225,6 +234,15 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 <Info l="Recebido" v={fmtDateTime(pedido.interior_recebido_em)} />
                 <Info l="Pedido Omie" v={pedido.numero_pedido_omie ? String(pedido.numero_pedido_omie) : "—"} />
                 <Info l="NF-e" v={pedido.numero_nfe || "—"} />
+                <Info
+                  l="Conferido por"
+                  v={
+                    pedido.interior_conferido_por
+                      ? `${pedido.interior_conferido_por}${pedido.interior_conferido_em ? ` · ${fmtDateTime(pedido.interior_conferido_em)}` : ""}`
+                      : "Ainda não conferido"
+                  }
+                  className={`sm:col-span-2 ${pedido.interior_conferido_por ? "border-primary/40 bg-primary/5" : ""}`}
+                />
               </div>
               {pedido.observacao && (
                 <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
@@ -372,6 +390,11 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 <p className="text-lg font-bold tabular-nums whitespace-nowrap">{brl(totalAtual)}</p>
               </div>
             </div>
+            {meuNome && (
+              <p className="text-[11px] text-muted-foreground">
+                Conferente: <b className="text-foreground">{meuNome}</b> (a conferência fica salva no seu nome)
+              </p>
+            )}
             {dirty && (
               <p className="text-[11px] text-muted-foreground">
                 Há alterações não salvas. Salve a conferência para liberar o envio para a Omie.

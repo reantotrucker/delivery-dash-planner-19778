@@ -35,6 +35,7 @@ export interface InteriorPedido {
   clientes: InteriorCliente | null;
   interior_recebido_em: string | null;
   interior_conferido_em: string | null;
+  interior_conferido_por?: string | null;
   interior_enviado_omie_em: string | null;
   erro_omie_mensagem: string | null;
   created_at?: string | null;
@@ -49,6 +50,8 @@ export interface InteriorAlteracao {
   produto?: string | null;
   quantidade_anterior?: number | null;
   quantidade_nova?: number | null;
+  quantidade_antes?: number | null;
+  quantidade_depois?: number | null;
   antes?: number | string | null;
   depois?: number | string | null;
   usuario?: string | null;
