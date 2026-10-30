@@ -86,6 +86,7 @@ export const STATUS_LABEL: Record<string, string> = {
   aguardando_conferencia: "Aguardando conferência",
   conferido: "Conferido",
   enviado_omie: "Enviado à Omie",
+  enviado: "Enviado à Omie",
   faturado: "Faturado",
 };
 
