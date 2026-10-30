@@ -514,3 +514,34 @@ function Info({ l, v, className = "" }: { l: string; v: string; className?: stri
     </div>
   );
 }
+
+function ProdutoFoto({ url }: { url?: string | null }) {
+  const [falhou, setFalhou] = useState(false);
+  useEffect(() => setFalhou(false), [url]);
+  const temFoto = !!url && !falhou;
+  return (
+    <a
+      href={temFoto ? url! : undefined}
+      target="_blank"
+      rel="noreferrer"
+      title={temFoto ? "Ver foto maior" : "Sem foto"}
+      className="shrink-0 w-10 h-10 rounded-md border border-border bg-muted overflow-hidden flex items-center justify-center"
+      onClick={(e) => !temFoto && e.preventDefault()}
+    >
+      {temFoto ? (
+        <img
+          src={url!}
+          alt=""
+          width={40}
+          height={40}
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className="block w-full h-full object-contain bg-background"
+          onError={() => setFalhou(true)}
+        />
+      ) : (
+        <Package className="w-4 h-4 text-muted-foreground" />
+      )}
+    </a>
+  );
+}
