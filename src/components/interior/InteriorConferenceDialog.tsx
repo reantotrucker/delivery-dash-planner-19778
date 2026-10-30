@@ -199,7 +199,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                   className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={() => setConfirmPedidoDel(true)}
                 >
-                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir pedido
+                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir
                 </Button>
               )}
             </div>
