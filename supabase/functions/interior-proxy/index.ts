@@ -29,6 +29,19 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     const email = (claimsData.claims.email as string) || "";
 
+    // Somente usuários com acesso à Stock 360
+    const { data: stock } = await supabase
+      .from("companies")
+      .select("id")
+      .eq("slug", "stock360")
+      .maybeSingle();
+    if (!stock?.id) return json({ error: "Acesso permitido somente para a Stock 360" }, 403);
+    const { data: allowed } = await supabase.rpc("has_company_access", {
+      _user_id: userId,
+      _company_id: stock.id,
+    });
+    if (!allowed) return json({ error: "Acesso permitido somente para a Stock 360" }, 403);
+
     const apiKey = Deno.env.get("INTERIOR_API_KEY");
     if (!apiKey) return json({ error: "Chave de integração não configurada" }, 500);
 
