@@ -126,16 +126,26 @@ section{break-inside:avoid}
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+        <div className="space-y-1 min-w-0">
           <label className="text-xs text-muted-foreground">De</label>
-          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} className="h-9 w-[160px]" />
+          <Input
+            type="date"
+            value={de}
+            onChange={(e) => setDe(e.target.value)}
+            className="h-9 w-full min-w-0 sm:w-[160px]"
+          />
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <label className="text-xs text-muted-foreground">Até</label>
-          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} className="h-9 w-[160px]" />
+          <Input
+            type="date"
+            value={ate}
+            onChange={(e) => setAte(e.target.value)}
+            className="h-9 w-full min-w-0 sm:w-[160px]"
+          />
         </div>
-        <Button onClick={imprimir} disabled={isLoading || !data} className="ml-auto">
+        <Button onClick={imprimir} disabled={isLoading || !data} className="col-span-2 sm:ml-auto">
           <Printer className="w-4 h-4 mr-1" /> Imprimir
         </Button>
       </div>
