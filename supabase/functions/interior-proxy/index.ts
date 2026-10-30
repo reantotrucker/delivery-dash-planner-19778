@@ -112,20 +112,33 @@ Deno.serve(async (req) => {
     const upstream = await callUpstream(body);
     const text = await upstream.text();
 
-    // Remove pedidos excluídos pelo admin da lista e dos relatórios
-    if (upstream.ok && (acao === "listar" || acao === "relatorio")) {
+    // Remove pedidos excluídos pelo admin da lista e dos relatórios; acrescenta o código do produto
+    if (upstream.ok && (acao === "listar" || acao === "relatorio" || acao === "detalhe")) {
       try {
         const parsed = JSON.parse(text || "{}");
-        const { data: excl } = await supabase.from("interior_excluded_orders").select("pedido_id");
-        const ids = new Set((excl || []).map((e: { pedido_id: string }) => String(e.pedido_id)));
-        if (ids.size && parsed && typeof parsed === "object") {
-          if (Array.isArray(parsed.pedidos)) {
-            parsed.pedidos = parsed.pedidos.filter((p: { id?: unknown }) => !ids.has(String(p?.id)));
+        if (acao !== "detalhe") {
+          const { data: excl } = await supabase.from("interior_excluded_orders").select("pedido_id");
+          const ids = new Set((excl || []).map((e: { pedido_id: string }) => String(e.pedido_id)));
+          if (ids.size && parsed && typeof parsed === "object") {
+            if (Array.isArray(parsed.pedidos)) {
+              parsed.pedidos = parsed.pedidos.filter((p: { id?: unknown }) => !ids.has(String(p?.id)));
+            }
+            if (Array.isArray(parsed.alteracoes)) {
+              parsed.alteracoes = parsed.alteracoes.filter(
+                (a: { pedido_id?: unknown }) => !a?.pedido_id || !ids.has(String(a.pedido_id)),
+              );
+            }
           }
-          if (Array.isArray(parsed.alteracoes)) {
-            parsed.alteracoes = parsed.alteracoes.filter(
-              (a: { pedido_id?: unknown }) => !a?.pedido_id || !ids.has(String(a.pedido_id)),
-            );
+        }
+        if (acao !== "relatorio") {
+          try {
+            const pedidos: any[] = [
+              ...(Array.isArray(parsed?.pedidos) ? parsed.pedidos : []),
+              ...(parsed?.pedido ? [parsed.pedido] : []),
+            ];
+            await preencherCodigosProduto(pedidos);
+          } catch (e) {
+            console.error("Código do produto:", (e as Error).message);
           }
         }
         return json(parsed, upstream.status);
@@ -233,4 +246,81 @@ async function removerItensExcluidosNaOmie(
     return `A Omie não aceitou excluir os itens retirados do pedido ${cab.numero_pedido}. [detalhe: ${(e as Error).message}]`;
   }
   return null;
+}
+
+// ---------------- Código do produto (catálogo Omie da Stock 360, em cache) ----------------
+const CATALOGO_KEY = "stock360_interior_codigos_produto";
+const CATALOGO_TTL_MS = 24 * 60 * 60 * 1000;
+const CATALOGO_REFRESH_MIN_MS = 30 * 60 * 1000; // em caso de produto novo, recarrega no máx. a cada 30 min
+
+async function carregarCatalogoOmie(): Promise<Record<string, string>> {
+  const app_key = Deno.env.get("OMIE_APP_KEY");
+  const app_secret = Deno.env.get("OMIE_APP_SECRET");
+  if (!app_key || !app_secret) throw new Error("Chave da Omie da Stock 360 não configurada");
+  const mapa: Record<string, string> = {};
+  let pagina = 1;
+  let total = 1;
+  do {
+    let j: any = null;
+    for (let t = 0; t < 3; t++) {
+      const r = await fetch("https://app.omie.com.br/api/v1/geral/produtos/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          call: "ListarProdutosResumido",
+          app_key,
+          app_secret,
+          param: [{ pagina, registros_por_pagina: 500, apenas_importado_api: "N", filtrar_apenas_omiepdv: "N" }],
+        }),
+      });
+      j = await r.json().catch(() => ({}));
+      if (r.ok && !j?.faultstring) break;
+      const msg = j?.faultstring || `Omie ${r.status}`;
+      if (!/consumo redundante|bloqueada|tente novamente|limite/i.test(msg) || t === 2) throw new Error(msg);
+      await new Promise((res) => setTimeout(res, 3000));
+    }
+    for (const p of j?.produto_servico_resumido ?? []) {
+      if (p?.codigo_produto != null && p?.codigo) mapa[String(p.codigo_produto)] = String(p.codigo);
+    }
+    total = num(j?.total_de_paginas) || 1;
+    pagina++;
+  } while (pagina <= total && pagina <= 40);
+  return mapa;
+}
+
+async function preencherCodigosProduto(pedidos: any[]) {
+  const itens = pedidos.flatMap((p) => (Array.isArray(p?.itens) ? p.itens : []));
+  const faltando = itens.filter((i) => !i?.codigo_sku && i?.codigo_produto_omie != null);
+  if (!faltando.length) return;
+
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const { data: cache } = await admin
+    .from("omie_cache")
+    .select("cache_value, created_at, expires_at")
+    .eq("cache_key", CATALOGO_KEY)
+    .maybeSingle();
+
+  let mapa: Record<string, string> = (cache?.cache_value as any)?.mapa ?? {};
+  const valido = cache && new Date(cache.expires_at).getTime() > Date.now();
+  const temFalta = faltando.some((i) => !mapa[String(i.codigo_produto_omie)]);
+  const podeRecarregar = !cache || Date.now() - new Date(cache.created_at).getTime() > CATALOGO_REFRESH_MIN_MS;
+
+  if (!valido || (temFalta && podeRecarregar)) {
+    try {
+      mapa = await carregarCatalogoOmie();
+      await admin.from("omie_cache").upsert({
+        cache_key: CATALOGO_KEY,
+        cache_value: { mapa },
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + CATALOGO_TTL_MS).toISOString(),
+      });
+    } catch (e) {
+      console.error("Catálogo Omie:", (e as Error).message);
+    }
+  }
+
+  for (const i of faltando) {
+    const c = mapa[String(i.codigo_produto_omie)];
+    if (c) i.codigo_sku = c;
+  }
 }
