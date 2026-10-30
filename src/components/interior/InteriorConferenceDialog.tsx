@@ -107,9 +107,11 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
 
   const salvar = async () => {
     if (!pedido) return;
-    const v = Number(volumes);
-    if (!volumes || isNaN(v) || v < 0 || !Number.isInteger(v)) {
-      toast.error("Informe a quantidade de volumes");
+    // Volume é opcional: em branco, mantém o que já estava no pedido
+    const volTxt = volumes.trim();
+    const v = volTxt === "" ? null : Number(volTxt);
+    if (v !== null && (isNaN(v) || v < 0 || !Number.isInteger(v))) {
+      toast.error("Quantidade de volumes inválida");
       return;
     }
     if (invalidQty) {
@@ -121,7 +123,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
       await interiorCall({
         acao: "salvar_conferencia",
         pedido_id: pedido.id,
-        qtd_volumes: v,
+        ...(v !== null ? { qtd_volumes: v } : {}),
         alteracoes,
       });
       toast.success("Conferência salva");
@@ -373,7 +375,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
             <div className="flex items-end justify-between gap-3">
               <div className="space-y-1">
                 <Label htmlFor="vol" className="text-xs">
-                  Volumes
+                  Volumes <span className="text-muted-foreground">(opcional)</span>
                 </Label>
                 <Input
                   id="vol"
