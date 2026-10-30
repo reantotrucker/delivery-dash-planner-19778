@@ -142,3 +142,95 @@ Deno.serve(async (req) => {
     return json({ error: (e as Error).message || "Erro inesperado" }, 500);
   }
 });
+
+// ---------------- Omie (Stock 360) ----------------
+const num = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+async function omieCall(call: string, param: Record<string, unknown>) {
+  const app_key = Deno.env.get("OMIE_APP_KEY");
+  const app_secret = Deno.env.get("OMIE_APP_SECRET");
+  if (!app_key || !app_secret) throw new Error("Chave da Omie da Stock 360 não configurada");
+  let last = "";
+  for (let i = 0; i < 3; i++) {
+    const r = await fetch("https://app.omie.com.br/api/v1/produtos/pedido/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ call, app_key, app_secret, param: [param] }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && !j?.faultstring) return j;
+    last = j?.faultstring || `Omie ${r.status}`;
+    if (!/consumo redundante|bloqueada|tente novamente|limite/i.test(last)) break;
+    await new Promise((res) => setTimeout(res, 3000));
+  }
+  throw new Error(last);
+}
+
+/** Retorna mensagem de erro para o usuário, ou null se pode seguir com o envio. */
+async function removerItensExcluidosNaOmie(
+  callUpstream: (b: Record<string, unknown>) => Promise<Response>,
+  pedidoId: string,
+): Promise<string | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(pedidoId)) return null;
+  const det = await callUpstream({ acao: "detalhe", pedido_id: pedidoId });
+  const dj = await det.json().catch(() => null);
+  const pedido = dj?.pedido;
+  if (!pedido?.numero_pedido_omie || pedido.status !== "conferido") return null;
+  const itens: any[] = Array.isArray(pedido.itens) ? pedido.itens : [];
+  if (!itens.length || itens.some((i) => i?.omie_codigo_item == null)) return null;
+  const mantidos = new Set(itens.map((i) => String(i.omie_codigo_item)));
+
+  const atual = (await omieCall("ConsultarPedido", { numero_pedido: String(pedido.numero_pedido_omie) }))
+    ?.pedido_venda_produto;
+  const cab = atual?.cabecalho;
+  const detOmie: any[] = Array.isArray(atual?.det) ? atual.det : [];
+  if (!cab?.codigo_pedido || !detOmie.length) return null;
+
+  // Segurança: o pedido da Omie precisa ser o mesmo (mesmos itens) do app
+  const codigosOmie = new Set(detOmie.map((d) => String(d?.ide?.codigo_item ?? "")));
+  if (![...mantidos].every((c) => codigosOmie.has(c))) return null;
+  if (num(cab.etapa) >= 60) return null; // faturado: o envio normal já avisa
+
+  const excluir = detOmie.filter((d) => !mantidos.has(String(d?.ide?.codigo_item ?? "")));
+  if (!excluir.length) return null;
+
+  const detAlt = detOmie.map((d) => {
+    const prod = d?.produto ?? {};
+    const produto: Record<string, unknown> = {
+      codigo_produto: prod.codigo_produto,
+      quantidade: num(prod.quantidade),
+      valor_unitario: num(prod.valor_unitario),
+    };
+    if (prod.cfop) produto.cfop = prod.cfop;
+    if (String(prod.tipo_desconto).toUpperCase() === "P" && num(prod.percentual_desconto) > 0) {
+      produto.tipo_desconto = "P";
+      produto.percentual_desconto = num(prod.percentual_desconto);
+    } else if (num(prod.valor_desconto) > 0) {
+      produto.tipo_desconto = "V";
+      produto.valor_desconto = num(prod.valor_desconto);
+    }
+    const sai = !mantidos.has(String(d?.ide?.codigo_item ?? ""));
+    return { ide: sai ? { codigo_item: d.ide.codigo_item, acao_item: "E" } : { codigo_item: d.ide.codigo_item }, produto };
+  });
+
+  console.log(`Excluindo ${excluir.length} item(ns) do pedido Omie ${cab.numero_pedido}`);
+  try {
+    await omieCall("AlterarPedidoVenda", {
+      cabecalho: {
+        codigo_pedido: cab.codigo_pedido,
+        codigo_cliente: cab.codigo_cliente,
+        data_previsao: cab.data_previsao,
+        etapa: cab.etapa,
+        codigo_parcela: cab.codigo_parcela,
+        quantidade_itens: detAlt.length - excluir.length,
+      },
+      det: detAlt,
+    });
+  } catch (e) {
+    return `A Omie não aceitou excluir os itens retirados do pedido ${cab.numero_pedido}. [detalhe: ${(e as Error).message}]`;
+  }
+  return null;
+}
