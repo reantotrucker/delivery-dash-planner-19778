@@ -241,7 +241,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                       ? `${pedido.interior_conferido_por}${pedido.interior_conferido_em ? ` · ${fmtDateTime(pedido.interior_conferido_em)}` : ""}`
                       : "Ainda não conferido"
                   }
-                  className={`col-span-2 ${pedido.interior_conferido_por ? "border-primary/40 bg-primary/5" : ""}`}
+                  className={`sm:col-span-2 ${pedido.interior_conferido_por ? "border-primary/40 bg-primary/5" : ""}`}
                 />
               </div>
               {pedido.observacao && (
