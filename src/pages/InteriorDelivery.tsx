@@ -15,7 +15,7 @@ const ALL = "__all__";
 
 const statusClass = (s: string) =>
   s === "conferido"
-    ? "bg-primary/15 text-primary border-primary/30"
+    ? "bg-success/15 text-success border-success/40"
     : s === "aguardando_conferencia"
       ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
       : "bg-muted text-muted-foreground border-border";
@@ -160,11 +160,18 @@ export default function InteriorDelivery() {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
-            {filtrados.map((p) => (
+            {filtrados.map((p) => {
+              const conferido = !!p.interior_conferido_em || p.status === "conferido";
+              return (
               <button
                 key={p.id}
                 onClick={() => setOpen(p.id)}
-                className="w-full min-w-0 text-left bg-card border border-border rounded-xl p-3 sm:p-4 space-y-2 hover:border-primary/60 hover:shadow-md active:scale-[0.99] transition-all"
+                className={cn(
+                  "w-full min-w-0 text-left border rounded-xl p-3 sm:p-4 space-y-2 hover:shadow-md active:scale-[0.99] transition-all",
+                  conferido
+                    ? "bg-success/10 border-success/60 border-l-4 border-l-success hover:border-success"
+                    : "bg-card border-border hover:border-primary/60"
+                )}
               >
                 <div className="flex items-center justify-between gap-2 min-w-0">
                   <p className="text-xs text-muted-foreground flex-shrink-0">Pedido #{p.numero_pedido ?? "—"}</p>
@@ -199,7 +206,7 @@ export default function InteriorDelivery() {
                   </span>
                 </div>
                 {p.interior_conferido_por && (
-                  <p className="flex items-center gap-1 text-xs text-primary min-w-0">
+                  <p className="flex items-center gap-1 text-xs text-success font-medium min-w-0">
                     <UserCheck className="w-3 h-3 flex-shrink-0" />
                     <span className="truncate">
                       Conferido por <b>{p.interior_conferido_por}</b>
@@ -215,7 +222,8 @@ export default function InteriorDelivery() {
                   <p className="text-xs text-destructive line-clamp-2 break-words">Omie: {p.erro_omie_mensagem}</p>
                 )}
               </button>
-            ))}
+              );
+            })}
           </div>
         </TabsContent>
 
