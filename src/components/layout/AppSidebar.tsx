@@ -1,4 +1,4 @@
-import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, MapPinned, PackageCheck, Radio, ClipboardList, Users, GitCompare } from "lucide-react";
+import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, MapPinned, PackageCheck, Radio, ClipboardList, Users, GitCompare, Ship } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,7 @@ type NavItem = {
   adminOnly: boolean;
   expeditionOnly?: boolean;
   hideWhenExpedition?: boolean;
+  stockOnly?: boolean;
 };
 
 const navItems: NavItem[] = [
@@ -24,6 +25,7 @@ const navItems: NavItem[] = [
   { title: "Ocorrências", url: "/occurrences", icon: AlertTriangle, adminOnly: false },
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Resumo do dia", url: "/daily-summary", icon: ClipboardList, adminOnly: false },
+  { title: "Entrega para interior", url: "/interior", icon: Ship, adminOnly: false, stockOnly: true },
   
   { title: "Comparativo", url: "/comparison", icon: GitCompare, adminOnly: true },
   { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true, hideWhenExpedition: true },
@@ -34,7 +36,7 @@ const navItems: NavItem[] = [
 
 export function AppSidebar() {
   const { user, role, isAdmin, isComercial, signOut } = useAuth();
-  const { hasExpedition } = useCompany();
+  const { hasExpedition, company } = useCompany();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -45,7 +47,8 @@ export function AppSidebar() {
       (item) =>
         (!item.adminOnly || isAdmin) &&
         (!item.expeditionOnly || hasExpedition) &&
-        !(item.hideWhenExpedition && hasExpedition)
+        !(item.hideWhenExpedition && hasExpedition) &&
+        (!item.stockOnly || company?.slug === "stock360")
     )
     .map((item) =>
       hasExpedition && item.url === "/"
