@@ -15,6 +15,13 @@
       "when": 1792674426808,
       "tag": "0001_boat_info",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793388624418,
+      "tag": "0002_interior_excluded_orders",
+      "breakpoints": true
     }
   ]
 }

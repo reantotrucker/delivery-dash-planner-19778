@@ -335,6 +335,39 @@ export type Database = {
           },
         ]
       }
+      interior_excluded_orders: {
+        Row: {
+          cliente: string | null
+          excluded_at: string
+          excluded_by: string | null
+          excluded_by_name: string | null
+          id: string
+          motivo: string | null
+          numero_pedido: string | null
+          pedido_id: string
+        }
+        Insert: {
+          cliente?: string | null
+          excluded_at?: string
+          excluded_by?: string | null
+          excluded_by_name?: string | null
+          id?: string
+          motivo?: string | null
+          numero_pedido?: string | null
+          pedido_id: string
+        }
+        Update: {
+          cliente?: string | null
+          excluded_at?: string
+          excluded_by?: string | null
+          excluded_by_name?: string | null
+          id?: string
+          motivo?: string | null
+          numero_pedido?: string | null
+          pedido_id?: string
+        }
+        Relationships: []
+      }
       omie_cache: {
         Row: {
           cache_key: string

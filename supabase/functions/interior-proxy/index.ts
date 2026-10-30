@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const UPSTREAM = "https://lrdiymbaladmmoczifnd.supabase.co/functions/v1/interior-pedidos";
-const ACOES = new Set(["listar", "detalhe", "salvar_conferencia", "enviar_omie", "relatorio"]);
+const ACOES = new Set(["listar", "detalhe", "salvar_conferencia", "enviar_omie", "relatorio", "excluir"]);
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -67,12 +67,58 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const usuario = (profile?.full_name && profile.full_name.trim()) || profile?.email || email || userId;
 
+    // Exclusão (somente admin): o pedido sai da lista e dos relatórios deste app
+    if (acao === "excluir") {
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+      if (!isAdmin) return json({ error: "Somente o administrador pode excluir pedidos" }, 403);
+      const pedidoId = typeof body.pedido_id === "string" ? body.pedido_id.trim() : "";
+      if (!pedidoId || pedidoId.length > 100) return json({ error: "Pedido inválido" }, 400);
+      const str = (v: unknown, max: number) =>
+        v == null ? null : String(v).slice(0, max) || null;
+      const { error: insErr } = await supabase.from("interior_excluded_orders").upsert(
+        {
+          pedido_id: pedidoId,
+          numero_pedido: str(body.numero_pedido, 50),
+          cliente: str(body.cliente, 200),
+          motivo: str(body.motivo, 500),
+          excluded_by: userId,
+          excluded_by_name: String(usuario).slice(0, 200),
+        },
+        { onConflict: "pedido_id", ignoreDuplicates: true },
+      );
+      if (insErr) return json({ error: insErr.message }, 400);
+      return json({ success: true });
+    }
+
     const upstream = await fetch(UPSTREAM, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-interior-key": apiKey },
       body: JSON.stringify({ ...body, usuario }),
     });
     const text = await upstream.text();
+
+    // Remove pedidos excluídos pelo admin da lista e dos relatórios
+    if (upstream.ok && (acao === "listar" || acao === "relatorio")) {
+      try {
+        const parsed = JSON.parse(text || "{}");
+        const { data: excl } = await supabase.from("interior_excluded_orders").select("pedido_id");
+        const ids = new Set((excl || []).map((e: { pedido_id: string }) => String(e.pedido_id)));
+        if (ids.size && parsed && typeof parsed === "object") {
+          if (Array.isArray(parsed.pedidos)) {
+            parsed.pedidos = parsed.pedidos.filter((p: { id?: unknown }) => !ids.has(String(p?.id)));
+          }
+          if (Array.isArray(parsed.alteracoes)) {
+            parsed.alteracoes = parsed.alteracoes.filter(
+              (a: { pedido_id?: unknown }) => !a?.pedido_id || !ids.has(String(a.pedido_id)),
+            );
+          }
+        }
+        return json(parsed, upstream.status);
+      } catch {
+        /* resposta não-JSON: repassa como veio */
+      }
+    }
+
     return new Response(text || "{}", {
       status: upstream.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
