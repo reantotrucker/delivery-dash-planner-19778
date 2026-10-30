@@ -284,7 +284,9 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                               {decodeHtml(i.descricao)}
                             </p>
                             <p className="text-[11px] text-muted-foreground break-words">
-                              {i.codigo_sku && <span>{i.codigo_sku}</span>}
+                              {i.codigo_sku && (
+                                <span className="font-mono font-semibold text-foreground/80">Cód. {i.codigo_sku}</span>
+                              )}
                               <span className="sm:hidden">
                                 {i.codigo_sku ? " · " : ""}
                                 {brl(i.preco_unitario)} un. ·{" "}
