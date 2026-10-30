@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Ship, RefreshCw, Package, MapPin, User, UserCheck } from "lucide-react";
+import { Loader2, Ship, RefreshCw, Package, MapPin, User, UserCheck, FileCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { interiorCall, InteriorPedido, STATUS_LABEL, brl, clienteNome, fmtDateTime, recebidoDia } from "@/lib/interior";
 import { InteriorConferenceDialog } from "@/components/interior/InteriorConferenceDialog";
@@ -46,15 +46,29 @@ export default function InteriorDelivery() {
   const recebidos = lista?.pedidos || [];
   const conferidos = useMemo(
     () =>
-      [...(listaConf?.pedidos || [])].sort((a, b) =>
-        String(b.interior_conferido_em || b.interior_recebido_em || "").localeCompare(
-          String(a.interior_conferido_em || a.interior_recebido_em || "")
-        )
-      ),
+      (listaConf?.pedidos || [])
+        .filter((p) => p.status !== "faturado")
+        .sort((a, b) =>
+          String(b.interior_conferido_em || b.interior_recebido_em || "").localeCompare(
+            String(a.interior_conferido_em || a.interior_recebido_em || "")
+          )
+        ),
     [listaConf]
   );
-  const isConf = tab === "conferidos";
-  const pedidos = isConf ? conferidos : recebidos;
+  const faturados = useMemo(
+    () =>
+      (listaConf?.pedidos || [])
+        .filter((p) => p.status === "faturado")
+        .sort((a, b) =>
+          String(b.faturado_em || b.interior_enviado_omie_em || "").localeCompare(
+            String(a.faturado_em || a.interior_enviado_omie_em || "")
+          )
+        ),
+    [listaConf]
+  );
+  const isFat = tab === "faturados";
+  const isConf = tab === "conferidos" || isFat;
+  const pedidos = isFat ? faturados : tab === "conferidos" ? conferidos : recebidos;
   const isLoading = isConf ? l2 : l1;
   const error = isConf ? e2 : e1;
   const isFetching = isConf ? f2 : f1;
@@ -92,15 +106,21 @@ export default function InteriorDelivery() {
       </header>
 
       <Tabs value={tab} onValueChange={setTab} className="min-w-0">
-        <TabsList className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto">
+        <TabsList className="grid grid-cols-4 w-full sm:inline-flex sm:w-auto">
           <TabsTrigger value="recebidos">Recebidos{recebidos.length ? ` (${recebidos.length})` : ""}</TabsTrigger>
           <TabsTrigger value="conferidos">Conferidos{conferidos.length ? ` (${conferidos.length})` : ""}</TabsTrigger>
+          <TabsTrigger value="faturados">Faturados{faturados.length ? ` (${faturados.length})` : ""}</TabsTrigger>
           <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
         </TabsList>
 
-        {(tab === "recebidos" || tab === "conferidos") && (
+        {(tab === "recebidos" || tab === "conferidos" || tab === "faturados") && (
         <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4 min-w-0">
-          {isConf && (
+          {isFat && (
+            <p className="text-xs text-muted-foreground">
+              Pedidos já faturados pela Omie. Ficam só para consulta.
+            </p>
+          )}
+          {isConf && !isFat && (
             <p className="text-xs text-muted-foreground">
               Toque no card para rever a conferência. Pedidos ainda não enviados podem ser editados; os já enviados à
               Omie ficam só para consulta.
@@ -252,7 +272,16 @@ export default function InteriorDelivery() {
                   <span className="text-xs text-muted-foreground">{(p.itens || []).length} itens</span>
                   <span className="font-bold tabular-nums whitespace-nowrap">{brl(p.valor_total)}</span>
                 </div>
-                {p.erro_omie_mensagem && (
+                {p.status === "faturado" && (
+                  <p className="flex items-center gap-1 text-xs text-primary font-medium min-w-0">
+                    <FileCheck className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">
+                      Faturado{p.numero_nfe ? ` · NF-e ${p.numero_nfe}` : ""}
+                      {p.faturado_em ? ` · ${fmtDateTime(p.faturado_em)}` : ""}
+                    </span>
+                  </p>
+                )}
+                {p.erro_omie_mensagem && p.status !== "faturado" && (
                   <p className="text-xs text-destructive line-clamp-2 break-words">Omie: {p.erro_omie_mensagem}</p>
                 )}
               </button>

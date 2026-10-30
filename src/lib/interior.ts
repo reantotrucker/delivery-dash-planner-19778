@@ -38,6 +38,7 @@ export interface InteriorPedido {
   interior_conferido_em: string | null;
   interior_conferido_por?: string | null;
   interior_enviado_omie_em: string | null;
+  faturado_em?: string | null;
   erro_omie_mensagem: string | null;
   created_at?: string | null;
 }
