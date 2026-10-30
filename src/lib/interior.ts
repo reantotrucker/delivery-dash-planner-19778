@@ -112,5 +112,16 @@ export const recebidoDia = (p: InteriorPedido) => {
   return d.toLocaleDateString("en-CA", { timeZone: "America/Manaus" });
 };
 
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+/** Converte textos vindos com códigos HTML (ex.: "B&amp;L") para o texto normal */
+export const decodeHtml = (s: string | null | undefined) =>
+  String(s ?? "").replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, c: string) => {
+    if (c[0] === "#") {
+      const n = c[1].toLowerCase() === "x" ? parseInt(c.slice(2), 16) : parseInt(c.slice(1), 10);
+      return isNaN(n) ? m : String.fromCodePoint(n);
+    }
+    return ENTITIES[c.toLowerCase()] ?? m;
+  });
+
 export const clienteNome = (p: InteriorPedido) =>
-  p.clientes?.nome_fantasia || p.clientes?.razao_social || "Cliente";
+  decodeHtml(p.clientes?.nome_fantasia || p.clientes?.razao_social || "Cliente");
