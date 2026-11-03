@@ -439,6 +439,13 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 </div>
               )}
 
+              {pedido.correcao_pendente && !pedido.reaberto && (
+                <div className="rounded-lg border border-warning/60 bg-warning/15 p-3 text-xs">
+                  <b>Correção salva.</b> Agora toque em <b>Reenviar p/ Omie</b> para alterar o pedido
+                  {pedido.numero_pedido_omie ? ` ${pedido.numero_pedido_omie}` : ""} na Omie.
+                </div>
+              )}
+
               {omieError && (
                 <div className="flex gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
                   <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
