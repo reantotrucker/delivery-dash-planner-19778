@@ -46,6 +46,9 @@ export interface InteriorPedido {
   reaberto_por?: string | null;
   reaberto_em?: string | null;
   reaberto_motivo?: string | null;
+  /** Correção feita depois do envio, salva aqui e ainda não reenviada à Omie */
+  correcao_pendente?: boolean;
+  corrigido_apos_envio?: boolean;
 }
 
 export interface InteriorAlteracao {
