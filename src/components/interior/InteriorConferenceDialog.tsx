@@ -15,7 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2, Package } from "lucide-react";
+import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2, Package, Printer } from "lucide-react";
+import { printInteriorLabel } from "@/lib/printInteriorLabel";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -205,6 +206,19 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 {STATUS_LABEL[pedido.status] || pedido.status}
               </Badge>
               <span className="text-xs text-muted-foreground truncate min-w-0 flex-1">{clienteNome(pedido)}</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2"
+                onClick={() => {
+                  const v = volumes.trim() === "" ? null : Number(volumes);
+                  printInteriorLabel(pedido, v != null && Number.isInteger(v) ? v : null).catch((e) =>
+                    toast.error((e as Error).message)
+                  );
+                }}
+              >
+                <Printer className="w-3.5 h-3.5 mr-1" /> Etiqueta
+              </Button>
               {isAdmin && (
                 <Button
                   size="sm"
