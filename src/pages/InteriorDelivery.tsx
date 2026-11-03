@@ -310,7 +310,7 @@ export default function InteriorDelivery() {
                 {p.erro_omie_mensagem && p.status !== "faturado" && (
                   <p className="text-xs text-destructive line-clamp-2 break-words">Omie: {p.erro_omie_mensagem}</p>
                 )}
-              </button>
+              </div>
               );
             })}
           </div>
