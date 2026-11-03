@@ -98,7 +98,8 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
 
   const volumesDirty = pedido ? String(pedido.qtd_volumes ?? "") !== volumes : false;
   const dirty = alteracoes.length > 0 || volumesDirty;
-  const canSend = pedido?.status === "conferido" && !dirty;
+  const volumesOk = /^\d+$/.test(volumes.trim()) && Number(volumes.trim()) >= 1;
+  const canSend = pedido?.status === "conferido" && !dirty && volumesOk;
 
   const invalidQty = pedido
     ? (pedido.itens || []).some((i) => {
@@ -110,10 +111,14 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
 
   const salvar = async () => {
     if (!pedido) return;
-    // Volume é opcional: em branco, mantém o que já estava no pedido
+    // Volume é obrigatório: número inteiro maior que zero
     const volTxt = volumes.trim();
-    const v = volTxt === "" ? null : Number(volTxt);
-    if (v !== null && (isNaN(v) || v < 0 || !Number.isInteger(v))) {
+    if (volTxt === "") {
+      toast.error("Informe a quantidade de volumes");
+      return;
+    }
+    const v = Number(volTxt);
+    if (isNaN(v) || v < 1 || !Number.isInteger(v)) {
       toast.error("Quantidade de volumes inválida");
       return;
     }
@@ -126,7 +131,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
       await interiorCall({
         acao: "salvar_conferencia",
         pedido_id: pedido.id,
-        ...(v !== null ? { qtd_volumes: v } : {}),
+        qtd_volumes: v,
         alteracoes,
       });
       toast.success("Conferência salva");
