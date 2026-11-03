@@ -244,17 +244,23 @@ export default function OmieImport() {
   );
   const [lastSearch, setLastSearch] = useState<Date | null>(null);
 
+  // NF-e são buscadas pelo período escolhido (assim notas de dias anteriores aparecem)
+  const nfeDateFrom = startDate ? format(startDate, "dd/MM/yyyy") : null;
+  const nfeDateTo = (endDate ?? startDate) ? format((endDate ?? startDate)!, "dd/MM/yyyy") : null;
+
   // Fetch NF-e and NFC-e in parallel and merge into a single list
   const queries = useQueries({
     queries: (['nfe', 'nfce'] as const).map((docType) => ({
-      queryKey: ['omie-invoices', docType, currentPage, fetchCounter],
+      queryKey: ['omie-invoices', docType, currentPage, fetchCounter, docType === 'nfe' ? `${nfeDateFrom}-${nfeDateTo}` : ''],
       queryFn: async () => {
+        const useRange = docType === 'nfe' && !!nfeDateFrom && !!nfeDateTo;
         const { data, error } = await supabase.functions.invoke('omie-invoices', {
           body: {
             type: docType,
             companyId: getActiveCompanyId(),
             page: currentPage ?? 1,
             fetchLastPage: currentPage === null,
+            ...(useRange ? { dateFrom: nfeDateFrom, dateTo: nfeDateTo } : {}),
           },
         });
         if (error) throw error;
