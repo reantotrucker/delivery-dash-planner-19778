@@ -238,7 +238,10 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
               <Badge variant="outline" className="text-[10px] sm:text-xs">
                 {STATUS_LABEL[pedido.status] || pedido.status}
               </Badge>
-              <span className="text-xs text-muted-foreground truncate min-w-0 flex-1">{clienteNome(pedido)}</span>
+              <span className="text-xs text-muted-foreground truncate min-w-0 flex-1">
+                {clienteRazao(pedido)}
+                {clienteFantasia(pedido) ? ` · ${clienteFantasia(pedido)}` : ""}
+              </span>
               <Button
                 size="sm"
                 variant="outline"
@@ -287,7 +290,8 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
           {pedido && (
             <div className="space-y-4 min-w-0">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                <Info l="Cliente" v={clienteNome(pedido)} className="col-span-2 sm:col-span-1" />
+                <Info l="Cliente (razão social)" v={clienteRazao(pedido)} className="col-span-2" />
+                <Info l="Nome fantasia" v={clienteFantasia(pedido) || "—"} className="col-span-2" />
                 <Info l="Cidade" v={[pedido.clientes?.cidade, pedido.clientes?.uf].filter(Boolean).join(" / ") || "—"} />
                 <Info l="Vendedor" v={pedido.vendedor_nome || "—"} />
                 <Info l="Transporte" v={pedido.transporte_interior || "—"} />

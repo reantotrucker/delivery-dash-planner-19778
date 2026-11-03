@@ -139,3 +139,15 @@ export const decodeHtml = (s: string | null | undefined) =>
 
 export const clienteNome = (p: InteriorPedido) =>
   decodeHtml(p.clientes?.nome_fantasia || p.clientes?.razao_social || "Cliente");
+
+/** Razão social do cliente (ou o nome que houver) */
+export const clienteRazao = (p: InteriorPedido) =>
+  decodeHtml(p.clientes?.razao_social || p.clientes?.nome_fantasia || "Cliente");
+
+/** Nome fantasia, só quando existe e é diferente da razão social */
+export const clienteFantasia = (p: InteriorPedido): string | null => {
+  const f = decodeHtml(p.clientes?.nome_fantasia).trim();
+  if (!f) return null;
+  const r = decodeHtml(p.clientes?.razao_social).trim();
+  return f.toUpperCase() === r.toUpperCase() ? null : f;
+};
