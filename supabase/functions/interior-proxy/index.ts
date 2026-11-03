@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const UPSTREAM = "https://lrdiymbaladmmoczifnd.supabase.co/functions/v1/interior-pedidos";
-const ACOES = new Set(["listar", "detalhe", "salvar_conferencia", "enviar_omie", "relatorio", "excluir"]);
+const ACOES = new Set(["listar", "detalhe", "salvar_conferencia", "enviar_omie", "relatorio", "excluir", "reabrir"]);
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -193,11 +193,14 @@ Deno.serve(async (req) => {
           if (acao === "listar" && Array.isArray(parsed.pedidos)) {
             const st = Array.isArray(body.status) ? body.status.map(String) : [];
             const pedeAguardando = st.includes("aguardando_conferencia");
+            const pediuConferido = st.includes("conferido");
             parsed.pedidos = parsed.pedidos.filter((p: any) => {
               const re = marcar(p);
               if (p?.status !== "conferido") return true;
               // Recebidos: só os reabertos; Conferidos: tira os reabertos
-              return pedeAguardando ? re || st.includes("conferido") && !reabertos!.size : !re;
+              if (pedeAguardando && !pediuConferido) return re;
+              if (!pedeAguardando) return !re;
+              return true;
             });
           }
         }
