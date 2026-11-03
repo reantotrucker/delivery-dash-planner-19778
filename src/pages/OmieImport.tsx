@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { getActiveCompanyId, getActiveCity } from "@/lib/company";
 import { normalizeBairro, zonaManaus, ZONA_ORDER } from "@/lib/manausZones";
+import { DriverSuggestionBox } from "@/components/DriverSuggestionBox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -1164,6 +1165,17 @@ export default function OmieImport() {
                   </Select>
                 </div>
 
+                {format(dialogDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && (
+                  <DriverSuggestionBox
+                    stats={driverTodayStats}
+                    bairro={dialogInvoice.address?.neighborhood}
+                    zona={getActiveCity().city.toLowerCase() === 'manaus' ? zonaManaus(dialogInvoice.address?.neighborhood) : null}
+                    turno={dialogPeriod}
+                    selectedId={dialogDriverId}
+                    onPick={(id) => { setDialogDriverId(id); setDialogVehicleId(prev => vehicleForDriver(id, prev)); }}
+                  />
+                )}
+
                 <div className="space-y-1">
                   <Label>Motorista</Label>
                   <Select value={dialogDriverId} onValueChange={(v) => { setDialogDriverId(v); setDialogVehicleId(prev => vehicleForDriver(v, prev)); }}>
@@ -1362,6 +1374,15 @@ export default function OmieImport() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <DriverSuggestionBox
+                stats={driverTodayStats}
+                bairro={extractFormData.neighborhood}
+                zona={getActiveCity().city.toLowerCase() === 'manaus' ? zonaManaus(extractFormData.neighborhood) : null}
+                turno={extractFormData.period}
+                selectedId={extractFormData.driverId}
+                onPick={(id) => setExtractFormData(prev => ({ ...prev, driverId: id, vehicleId: vehicleForDriver(id, prev.vehicleId) }))}
+              />
 
               <div className="space-y-1">
                 <Label>Motorista</Label>
