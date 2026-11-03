@@ -148,12 +148,18 @@ export default function OmieImport() {
 
   // Query master data for selectors
   const { data: drivers } = useQuery({
-    queryKey: ['drivers', getActiveCompanyId()],
+    queryKey: ['drivers', 'with-vehicle', getActiveCompanyId()],
     queryFn: async () => {
-      const { data } = await supabase.from('drivers').select('id, name').eq('company_id', getActiveCompanyId()).order('name');
+      const { data } = await supabase.from('drivers').select('id, name, default_vehicle_id').eq('company_id', getActiveCompanyId()).order('name');
       return data || [];
     },
   });
+
+  // Ao escolher o motorista, já seleciona o veículo vinculado a ele
+  const vehicleForDriver = (driverId: string, current: string) => {
+    const linked = drivers?.find(d => d.id === driverId)?.default_vehicle_id;
+    return linked || current;
+  };
 
   // Rotas de hoje por motorista e turno
   const { data: driverTodayStats = [] } = useQuery({
@@ -1102,7 +1108,7 @@ export default function OmieImport() {
 
                 <div className="space-y-1">
                   <Label>Motorista</Label>
-                  <Select value={dialogDriverId} onValueChange={setDialogDriverId}>
+                  <Select value={dialogDriverId} onValueChange={(v) => { setDialogDriverId(v); setDialogVehicleId(prev => vehicleForDriver(v, prev)); }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o motorista" />
                     </SelectTrigger>
@@ -1301,7 +1307,7 @@ export default function OmieImport() {
 
               <div className="space-y-1">
                 <Label>Motorista</Label>
-                <Select value={extractFormData.driverId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, driverId: v }))}>
+                <Select value={extractFormData.driverId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, driverId: v, vehicleId: vehicleForDriver(v, prev.vehicleId) }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o motorista" />
                   </SelectTrigger>
