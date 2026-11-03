@@ -412,16 +412,18 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
             <div className="flex items-end justify-between gap-3">
               <div className="space-y-1">
                 <Label htmlFor="vol" className="text-xs">
-                  Volumes <span className="text-muted-foreground">(opcional)</span>
+                  Volumes <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="vol"
                   type="number"
-                  min={0}
+                  min={1}
+                  required
                   inputMode="numeric"
                   value={volumes}
                   onChange={(e) => setVolumes(e.target.value)}
-                  className="h-10 w-24 sm:w-32 text-base sm:text-sm"
+                  aria-invalid={!volumesOk}
+                  className={`h-10 w-24 sm:w-32 text-base sm:text-sm ${!volumesOk ? "border-destructive" : ""}`}
                 />
               </div>
               <div className="text-right min-w-0">
@@ -449,7 +451,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 variant="secondary"
                 onClick={enviar}
                 disabled={!canSend || sending || saving}
-                title={!canSend ? "Salve a conferência primeiro" : undefined}
+                title={!volumesOk ? "Informe a quantidade de volumes" : !canSend ? "Salve a conferência primeiro" : undefined}
                 className="h-11 sm:h-10"
               >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
