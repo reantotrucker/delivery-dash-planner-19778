@@ -90,6 +90,14 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
+    // Volume é obrigatório na conferência
+    if (acao === "salvar_conferencia") {
+      const vol = Number(body.qtd_volumes);
+      if (!Number.isInteger(vol) || vol < 1) {
+        return json({ error: "Informe a quantidade de volumes" }, 400);
+      }
+    }
+
     const callUpstream = (b: Record<string, unknown>) =>
       fetch(UPSTREAM, {
         method: "POST",
