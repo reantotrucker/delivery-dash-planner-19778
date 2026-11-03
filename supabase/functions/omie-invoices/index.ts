@@ -1060,9 +1060,17 @@ serve(async (req) => {
         getSupabase().rpc('clean_omie_cache').then(() => {}).catch(() => {});
       }
 
+      // Período de emissão opcional (dd/MM/yyyy) para NF-e antigas
+      const dateRe = /^\d{2}\/\d{2}\/\d{4}$/;
+      const nfeRange = type === 'nfe' && dateRe.test(String(dateFrom || '')) && dateRe.test(String(dateTo || ''))
+        ? { from: String(dateFrom), to: String(dateTo) }
+        : null;
+
       // Determine cache key for this listing
       const listingCacheKey = type === 'nfe'
-        ? (fetchLastPage ? 'listing_nfe_last' : `listing_nfe_page_${page}`)
+        ? (nfeRange
+            ? `listing_nfe_range_${nfeRange.from.replace(/\//g, '')}_${nfeRange.to.replace(/\//g, '')}`
+            : fetchLastPage ? 'listing_nfe_last' : `listing_nfe_page_${page}`)
         : `listing_nfce_page_${page}`;
 
       // Check listing cache first (unless forceRefresh)
@@ -1084,7 +1092,7 @@ serve(async (req) => {
 
       let result;
       if (type === 'nfe') {
-        result = await buildNfeResult(page, fetchLastPage, OMIE_APP_KEY, OMIE_APP_SECRET);
+        result = await buildNfeResult(page, fetchLastPage, OMIE_APP_KEY, OMIE_APP_SECRET, nfeRange);
       } else {
         result = await buildNfceResult(page, OMIE_APP_KEY, OMIE_APP_SECRET);
       }
