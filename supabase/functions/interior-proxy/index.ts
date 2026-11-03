@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
               numero_pedido: p.numero_pedido == null ? null : String(p.numero_pedido).slice(0, 50),
               itens: r.itens,
               qtd_volumes: vol,
-              valor_total: r.total,
+              valor_total: totalCorrigido(base, r.total, corr ? corr.valor_total : p.valor_total),
               historico: [...hist, { acao: "correcao_pos_envio", usuario, created_at: agora }, ...novos],
               corrigido_by: userId,
               corrigido_by_name: String(usuario).slice(0, 200),
@@ -669,4 +669,172 @@ async function marcarFaturados(pedidos: any[]) {
     if (info.numero_nfe && !p.numero_nfe) p.numero_nfe = info.numero_nfe;
     p.faturado_em = info.faturado_em ?? null;
   }
+}
+
+// ---------------- Correção de pedido já enviado (guardada neste app) ----------------
+type AltItem = { produto_id: string; quantidade: number | null };
+
+/** Mesma regra do Stock360 Vendas: quantidade nova ou null para excluir o item. */
+function aplicarConferencia(itens: any[], alteracoes: AltItem[]) {
+  const mapa = new Map<string, AltItem>();
+  for (const a of alteracoes) {
+    if (!a || typeof a.produto_id !== "string") throw new Error("Alteração inválida.");
+    if (a.quantidade !== null) {
+      const q = Number(a.quantidade);
+      if (!Number.isFinite(q) || q <= 0) throw new Error("A quantidade precisa ser maior que zero. Para tirar o item, exclua.");
+    }
+    mapa.set(a.produto_id, a);
+  }
+  const logs: any[] = [];
+  const novos: any[] = [];
+  for (const it of itens) {
+    const id = String(it.produto_id);
+    const alt = mapa.get(id);
+    const antes = Number(it.quantidade);
+    const descricao = (it.descricao || it.produto_nome || it.nome || null) as string | null;
+    if (!alt) { novos.push(it); continue; }
+    mapa.delete(id);
+    if (alt.quantidade === null) {
+      logs.push({ produto_id: id, descricao, acao: "excluido", quantidade_antes: antes, quantidade_depois: null });
+      continue;
+    }
+    const q = Number(alt.quantidade);
+    if (q !== antes) logs.push({ produto_id: id, descricao, acao: "quantidade", quantidade_antes: antes, quantidade_depois: q });
+    novos.push({ ...it, quantidade: q });
+  }
+  if (mapa.size > 0) throw new Error("Só é possível alterar itens que já estão no pedido.");
+  if (novos.length === 0) throw new Error("O pedido precisa ter pelo menos um item.");
+  const total = novos.reduce((s, it) => s + Number(it.quantidade) * Number(it.preco_unitario || 0), 0);
+  return { itens: novos, logs, total: Math.round(total * 100) / 100 };
+}
+
+/** Mantém o desconto geral do pedido na mesma proporção. */
+function totalCorrigido(base: any[], novoBruto: number, totalAntes: unknown) {
+  const bruto = base.reduce((s, it) => s + Number(it.quantidade) * Number(it.preco_unitario || 0), 0);
+  const antes = Number(totalAntes);
+  if (bruto > 0 && Number.isFinite(antes) && antes > 0) return Math.round(novoBruto * (antes / bruto) * 100) / 100;
+  return novoBruto;
+}
+
+/** Aplica as correções guardadas aqui sobre os pedidos vindos do Stock360 Vendas. */
+async function aplicarCorrecoes(supabase: any, parsed: any) {
+  if (!parsed || typeof parsed !== "object") return;
+  const pedidos: any[] = [
+    ...(Array.isArray(parsed.pedidos) ? parsed.pedidos : []),
+    ...(parsed.pedido ? [parsed.pedido] : []),
+  ].filter((p) => p && ENVIADOS.has(String(p.status)));
+  if (!pedidos.length) return;
+  const { data } = await supabase
+    .from("interior_corrections")
+    .select("*")
+    .in("pedido_id", pedidos.map((p) => String(p.id)));
+  const mapa = new Map<string, any>((data || []).map((c: any) => [String(c.pedido_id), c]));
+  for (const p of pedidos) {
+    const c = mapa.get(String(p.id));
+    if (!c) continue;
+    if (Array.isArray(c.itens) && c.itens.length) p.itens = c.itens;
+    p.qtd_volumes = c.qtd_volumes;
+    if (c.valor_total != null) p.valor_total = Number(c.valor_total);
+    p.interior_conferido_por = c.corrigido_by_name ?? p.interior_conferido_por;
+    p.interior_conferido_em = c.corrigido_at ?? p.interior_conferido_em;
+    if (!c.enviado_omie_at) {
+      // Correção salva, falta reenviar para a Omie
+      p.status = "conferido";
+      p.correcao_pendente = true;
+      p.erro_omie_mensagem = c.erro_omie ?? null;
+    } else {
+      p.interior_enviado_omie_em = c.enviado_omie_at;
+      p.erro_omie_mensagem = null;
+    }
+    p.corrigido_apos_envio = true;
+  }
+  const hist = (c: any) => (Array.isArray(c?.historico) ? c.historico : []);
+  if (parsed.pedido && Array.isArray(parsed.historico)) {
+    const c = mapa.get(String(parsed.pedido.id));
+    if (c) parsed.historico = [...parsed.historico, ...hist(c)];
+  }
+  if (Array.isArray(parsed.alteracoes)) {
+    for (const c of mapa.values()) {
+      for (const h of hist(c)) {
+        if (h?.acao === "quantidade" || h?.acao === "excluido") parsed.alteracoes.push({ ...h, pedido_id: c.pedido_id });
+      }
+    }
+  }
+}
+
+/** Altera o mesmo pedido na Omie com os itens e volumes corrigidos. Retorna o código do pedido. */
+async function enviarCorrecaoNaOmie(numeroOmie: string, itens: any[], volumes: number) {
+  if (!Number.isInteger(volumes) || volumes < 1) throw new Error("Informe a quantidade de volumes");
+  const atual = (await omieCall("ConsultarPedido", { numero_pedido: numeroOmie }))?.pedido_venda_produto;
+  const cab = atual?.cabecalho;
+  const detOmie: any[] = Array.isArray(atual?.det) ? atual.det : [];
+  if (!cab?.codigo_pedido || !detOmie.length) throw new Error(`Não encontrei o pedido ${numeroOmie} na Omie.`);
+  const info = atual?.infoCadastro ?? {};
+  if (String(info.cancelado || "").toUpperCase() === "S") throw new Error("Este pedido foi cancelado na Omie. Não dá para alterar.");
+  if (num(cab.etapa) >= 60 || String(info.faturado || "").toUpperCase() === "S") {
+    throw new Error("Este pedido já foi faturado na Omie. A correção precisa ser feita direto na Omie.");
+  }
+
+  const conferidos = new Map<string, any>();
+  for (const it of itens) {
+    if (it?.omie_codigo_item == null) {
+      throw new Error("Este pedido veio sem a identificação dos itens da Omie. Ajuste direto na Omie.");
+    }
+    conferidos.set(String(it.omie_codigo_item), it);
+  }
+  const codigosOmie = new Set(detOmie.map((d) => String(d?.ide?.codigo_item ?? "")));
+  if (![...conferidos.keys()].every((c) => codigosOmie.has(c))) {
+    throw new Error("Os itens do pedido na Omie não batem com a conferência. Confira o pedido direto na Omie.");
+  }
+
+  let mantidos = 0;
+  const det = detOmie.map((d) => {
+    const prod = d?.produto ?? {};
+    const conf = conferidos.get(String(d?.ide?.codigo_item ?? ""));
+    const qAntes = num(prod.quantidade);
+    const qDepois = conf ? num(conf.quantidade) : qAntes; // item excluído vai com a quantidade original
+    const produto: Record<string, unknown> = {
+      codigo_produto: prod.codigo_produto,
+      quantidade: qDepois,
+      valor_unitario: num(prod.valor_unitario),
+    };
+    if (prod.cfop) produto.cfop = prod.cfop;
+    if (String(prod.tipo_desconto).toUpperCase() === "P" && num(prod.percentual_desconto) > 0) {
+      produto.tipo_desconto = "P";
+      produto.percentual_desconto = num(prod.percentual_desconto);
+    } else if (num(prod.valor_desconto) > 0) {
+      produto.tipo_desconto = "V";
+      produto.valor_desconto = qAntes > 0 ? Math.round(((num(prod.valor_desconto) * qDepois) / qAntes) * 100) / 100 : 0;
+    }
+    if (!conf) return { ide: { codigo_item: d.ide.codigo_item, acao_item: "E" }, produto };
+    mantidos++;
+    return { ide: { codigo_item: d.ide.codigo_item }, produto };
+  });
+
+  const alteracao = {
+    cabecalho: {
+      codigo_pedido: cab.codigo_pedido,
+      codigo_cliente: cab.codigo_cliente,
+      data_previsao: cab.data_previsao,
+      etapa: cab.etapa,
+      codigo_parcela: cab.codigo_parcela,
+      quantidade_itens: mantidos,
+    },
+    det,
+    frete: { ...(atual.frete || {}), quantidade_volumes: volumes },
+  };
+  console.log(`Corrigindo pedido Omie ${cab.numero_pedido}: ${mantidos} item(ns), ${volumes} volume(s)`);
+  try {
+    await omieCall("AlterarPedidoVenda", alteracao);
+  } catch (e) {
+    throw new Error(`A Omie não aceitou alterar o pedido ${cab.numero_pedido ?? numeroOmie}. [detalhe: ${(e as Error).message}]`);
+  }
+  return cab.codigo_pedido ? String(cab.codigo_pedido) : null;
+}
+
+async function limparCacheFaturamento(numeroOmie: string) {
+  try {
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    await admin.from("omie_cache").delete().eq("cache_key", `stock360_interior_fat_${numeroOmie}`);
+  } catch { /* sem cache */ }
 }
