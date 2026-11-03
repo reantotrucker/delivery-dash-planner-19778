@@ -22,6 +22,13 @@
       "when": 1793388624418,
       "tag": "0002_interior_excluded_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793731821907,
+      "tag": "0003_interior_reopened_orders",
+      "breakpoints": true
     }
   ]
 }

@@ -368,6 +368,33 @@ export type Database = {
         }
         Relationships: []
       }
+      interior_reopened_orders: {
+        Row: {
+          motivo: string | null
+          numero_pedido: string | null
+          pedido_id: string
+          reopened_at: string
+          reopened_by: string | null
+          reopened_by_name: string | null
+        }
+        Insert: {
+          motivo?: string | null
+          numero_pedido?: string | null
+          pedido_id: string
+          reopened_at?: string
+          reopened_by?: string | null
+          reopened_by_name?: string | null
+        }
+        Update: {
+          motivo?: string | null
+          numero_pedido?: string | null
+          pedido_id?: string
+          reopened_at?: string
+          reopened_by?: string | null
+          reopened_by_name?: string | null
+        }
+        Relationships: []
+      }
       omie_cache: {
         Row: {
           cache_key: string
