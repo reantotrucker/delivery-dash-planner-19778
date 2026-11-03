@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2, Package, Printer } from "lucide-react";
+import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2, Package, Printer, RotateCcw } from "lucide-react";
 import { printInteriorLabel } from "@/lib/printInteriorLabel";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
@@ -44,7 +44,10 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [omieError, setOmieError] = useState<string | null>(null);
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isComercial, user } = useAuth();
+  const [confirmReabrir, setConfirmReabrir] = useState(false);
+  const [motivoReabrir, setMotivoReabrir] = useState("");
+  const [reabrindo, setReabrindo] = useState(false);
   const { data: meuNome } = useQuery({
     queryKey: ["meu-nome", user?.id],
     enabled: !!user?.id,
@@ -68,11 +71,9 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   });
 
   const pedido = data?.pedido;
-  // Enviado à Omie, mas ainda não faturado: dá para corrigir e reenviar (a Omie é alterada, não duplica)
-  const jaEnviado = !!pedido && ["enviado", "enviado_omie"].includes(pedido.status);
-  const editavel =
-    !!pedido && (["aguardando_conferencia", "conferido"].includes(pedido.status) || jaEnviado);
-  const reenviar = !!pedido && pedido.status === "conferido" && !!pedido.interior_enviado_omie_em;
+  // Depois de enviado à Omie o Stock360 Vendas não aceita mais alterações
+  const editavel = !!pedido && ["aguardando_conferencia", "conferido"].includes(pedido.status);
+  const podeRefazer = !!pedido && pedido.status === "conferido" && !pedido.reaberto && (!isComercial || isAdmin);
   const historico = data?.historico || [];
 
   useEffect(() => {
@@ -170,6 +171,23 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
     }
   };
 
+  const refazerConferencia = async () => {
+    if (!pedido) return;
+    setReabrindo(true);
+    try {
+      await interiorCall({ acao: "reabrir", pedido_id: pedido.id, motivo: motivoReabrir.trim() || null });
+      toast.success("O pedido voltou para Recebidos para conferir de novo");
+      setConfirmReabrir(false);
+      setMotivoReabrir("");
+      qc.invalidateQueries({ queryKey: ["interior-lista"] });
+      await refetch();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setReabrindo(false);
+    }
+  };
+
   const excluirPedido = async () => {
     if (!pedido) return;
     setDeleting(true);
@@ -227,6 +245,16 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
               >
                 <Printer className="w-3.5 h-3.5 mr-1" /> Etiqueta
               </Button>
+              {podeRefazer && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2"
+                  onClick={() => setConfirmReabrir(true)}
+                >
+                  <RotateCcw className="w-3.5 h-3.5 mr-1" /> Refazer conferência
+                </Button>
+              )}
               {isAdmin && (
                 <Button
                   size="sm"
@@ -376,23 +404,19 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
 
               {!editavel && (
                 <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                  Este pedido já foi faturado na Omie. Aqui é só para consulta; qualquer mudança agora precisa ser
-                  feita direto na Omie.
+                  Este pedido já foi enviado à Omie
+                  {pedido.interior_enviado_omie_em ? ` em ${fmtDateTime(pedido.interior_enviado_omie_em)}` : ""}. Aqui é
+                  só para consulta; qualquer mudança agora precisa ser feita direto na Omie.
                 </div>
               )}
 
-              {jaEnviado && (
-                <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                  Enviado à Omie
-                  {pedido.interior_enviado_omie_em ? ` em ${fmtDateTime(pedido.interior_enviado_omie_em)}` : ""}. Se
-                  precisar corrigir, mude aqui, toque em <b className="text-foreground">Salvar</b> e depois em{" "}
-                  <b className="text-foreground">Reenviar p/ Omie</b>.
-                </div>
-              )}
-
-              {reenviar && !dirty && (
-                <div className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-xs">
-                  Correção salva. Toque em <b>Reenviar p/ Omie</b> para atualizar o pedido na Omie.
+              {pedido.reaberto && (
+                <div className="rounded-lg border border-warning/60 bg-warning/15 p-3 text-xs">
+                  <b>Conferência refeita</b>
+                  {pedido.reaberto_por ? ` · pedida por ${pedido.reaberto_por}` : ""}
+                  {pedido.reaberto_em ? ` em ${fmtDateTime(pedido.reaberto_em)}` : ""}
+                  {pedido.reaberto_motivo ? ` · ${pedido.reaberto_motivo}` : ""}. Confira os itens e os volumes de
+                  novo e toque em <b>Salvar</b>.
                 </div>
               )}
 
@@ -472,7 +496,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 className="h-11 sm:h-10"
               >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-                {reenviar || jaEnviado ? "Reenviar p/ Omie" : "Enviar p/ Omie"}
+                Enviar p/ Omie
               </Button>
             </div>
           </div>
