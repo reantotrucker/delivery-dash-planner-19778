@@ -1007,7 +1007,7 @@ serve(async (req) => {
 
 
 
-    const { type, page = 1, fetchLastPage = false, forceRefresh = false, companyId } = await req.json();
+    const { type, page = 1, fetchLastPage = false, forceRefresh = false, companyId, dateFrom, dateTo } = await req.json();
 
     // Resolve company (defaults to Stock 360) and check membership
     let companySlug = 'stock360';
