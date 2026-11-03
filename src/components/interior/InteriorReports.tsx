@@ -9,7 +9,8 @@ import {
   InteriorAlteracao,
   InteriorPedido,
   brl,
-  clienteNome,
+  clienteFantasia,
+  clienteRazao,
   decodeHtml,
   fmtDateTime,
 } from "@/lib/interior";
@@ -134,10 +135,11 @@ section{break-inside:avoid}
 <section><h2>Por transporte</h2>${tbl(["Transporte", "Pedidos", "Valor"], porTransporte.map((g) => [g.nome, g.qtd, brl(g.valor)]))}</section>
 <section><h2>Por conferente</h2>${tbl(["Conferente", "Pedidos", "Valor"], porConferente.map((g) => [g.nome, g.qtd, brl(g.valor)]))}</section>
 <section><h2>Pedidos conferidos</h2>${tbl(
-      ["Pedido", "Cliente", "Conferido por", "Quando"],
+      ["Pedido", "Cliente", "Nome fantasia", "Conferido por", "Quando"],
       conferidosLista.map((p) => [
         String(p.numero_pedido ?? "—"),
-        clienteNome(p),
+        clienteRazao(p),
+        clienteFantasia(p) || "—",
         p.interior_conferido_por || "Não informado",
         fmtDateTime(p.interior_conferido_em),
       ])
@@ -226,6 +228,7 @@ section{break-inside:avoid}
                     <tr className="border-b border-border">
                       <th className="text-left p-2">Pedido</th>
                       <th className="text-left p-2">Cliente</th>
+                      <th className="text-left p-2">Nome fantasia</th>
                       <th className="text-left p-2">Conferido por</th>
                       <th className="text-left p-2">Quando</th>
                     </tr>
@@ -233,7 +236,7 @@ section{break-inside:avoid}
                   <tbody>
                     {conferidosLista.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="p-3 text-center text-muted-foreground">
+                        <td colSpan={5} className="p-3 text-center text-muted-foreground">
                           Nenhum pedido conferido no período
                         </td>
                       </tr>
@@ -241,7 +244,8 @@ section{break-inside:avoid}
                     {conferidosLista.map((p, i) => (
                       <tr key={p.id} className={i % 2 ? "bg-muted/30" : ""}>
                         <td className="p-2 tabular-nums">#{p.numero_pedido ?? "—"}</td>
-                        <td className="p-2">{clienteNome(p)}</td>
+                        <td className="p-2">{clienteRazao(p)}</td>
+                        <td className="p-2">{clienteFantasia(p) || "—"}</td>
                         <td className="p-2 font-medium">{p.interior_conferido_por || "Não informado"}</td>
                         <td className="p-2 whitespace-nowrap">{fmtDateTime(p.interior_conferido_em)}</td>
                       </tr>
