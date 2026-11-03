@@ -41,6 +41,11 @@ export interface InteriorPedido {
   faturado_em?: string | null;
   erro_omie_mensagem: string | null;
   created_at?: string | null;
+  /** Conferido que voltou para ser conferido de novo */
+  reaberto?: boolean;
+  reaberto_por?: string | null;
+  reaberto_em?: string | null;
+  reaberto_motivo?: string | null;
 }
 
 export interface InteriorAlteracao {
