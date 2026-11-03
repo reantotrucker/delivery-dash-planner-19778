@@ -541,6 +541,46 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
           </AlertDialogContent>
         </AlertDialog>
 
+        <AlertDialog
+          open={confirmReabrir}
+          onOpenChange={(o) => {
+            if (!o && !reabrindo) {
+              setConfirmReabrir(false);
+              setMotivoReabrir("");
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Refazer conferência</AlertDialogTitle>
+              <AlertDialogDescription>
+                O pedido {pedido?.numero_pedido ? `#${pedido.numero_pedido}` : ""} volta para a aba Recebidos, marcado
+                em amarelo, para ser conferido de novo. Ele só pode ser enviado à Omie depois de salvar a nova
+                conferência.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-1">
+              <Label htmlFor="motivo-reabrir" className="text-xs">
+                Motivo (opcional)
+              </Label>
+              <Input
+                id="motivo-reabrir"
+                value={motivoReabrir}
+                maxLength={500}
+                onChange={(e) => setMotivoReabrir(e.target.value)}
+                placeholder="Ex.: item passou em branco, quantidade a mais"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={reabrindo}>Cancelar</AlertDialogCancel>
+              <Button onClick={refazerConferencia} disabled={reabrindo}>
+                {reabrindo ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RotateCcw className="w-4 h-4 mr-1" />}
+                Refazer
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
