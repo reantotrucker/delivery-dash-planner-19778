@@ -1108,7 +1108,7 @@ export default function OmieImport() {
 
                 <div className="space-y-1">
                   <Label>Motorista</Label>
-                  <Select value={dialogDriverId} onValueChange={setDialogDriverId}>
+                  <Select value={dialogDriverId} onValueChange={(v) => { setDialogDriverId(v); setDialogVehicleId(prev => vehicleForDriver(v, prev)); }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o motorista" />
                     </SelectTrigger>
@@ -1307,7 +1307,7 @@ export default function OmieImport() {
 
               <div className="space-y-1">
                 <Label>Motorista</Label>
-                <Select value={extractFormData.driverId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, driverId: v }))}>
+                <Select value={extractFormData.driverId} onValueChange={(v) => setExtractFormData(prev => ({ ...prev, driverId: v, vehicleId: vehicleForDriver(v, prev.vehicleId) }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o motorista" />
                   </SelectTrigger>
