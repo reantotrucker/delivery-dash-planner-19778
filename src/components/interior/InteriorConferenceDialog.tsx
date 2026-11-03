@@ -103,7 +103,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   const volumesDirty = pedido ? String(pedido.qtd_volumes ?? "") !== volumes : false;
   const dirty = alteracoes.length > 0 || volumesDirty;
   const volumesOk = /^\d+$/.test(volumes.trim()) && Number(volumes.trim()) >= 1;
-  const canSend = pedido?.status === "conferido" && !dirty && volumesOk;
+  const canSend = pedido?.status === "conferido" && !pedido?.reaberto && !dirty && volumesOk;
 
   const invalidQty = pedido
     ? (pedido.itens || []).some((i) => {

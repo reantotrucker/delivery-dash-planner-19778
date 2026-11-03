@@ -109,6 +109,12 @@ Deno.serve(async (req) => {
     // altera o pedido. Aqui apagamos na Omie os itens retirados na conferência; depois o
     // envio normal só ajusta quantidades e volumes.
     if (acao === "enviar_omie") {
+      const { data: re } = await supabase
+        .from("interior_reopened_orders")
+        .select("pedido_id")
+        .eq("pedido_id", String(body.pedido_id ?? ""))
+        .maybeSingle();
+      if (re) return json({ success: false, error: "Este pedido voltou para conferência. Salve a nova conferência antes de enviar." });
       try {
         const msg = await removerItensExcluidosNaOmie(callUpstream, String(body.pedido_id ?? ""));
         if (msg) return json({ success: false, error: msg });
