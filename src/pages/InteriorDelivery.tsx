@@ -217,7 +217,8 @@ export default function InteriorDelivery() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
             {filtrados.map((p) => {
-              const conferido = !!p.interior_conferido_em || p.status !== "aguardando_conferencia";
+              const reaberto = !!p.reaberto;
+              const conferido = !reaberto && (!!p.interior_conferido_em || p.status !== "aguardando_conferencia");
               return (
               <div
                 key={p.id}
@@ -233,20 +234,29 @@ export default function InteriorDelivery() {
                 className={cn(
                   "cursor-pointer",
                   "w-full min-w-0 text-left border rounded-xl p-3 sm:p-4 space-y-2 hover:shadow-md active:scale-[0.99] transition-all",
-                  conferido
-                    ? "bg-success/10 border-success/60 border-l-4 border-l-success hover:border-success"
-                    : "bg-card border-border hover:border-primary/60"
+                  reaberto
+                    ? "bg-warning/10 border-warning/60 border-l-4 border-l-warning hover:border-warning"
+                    : conferido
+                      ? "bg-success/10 border-success/60 border-l-4 border-l-success hover:border-success"
+                      : "bg-card border-border hover:border-primary/60"
                 )}
               >
                 <div className="flex items-center justify-between gap-2 min-w-0">
                   <p className="text-xs text-muted-foreground flex-shrink-0">Pedido #{p.numero_pedido ?? "—"}</p>
                   <Badge
                     variant="outline"
-                    className={cn("text-[10px] sm:text-xs whitespace-nowrap min-w-0 truncate", statusClass(p.status))}
+                    className={cn("text-[10px] sm:text-xs whitespace-nowrap min-w-0 truncate", reaberto ? "border-warning text-warning" : statusClass(p.status))}
                   >
-                    {STATUS_LABEL[p.status] || p.status}
+                    {reaberto ? "Refazer conferência" : STATUS_LABEL[p.status] || p.status}
                   </Badge>
                 </div>
+                {reaberto && (
+                  <p className="text-[11px] text-foreground bg-warning/20 rounded px-2 py-1 break-words">
+                    Voltou para conferir{p.reaberto_por ? ` · ${p.reaberto_por}` : ""}
+                    {p.reaberto_em ? ` · ${fmtDateTime(p.reaberto_em)}` : ""}
+                    {p.reaberto_motivo ? ` · ${p.reaberto_motivo}` : ""}
+                  </p>
+                )}
                 <p className="font-semibold leading-snug line-clamp-2 break-words">{clienteNome(p)}</p>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground min-w-0">
                   <span className="flex items-center gap-1 min-w-0">
@@ -270,7 +280,7 @@ export default function InteriorDelivery() {
                     </span>
                   </span>
                 </div>
-                {p.interior_conferido_por && (
+                {p.interior_conferido_por && !reaberto && (
                   <p className="flex items-center gap-1 text-xs text-success font-medium min-w-0">
                     <UserCheck className="w-3 h-3 flex-shrink-0" />
                     <span className="truncate">
