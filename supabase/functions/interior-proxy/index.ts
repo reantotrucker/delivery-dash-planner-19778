@@ -3,6 +3,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const UPSTREAM = "https://lrdiymbaladmmoczifnd.supabase.co/functions/v1/interior-pedidos";
 const REABRIVEIS = new Set(["conferido", "enviado", "enviado_omie"]);
+const ENVIADOS = new Set(["enviado", "enviado_omie"]);
 const ACOES = new Set(["listar", "detalhe", "salvar_conferencia", "enviar_omie", "relatorio", "excluir", "reabrir"]);
 
 const json = (body: unknown, status = 200) =>
