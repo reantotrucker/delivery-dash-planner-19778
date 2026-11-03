@@ -5,7 +5,8 @@ import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/rea
 import { format, parse, isWithinInterval, startOfDay, endOfDay, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
-import { getActiveCompanyId } from "@/lib/company";
+import { getActiveCompanyId, getActiveCity } from "@/lib/company";
+import { normalizeBairro, zonaManaus, ZONA_ORDER } from "@/lib/manausZones";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -168,17 +169,33 @@ export default function OmieImport() {
     queryFn: async () => {
       const { data } = await supabase
         .from('routes')
-        .select('driver_id, period, driver:drivers(name, color)')
+        .select('driver_id, period, neighborhood, driver:drivers(name, color)')
         .eq('company_id', getActiveCompanyId())
         .eq('date', format(new Date(), 'yyyy-MM-dd'))
         .not('driver_id', 'is', null);
-      const map = new Map<string, { id: string; name: string; color: string; manha: number; tarde: number }>();
+      type Bairro = { name: string; zona: string | null; count: number };
+      const map = new Map<string, { id: string; name: string; color: string; manha: number; tarde: number; bairros: Map<string, Bairro> }>();
+      const isManaus = getActiveCity().city.toLowerCase() === 'manaus';
       (data || []).forEach((r: any) => {
-        const cur = map.get(r.driver_id) || { id: r.driver_id, name: r.driver?.name || '—', color: r.driver?.color || 'hsl(var(--primary))', manha: 0, tarde: 0 };
+        const cur = map.get(r.driver_id) || { id: r.driver_id, name: r.driver?.name || '—', color: r.driver?.color || 'hsl(var(--primary))', manha: 0, tarde: 0, bairros: new Map() };
         if (r.period === 'MANHA') cur.manha++; else cur.tarde++;
+        const key = normalizeBairro(r.neighborhood);
+        if (key && key !== 'N A') {
+          const b = cur.bairros.get(key) || { name: (r.neighborhood || '').trim(), zona: isManaus ? zonaManaus(r.neighborhood) : null, count: 0 };
+          b.count++;
+          cur.bairros.set(key, b);
+        }
         map.set(r.driver_id, cur);
       });
-      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+      return Array.from(map.values())
+        .map((d) => {
+          const bairros = Array.from(d.bairros.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+          const zonasMap = new Map<string, number>();
+          bairros.forEach((b) => { if (b.zona) zonasMap.set(b.zona, (zonasMap.get(b.zona) || 0) + b.count); });
+          const zonas = ZONA_ORDER.filter((z) => zonasMap.has(z)).map((z) => ({ zona: z, count: zonasMap.get(z)! }));
+          return { id: d.id, name: d.name, color: d.color, manha: d.manha, tarde: d.tarde, bairros, zonas };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
     },
   });
   const { data: vehicles } = useQuery({
@@ -734,6 +751,29 @@ export default function OmieImport() {
                       <p className="text-muted-foreground uppercase">Total</p>
                     </div>
                   </div>
+                  {d.zonas.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {d.zonas.map((z) => (
+                        <span key={z.zona} className="rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary leading-none">
+                          {z.zona === 'Rural' ? 'Rural' : `Z. ${z.zona}`} · {z.count}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {d.bairros.length > 0 && (
+                    <p
+                      className="mt-1.5 text-[11px] leading-snug text-muted-foreground line-clamp-3"
+                      title={d.bairros.map((b) => `${b.name} (${b.count})${b.zona ? ` · ${b.zona}` : ''}`).join('\n')}
+                    >
+                      {d.bairros.map((b, i) => (
+                        <span key={b.name + i}>
+                          {i > 0 && ' · '}
+                          <span className="text-foreground/90">{b.name}</span>
+                          {b.count > 1 && <span className="tabular-nums"> ({b.count})</span>}
+                        </span>
+                      ))}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
