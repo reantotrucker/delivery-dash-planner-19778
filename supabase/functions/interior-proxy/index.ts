@@ -266,6 +266,11 @@ Deno.serve(async (req) => {
           } catch (e) {
             console.error("Faturamento Omie:", (e as Error).message);
           }
+          // Reaberto que foi faturado nesse meio tempo não volta para Recebidos
+          if (parsed?.pedido?.status === "faturado") parsed.pedido.reaberto = false;
+          if (acao === "listar" && Array.isArray(parsed?.pedidos) && upstreamBody !== body) {
+            parsed.pedidos = parsed.pedidos.filter((p: any) => p?.status !== "faturado");
+          }
         }
         return json(parsed, upstream.status);
       } catch {
