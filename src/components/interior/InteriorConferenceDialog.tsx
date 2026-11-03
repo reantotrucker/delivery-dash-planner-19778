@@ -68,8 +68,11 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   });
 
   const pedido = data?.pedido;
-  // Depois de enviado à Omie o Stock360 Vendas não aceita mais alterações
-  const editavel = !!pedido && ["aguardando_conferencia", "conferido"].includes(pedido.status);
+  // Enviado à Omie, mas ainda não faturado: dá para corrigir e reenviar (a Omie é alterada, não duplica)
+  const jaEnviado = !!pedido && ["enviado", "enviado_omie"].includes(pedido.status);
+  const editavel =
+    !!pedido && (["aguardando_conferencia", "conferido"].includes(pedido.status) || jaEnviado);
+  const reenviar = !!pedido && pedido.status === "conferido" && !!pedido.interior_enviado_omie_em;
   const historico = data?.historico || [];
 
   useEffect(() => {
@@ -373,9 +376,23 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
 
               {!editavel && (
                 <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                  Este pedido já foi enviado à Omie
-                  {pedido.interior_enviado_omie_em ? ` em ${fmtDateTime(pedido.interior_enviado_omie_em)}` : ""}. Aqui é
-                  só para consulta; qualquer mudança agora precisa ser feita direto na Omie.
+                  Este pedido já foi faturado na Omie. Aqui é só para consulta; qualquer mudança agora precisa ser
+                  feita direto na Omie.
+                </div>
+              )}
+
+              {jaEnviado && (
+                <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Enviado à Omie
+                  {pedido.interior_enviado_omie_em ? ` em ${fmtDateTime(pedido.interior_enviado_omie_em)}` : ""}. Se
+                  precisar corrigir, mude aqui, toque em <b className="text-foreground">Salvar</b> e depois em{" "}
+                  <b className="text-foreground">Reenviar p/ Omie</b>.
+                </div>
+              )}
+
+              {reenviar && !dirty && (
+                <div className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-xs">
+                  Correção salva. Toque em <b>Reenviar p/ Omie</b> para atualizar o pedido na Omie.
                 </div>
               )}
 
@@ -455,7 +472,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 className="h-11 sm:h-10"
               >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-                Enviar p/ Omie
+                {reenviar || jaEnviado ? "Reenviar p/ Omie" : "Enviar p/ Omie"}
               </Button>
             </div>
           </div>
