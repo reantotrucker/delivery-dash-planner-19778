@@ -26,6 +26,8 @@ import {
   STATUS_LABEL,
   brl,
   clienteNome,
+  clienteFantasia,
+  clienteRazao,
   decodeHtml,
   fmtDateTime,
 } from "@/lib/interior";
