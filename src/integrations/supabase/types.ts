@@ -335,6 +335,48 @@ export type Database = {
           },
         ]
       }
+      interior_corrections: {
+        Row: {
+          corrigido_at: string
+          corrigido_by: string | null
+          corrigido_by_name: string | null
+          enviado_omie_at: string | null
+          erro_omie: string | null
+          historico: Json
+          itens: Json
+          numero_pedido: string | null
+          pedido_id: string
+          qtd_volumes: number
+          valor_total: number | null
+        }
+        Insert: {
+          corrigido_at?: string
+          corrigido_by?: string | null
+          corrigido_by_name?: string | null
+          enviado_omie_at?: string | null
+          erro_omie?: string | null
+          historico?: Json
+          itens?: Json
+          numero_pedido?: string | null
+          pedido_id: string
+          qtd_volumes: number
+          valor_total?: number | null
+        }
+        Update: {
+          corrigido_at?: string
+          corrigido_by?: string | null
+          corrigido_by_name?: string | null
+          enviado_omie_at?: string | null
+          erro_omie?: string | null
+          historico?: Json
+          itens?: Json
+          numero_pedido?: string | null
+          pedido_id?: string
+          qtd_volumes?: number
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
       interior_excluded_orders: {
         Row: {
           cliente: string | null
