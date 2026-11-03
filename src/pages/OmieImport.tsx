@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getActiveCompanyId, getActiveCity } from "@/lib/company";
 import { normalizeBairro, zonaManaus, ZONA_ORDER } from "@/lib/manausZones";
 import { DriverSuggestionBox } from "@/components/DriverSuggestionBox";
+import { RouteEditDialog } from "@/components/routes/RouteEditDialog";
+import type { Route } from "@/components/routes/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -19,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle, Search, Upload, Camera, Sun, Moon } from "lucide-react";
+import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle, Search, Upload, Camera, Sun, Moon, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -135,7 +137,7 @@ export default function OmieImport() {
       while (true) {
         const { data } = await supabase
           .from('routes')
-          .select('observation, client, neighborhood, address, cep, period, date, driver_id, consultant_id, payment_method_id')
+          .select('id, observation, client, neighborhood, address, cep, period, date, driver_id, consultant_id, payment_method_id')
           .eq('company_id', getActiveCompanyId())
           .like('observation', 'NF %')
           .range(from, from + pageSize - 1);
@@ -250,10 +252,34 @@ export default function OmieImport() {
     const map = new Map<string, any>();
     existingRoutes?.forEach((r) => {
       const match = r.observation?.match(/^NF\s+(\S+)/);
-      if (match) map.set(normalizeNfNumber(match[1]), r);
+      if (!match) return;
+      const key = normalizeNfNumber(match[1]);
+      const prev = map.get(key);
+      // Fica com a rota mais recente da NF (ex.: reagendada)
+      if (!prev || String(r.date) >= String(prev.date)) map.set(key, r);
     });
     return map;
   }, [existingRoutes]);
+
+  // Editar a rota já criada direto desta tela
+  const [editingRoute, setEditingRoute] = useState<Route | null>(null);
+  const [loadingEditNf, setLoadingEditNf] = useState<string | null>(null);
+  const openRouteEditor = async (nf: string | number) => {
+    const key = normalizeNfNumber(nf);
+    const r = importedRoutesByNf.get(key);
+    if (!r?.id) {
+      toast.info('A rota desta nota acabou de ser criada. Toque em Atualizar e tente de novo.');
+      return;
+    }
+    setLoadingEditNf(key);
+    const { data, error } = await supabase.from('routes').select('*').eq('id', r.id).maybeSingle();
+    setLoadingEditNf(null);
+    if (error || !data) {
+      toast.error('Não consegui abrir a rota desta nota.');
+      return;
+    }
+    setEditingRoute(data as unknown as Route);
+  };
 
   const driverName = (id?: string | null) => drivers?.find(d => d.id === id)?.name;
   const consultantName = (id?: string | null) => consultants?.find(c => c.id === id)?.name;
@@ -950,11 +976,15 @@ export default function OmieImport() {
                       invoice.canceled
                         ? 'border-destructive bg-destructive/10 cursor-not-allowed'
                         : importedNfNumbers.has(normalizeNfNumber(invoice.number))
-                          ? 'border-green-500 bg-green-500/10 cursor-default'
+                          ? 'border-green-500 bg-green-500/10 cursor-pointer hover:bg-green-500/20'
                           : 'border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer'
                     }`}
                     onClick={() => {
                       if (invoice.canceled) return;
+                      if (importedNfNumbers.has(normalizeNfNumber(invoice.number))) {
+                        openRouteEditor(invoice.number);
+                        return;
+                      }
                       handleOpenInvoiceDialog(invoice);
                     }}
                   >
@@ -984,8 +1014,17 @@ export default function OmieImport() {
                                   ✓ Rota criada
                                 </Badge>
                               );
+                              const editBtn = (
+                                <span className="inline-flex items-center gap-1 rounded border border-green-500/60 px-1.5 py-0.5 text-[11px] font-semibold text-green-600 dark:text-green-400">
+                                  {loadingEditNf === normalizeNfNumber(invoice.number)
+                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                    : <Pencil className="w-3 h-3" />}
+                                  Editar rota
+                                </span>
+                              );
                               if (!r) return badge;
                               return (
+                                <>
                                 <Tooltip>
                                   <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
                                     <span>{badge}</span>
@@ -1002,6 +1041,8 @@ export default function OmieImport() {
                                     {r.date && <p><strong>Data:</strong> {r.date}</p>}
                                   </TooltipContent>
                                 </Tooltip>
+                                {editBtn}
+                                </>
                               );
                             })()}
 
@@ -1100,6 +1141,16 @@ export default function OmieImport() {
       )}
 
       {/* Dialog para criar rota */}
+      <RouteEditDialog
+        route={editingRoute}
+        open={!!editingRoute}
+        onOpenChange={(open) => { if (!open) setEditingRoute(null); }}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['existing-route-nf-numbers'] });
+          queryClient.invalidateQueries({ queryKey: ['routes'] });
+        }}
+      />
+
       <Dialog open={!!dialogInvoice} onOpenChange={(open) => !open && setDialogInvoice(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
