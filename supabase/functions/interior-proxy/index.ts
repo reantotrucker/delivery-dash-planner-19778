@@ -406,6 +406,13 @@ const num = (v: unknown) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+/** A Omie pede para aguardar N segundos em consultas repetidas; espera isso (até 45 s). */
+function esperaOmieMs(msg: string) {
+  const m = /aguarde\s+(\d+)\s+segundo/i.exec(msg);
+  const s = m ? Number(m[1]) : 3;
+  return Math.min(Math.max(s, 1) + 1, 45) * 1000;
+}
+
 async function omieCall(call: string, param: Record<string, unknown>) {
   const app_key = Deno.env.get("OMIE_APP_KEY");
   const app_secret = Deno.env.get("OMIE_APP_SECRET");
@@ -421,7 +428,7 @@ async function omieCall(call: string, param: Record<string, unknown>) {
     if (r.ok && !j?.faultstring) return j;
     last = j?.faultstring || `Omie ${r.status}`;
     if (!/consumo redundante|bloqueada|tente novamente|limite/i.test(last)) break;
-    await new Promise((res) => setTimeout(res, 3000));
+    await new Promise((res) => setTimeout(res, esperaOmieMs(last)));
   }
   throw new Error(last);
 }
@@ -588,7 +595,7 @@ async function omieCallUrl(path: string, call: string, param: Record<string, unk
     if (r.ok && !j?.faultstring) return j;
     last = j?.faultstring || `Omie ${r.status}`;
     if (!/consumo redundante|bloqueada|tente novamente|limite/i.test(last)) break;
-    await new Promise((res) => setTimeout(res, 3000));
+    await new Promise((res) => setTimeout(res, esperaOmieMs(last)));
   }
   throw new Error(last);
 }
