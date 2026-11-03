@@ -71,9 +71,16 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   });
 
   const pedido = data?.pedido;
-  // Depois de enviado à Omie o Stock360 Vendas não aceita mais alterações
-  const editavel = !!pedido && ["aguardando_conferencia", "conferido"].includes(pedido.status);
-  const podeRefazer = !!pedido && pedido.status === "conferido" && !pedido.reaberto && (!isComercial || isAdmin);
+  // Enviado à Omie só volta a ser editável depois de "Refazer conferência" (e se ainda não foi faturado)
+  const jaEnviado = !!pedido && ["enviado", "enviado_omie"].includes(pedido.status);
+  const editavel =
+    !!pedido && (["aguardando_conferencia", "conferido"].includes(pedido.status) || (jaEnviado && !!pedido.reaberto));
+  const podeRefazer =
+    !!pedido &&
+    ["conferido", "enviado", "enviado_omie"].includes(pedido.status) &&
+    !pedido.reaberto &&
+    (!isComercial || isAdmin);
+  const reenvio = !!pedido?.interior_enviado_omie_em;
   const historico = data?.historico || [];
 
   useEffect(() => {
@@ -405,8 +412,14 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
               {!editavel && (
                 <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
                   Este pedido já foi enviado à Omie
-                  {pedido.interior_enviado_omie_em ? ` em ${fmtDateTime(pedido.interior_enviado_omie_em)}` : ""}. Aqui é
-                  só para consulta; qualquer mudança agora precisa ser feita direto na Omie.
+                  {pedido.interior_enviado_omie_em ? ` em ${fmtDateTime(pedido.interior_enviado_omie_em)}` : ""}.
+                  {podeRefazer ? (
+                    <>
+                      {" "}Para corrigir, toque em <b className="text-foreground">Refazer conferência</b>.
+                    </>
+                  ) : (
+                    " Aqui é só para consulta; qualquer mudança agora precisa ser feita direto na Omie."
+                  )}
                 </div>
               )}
 
@@ -416,7 +429,13 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                   {pedido.reaberto_por ? ` · pedida por ${pedido.reaberto_por}` : ""}
                   {pedido.reaberto_em ? ` em ${fmtDateTime(pedido.reaberto_em)}` : ""}
                   {pedido.reaberto_motivo ? ` · ${pedido.reaberto_motivo}` : ""}. Confira os itens e os volumes de
-                  novo e toque em <b>Salvar</b>.
+                  novo e toque em <b>Salvar</b>
+                  {reenvio ? (
+                    <>
+                      . Como ele já foi para a Omie, depois toque em <b>Reenviar p/ Omie</b> para corrigir lá
+                    </>
+                  ) : null}
+                  .
                 </div>
               )}
 
@@ -496,7 +515,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 className="h-11 sm:h-10"
               >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-                Enviar p/ Omie
+                {reenvio ? "Reenviar p/ Omie" : "Enviar p/ Omie"}
               </Button>
             </div>
           </div>
