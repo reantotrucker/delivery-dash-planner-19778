@@ -245,7 +245,7 @@ export default function InteriorDelivery() {
                   <p className="text-xs text-muted-foreground flex-shrink-0">Pedido #{p.numero_pedido ?? "—"}</p>
                   <Badge
                     variant="outline"
-                    className={cn("text-[10px] sm:text-xs whitespace-nowrap min-w-0 truncate", statusClass(p.status))}
+                    className={cn("text-[10px] sm:text-xs whitespace-nowrap min-w-0 truncate", reaberto ? "border-warning text-warning" : statusClass(p.status))}
                   >
                     {reaberto ? "Refazer conferência" : STATUS_LABEL[p.status] || p.status}
                   </Badge>
