@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const UPSTREAM = "https://lrdiymbaladmmoczifnd.supabase.co/functions/v1/interior-pedidos";
+const REABRIVEIS = new Set(["conferido", "enviado", "enviado_omie"]);
 const ACOES = new Set(["listar", "detalhe", "salvar_conferencia", "enviar_omie", "relatorio", "excluir", "reabrir"]);
 
 const json = (body: unknown, status = 200) =>
@@ -142,8 +143,18 @@ Deno.serve(async (req) => {
       const dj = await det.json().catch(() => null);
       const p = dj?.pedido;
       if (!p) return json({ error: "Pedido não encontrado" }, 404);
-      if (p.status !== "conferido") {
-        return json({ error: "Só dá para refazer a conferência de pedido conferido que ainda não foi enviado à Omie" }, 409);
+      if (!REABRIVEIS.has(String(p.status))) {
+        return json({ error: "Só dá para refazer a conferência de pedido conferido ou enviado à Omie" }, 409);
+      }
+      if (p.status !== "conferido" && p.numero_pedido_omie) {
+        try {
+          const fat = await consultarFaturamento(String(p.numero_pedido_omie));
+          if (fat.faturado) {
+            return json({ error: "Este pedido já foi faturado na Omie. A correção precisa ser feita direto na Omie." }, 409);
+          }
+        } catch (e) {
+          return json({ error: `Não consegui confirmar na Omie se o pedido foi faturado. Tente de novo. [${(e as Error).message}]` }, 502);
+        }
       }
       const str = (v: unknown, max: number) => (v == null ? null : String(v).slice(0, max) || null);
       const { error: insErr } = await supabase.from("interior_reopened_orders").upsert(
@@ -168,12 +179,24 @@ Deno.serve(async (req) => {
       reabertos = await carregarReabertos();
       const st = Array.isArray(body.status) ? body.status.map(String) : [];
       if (acao === "listar" && st.includes("aguardando_conferencia") && reabertos.size && !st.includes("conferido")) {
-        upstreamBody = { ...body, status: [...st, "conferido"] };
+        upstreamBody = { ...body, status: [...new Set([...st, ...REABRIVEIS])] };
       }
     }
 
     const upstream = await callUpstream(upstreamBody);
-    const text = await upstream.text();
+    let text = await upstream.text();
+
+    // Correção de pedido já enviado: o Stock360 Vendas ainda precisa aceitar salvar
+    if (acao === "salvar_conferencia" && upstream.status === 409) {
+      try {
+        const j = JSON.parse(text || "{}");
+        if (/não está aguardando conferência/i.test(String(j?.error || ""))) {
+          j.error =
+            "O Stock360 Vendas ainda não aceita salvar a correção de um pedido já enviado à Omie. Essa mudança precisa ser feita no Stock360 Vendas.";
+          text = JSON.stringify(j);
+        }
+      } catch { /* mantém */ }
+    }
 
     // Conferência salva de novo: sai da lista de refazer
     if (upstream.ok && acao === "salvar_conferencia" && typeof body.pedido_id === "string") {
@@ -186,7 +209,7 @@ Deno.serve(async (req) => {
         const parsed = JSON.parse(text || "{}");
         if (reabertos && parsed && typeof parsed === "object") {
           const marcar = (p: any) => {
-            const r = p && p.status === "conferido" ? reabertos!.get(String(p.id)) : null;
+            const r = p && REABRIVEIS.has(String(p.status)) ? reabertos!.get(String(p.id)) : null;
             if (r) {
               p.reaberto = true;
               p.reaberto_por = r.reopened_by_name ?? null;
@@ -202,7 +225,7 @@ Deno.serve(async (req) => {
             const pediuConferido = st.includes("conferido");
             parsed.pedidos = parsed.pedidos.filter((p: any) => {
               const re = marcar(p);
-              if (p?.status !== "conferido") return true;
+              if (!REABRIVEIS.has(String(p?.status))) return true;
               // Recebidos: só os reabertos; Conferidos: tira os reabertos
               if (pedeAguardando && !pediuConferido) return re;
               if (!pedeAguardando) return !re;
@@ -242,6 +265,11 @@ Deno.serve(async (req) => {
             await marcarFaturados(pedidos);
           } catch (e) {
             console.error("Faturamento Omie:", (e as Error).message);
+          }
+          // Reaberto que foi faturado nesse meio tempo não volta para Recebidos
+          if (parsed?.pedido?.status === "faturado") parsed.pedido.reaberto = false;
+          if (acao === "listar" && Array.isArray(parsed?.pedidos) && upstreamBody !== body) {
+            parsed.pedidos = parsed.pedidos.filter((p: any) => p?.status !== "faturado");
           }
         }
         return json(parsed, upstream.status);
