@@ -514,12 +514,58 @@ async function fetchVendedorNames(
   return map;
 }
 
+// Busca NF-e por período de emissão (dd/MM/yyyy) — permite achar notas antigas
+// que já saíram da última página da listagem.
+async function fetchNfeByDateRange(from: string, to: string, appKey: string, appSecret: string) {
+  const all: any[] = [];
+  let pagina = 1;
+  let totalPaginas = 1;
+  do {
+    const body = {
+      call: 'ListarNF',
+      app_key: appKey,
+      app_secret: appSecret,
+      param: [{
+        pagina,
+        registros_por_pagina: 100,
+        apenas_importado_api: 'N',
+        dEmiInicial: from,
+        dEmiFinal: to,
+      }],
+    };
+    console.log(`Chamando API Omie NFe por período ${from}–${to}, página ${pagina}`);
+    const res = await fetchWithRetry(`${OMIE_API_URL}/produtos/nfconsultar/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await res.json();
+    if (d.faultstring) {
+      // Período sem notas não é erro
+      if (String(d.faultstring).toLowerCase().includes('não existem registros')) break;
+      throw new Error(`Omie NFe: ${d.faultstring}`);
+    }
+    all.push(...(d.nfCadastro || []));
+    totalPaginas = d.total_de_paginas || 1;
+    pagina++;
+  } while (pagina <= totalPaginas && pagina <= 10);
+  return { pagina: 1, total_de_paginas: 1, total_de_registros: all.length, nfCadastro: all };
+}
+
 // --- Build full result for NFe ---
-async function buildNfeResult(page: number, fetchLastPage: boolean, appKey: string, appSecret: string) {
+async function buildNfeResult(
+  page: number,
+  fetchLastPage: boolean,
+  appKey: string,
+  appSecret: string,
+  range?: { from: string; to: string } | null,
+) {
   let actualPage = page;
   let data: any = null;
 
-  if (fetchLastPage && page === 1) {
+  if (range) {
+    data = await fetchNfeByDateRange(range.from, range.to, appKey, appSecret);
+  } else if (fetchLastPage && page === 1) {
     const discoverBody = {
       call: 'ListarNF',
       app_key: appKey,
