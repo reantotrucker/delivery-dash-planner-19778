@@ -293,13 +293,12 @@ Deno.serve(async (req) => {
     const upstream = await callUpstream(upstreamBody);
     let text = await upstream.text();
 
-    // Correção de pedido já enviado: o Stock360 Vendas ainda precisa aceitar salvar
+    // Pedido já enviado que não passou por "Refazer conferência"
     if (acao === "salvar_conferencia" && upstream.status === 409) {
       try {
         const j = JSON.parse(text || "{}");
         if (/não está aguardando conferência/i.test(String(j?.error || ""))) {
-          j.error =
-            "O Stock360 Vendas ainda não aceita salvar a correção de um pedido já enviado à Omie. Essa mudança precisa ser feita no Stock360 Vendas.";
+          j.error = "Este pedido já foi enviado à Omie. Toque em Refazer conferência antes de alterar.";
           text = JSON.stringify(j);
         }
       } catch { /* mantém */ }
@@ -314,6 +313,12 @@ Deno.serve(async (req) => {
     if (upstream.ok && (acao === "listar" || acao === "relatorio" || acao === "detalhe")) {
       try {
         const parsed = JSON.parse(text || "{}");
+        // Correções feitas aqui depois do envio substituem itens e volumes do Stock360 Vendas
+        try {
+          await aplicarCorrecoes(supabase, parsed);
+        } catch (e) {
+          console.error("Correções:", (e as Error).message);
+        }
         if (reabertos && parsed && typeof parsed === "object") {
           const marcar = (p: any) => {
             const r = p && REABRIVEIS.has(String(p.status)) ? reabertos!.get(String(p.id)) : null;
