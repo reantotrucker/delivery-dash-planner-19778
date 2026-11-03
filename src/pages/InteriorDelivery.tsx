@@ -5,7 +5,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Ship, RefreshCw, Package, MapPin, User, UserCheck, FileCheck } from "lucide-react";
+import { Loader2, Ship, RefreshCw, Package, MapPin, User, UserCheck, FileCheck, Printer } from "lucide-react";
+import { toast } from "sonner";
+import { printInteriorLabel } from "@/lib/printInteriorLabel";
 import { cn } from "@/lib/utils";
 import { interiorCall, InteriorPedido, STATUS_LABEL, brl, clienteNome, fmtDateTime, recebidoDia } from "@/lib/interior";
 import { InteriorConferenceDialog } from "@/components/interior/InteriorConferenceDialog";
@@ -217,10 +219,19 @@ export default function InteriorDelivery() {
             {filtrados.map((p) => {
               const conferido = !!p.interior_conferido_em || p.status !== "aguardando_conferencia";
               return (
-              <button
+              <div
                 key={p.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => setOpen(p.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setOpen(p.id);
+                  }
+                }}
                 className={cn(
+                  "cursor-pointer",
                   "w-full min-w-0 text-left border rounded-xl p-3 sm:p-4 space-y-2 hover:shadow-md active:scale-[0.99] transition-all",
                   conferido
                     ? "bg-success/10 border-success/60 border-l-4 border-l-success hover:border-success"
@@ -270,7 +281,22 @@ export default function InteriorDelivery() {
                 )}
                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
                   <span className="text-xs text-muted-foreground">{(p.itens || []).length} itens</span>
-                  <span className="font-bold tabular-nums whitespace-nowrap">{brl(p.valor_total)}</span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      title="Imprimir etiqueta 100x50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        printInteriorLabel(p).catch((err) => toast.error((err as Error).message));
+                      }}
+                    >
+                      <Printer className="w-3.5 h-3.5 mr-1" /> Etiqueta
+                    </Button>
+                    <span className="font-bold tabular-nums whitespace-nowrap">{brl(p.valor_total)}</span>
+                  </div>
                 </div>
                 {p.status === "faturado" && (
                   <p className="flex items-center gap-1 text-xs text-primary font-medium min-w-0">
@@ -284,7 +310,7 @@ export default function InteriorDelivery() {
                 {p.erro_omie_mensagem && p.status !== "faturado" && (
                   <p className="text-xs text-destructive line-clamp-2 break-words">Omie: {p.erro_omie_mensagem}</p>
                 )}
-              </button>
+              </div>
               );
             })}
           </div>
