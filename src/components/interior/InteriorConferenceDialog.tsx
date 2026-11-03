@@ -472,7 +472,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 className="h-11 sm:h-10"
               >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Send className="w-4 h-4 mr-1" />}
-                Enviar p/ Omie
+                {reenviar || jaEnviado ? "Reenviar p/ Omie" : "Enviar p/ Omie"}
               </Button>
             </div>
           </div>
