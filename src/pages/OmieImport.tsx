@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle, Search, Upload, Camera } from "lucide-react";
+import { FileText, Download, Loader2, MapPin, User, Package, CalendarIcon, ChevronLeft, ChevronRight, CreditCard, ShoppingCart, AlertTriangle, Search, Upload, Camera, Sun, Moon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -174,27 +174,37 @@ export default function OmieImport() {
         .eq('date', format(new Date(), 'yyyy-MM-dd'))
         .not('driver_id', 'is', null);
       type Bairro = { name: string; zona: string | null; count: number };
-      const map = new Map<string, { id: string; name: string; color: string; manha: number; tarde: number; bairros: Map<string, Bairro> }>();
+      type Turno = 'MANHA' | 'TARDE';
+      const map = new Map<string, { id: string; name: string; color: string; manha: number; tarde: number; bairros: Record<Turno, Map<string, Bairro>> }>();
       const isManaus = getActiveCity().city.toLowerCase() === 'manaus';
       (data || []).forEach((r: any) => {
-        const cur = map.get(r.driver_id) || { id: r.driver_id, name: r.driver?.name || '—', color: r.driver?.color || 'hsl(var(--primary))', manha: 0, tarde: 0, bairros: new Map() };
-        if (r.period === 'MANHA') cur.manha++; else cur.tarde++;
+        const cur = map.get(r.driver_id) || { id: r.driver_id, name: r.driver?.name || '—', color: r.driver?.color || 'hsl(var(--primary))', manha: 0, tarde: 0, bairros: { MANHA: new Map(), TARDE: new Map() } };
+        const turno: Turno = r.period === 'MANHA' ? 'MANHA' : 'TARDE';
+        if (turno === 'MANHA') cur.manha++; else cur.tarde++;
         const key = normalizeBairro(r.neighborhood);
         if (key && key !== 'N A') {
-          const b = cur.bairros.get(key) || { name: (r.neighborhood || '').trim(), zona: isManaus ? zonaManaus(r.neighborhood) : null, count: 0 };
+          const bm = cur.bairros[turno];
+          const b = bm.get(key) || { name: (r.neighborhood || '').trim(), zona: isManaus ? zonaManaus(r.neighborhood) : null, count: 0 };
           b.count++;
-          cur.bairros.set(key, b);
+          bm.set(key, b);
         }
         map.set(r.driver_id, cur);
       });
+      const resumo = (bm: Map<string, Bairro>) => {
+        const bairros = Array.from(bm.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+        const zonasMap = new Map<string, number>();
+        bairros.forEach((b) => { if (b.zona) zonasMap.set(b.zona, (zonasMap.get(b.zona) || 0) + b.count); });
+        const zonas = ZONA_ORDER.filter((z) => zonasMap.has(z)).map((z) => ({ zona: z, count: zonasMap.get(z)! }));
+        return { bairros, zonas };
+      };
       return Array.from(map.values())
-        .map((d) => {
-          const bairros = Array.from(d.bairros.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-          const zonasMap = new Map<string, number>();
-          bairros.forEach((b) => { if (b.zona) zonasMap.set(b.zona, (zonasMap.get(b.zona) || 0) + b.count); });
-          const zonas = ZONA_ORDER.filter((z) => zonasMap.has(z)).map((z) => ({ zona: z, count: zonasMap.get(z)! }));
-          return { id: d.id, name: d.name, color: d.color, manha: d.manha, tarde: d.tarde, bairros, zonas };
-        })
+        .map((d) => ({
+          id: d.id, name: d.name, color: d.color, manha: d.manha, tarde: d.tarde,
+          turnos: [
+            { key: 'MANHA' as Turno, label: 'Manhã', total: d.manha, ...resumo(d.bairros.MANHA) },
+            { key: 'TARDE' as Turno, label: 'Tarde', total: d.tarde, ...resumo(d.bairros.TARDE) },
+          ].filter((t) => t.total > 0),
+        }))
         .sort((a, b) => a.name.localeCompare(b.name));
     },
   });
@@ -751,29 +761,37 @@ export default function OmieImport() {
                       <p className="text-muted-foreground uppercase">Total</p>
                     </div>
                   </div>
-                  {d.zonas.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {d.zonas.map((z) => (
-                        <span key={z.zona} className="rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary leading-none">
-                          {z.zona === 'Rural' ? 'Rural' : `Z. ${z.zona}`} · {z.count}
-                        </span>
-                      ))}
+                  {d.turnos.map((t) => (
+                    <div key={t.key} className="mt-2 border-t border-border/60 pt-1.5">
+                      <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-foreground">
+                        {t.key === 'MANHA' ? <Sun className="w-3 h-3 text-primary" /> : <Moon className="w-3 h-3 text-primary" />}
+                        {t.label} · {t.total}
+                      </p>
+                      {t.zonas.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {t.zonas.map((z) => (
+                            <span key={z.zona} className="rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary leading-none">
+                              {z.zona === 'Rural' ? 'Rural' : `Z. ${z.zona}`} · {z.count}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {t.bairros.length > 0 && (
+                        <p
+                          className="mt-1 text-[11px] leading-snug text-muted-foreground line-clamp-2"
+                          title={t.bairros.map((b) => `${b.name} (${b.count})${b.zona ? ` · ${b.zona}` : ''}`).join('\n')}
+                        >
+                          {t.bairros.map((b, i) => (
+                            <span key={b.name + i}>
+                              {i > 0 && ' · '}
+                              <span className="text-foreground/90">{b.name}</span>
+                              {b.count > 1 && <span className="tabular-nums"> ({b.count})</span>}
+                            </span>
+                          ))}
+                        </p>
+                      )}
                     </div>
-                  )}
-                  {d.bairros.length > 0 && (
-                    <p
-                      className="mt-1.5 text-[11px] leading-snug text-muted-foreground line-clamp-3"
-                      title={d.bairros.map((b) => `${b.name} (${b.count})${b.zona ? ` · ${b.zona}` : ''}`).join('\n')}
-                    >
-                      {d.bairros.map((b, i) => (
-                        <span key={b.name + i}>
-                          {i > 0 && ' · '}
-                          <span className="text-foreground/90">{b.name}</span>
-                          {b.count > 1 && <span className="tabular-nums"> ({b.count})</span>}
-                        </span>
-                      ))}
-                    </p>
-                  )}
+                  ))}
                 </div>
               ))}
             </div>
