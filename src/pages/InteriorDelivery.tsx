@@ -9,7 +9,7 @@ import { Loader2, Ship, RefreshCw, Package, MapPin, User, UserCheck, FileCheck, 
 import { toast } from "sonner";
 import { printInteriorLabel } from "@/lib/printInteriorLabel";
 import { cn } from "@/lib/utils";
-import { interiorCall, InteriorPedido, STATUS_LABEL, brl, clienteNome, fmtDateTime, recebidoDia } from "@/lib/interior";
+import { interiorCall, InteriorPedido, STATUS_LABEL, brl, clienteFantasia, clienteRazao, fmtDateTime, recebidoDia } from "@/lib/interior";
 import { InteriorConferenceDialog } from "@/components/interior/InteriorConferenceDialog";
 import { InteriorReports } from "@/components/interior/InteriorReports";
 
@@ -257,7 +257,15 @@ export default function InteriorDelivery() {
                     {p.reaberto_motivo ? ` · ${p.reaberto_motivo}` : ""}
                   </p>
                 )}
-                <p className="font-semibold leading-snug line-clamp-2 break-words">{clienteNome(p)}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold leading-snug line-clamp-2 break-words">{clienteRazao(p)}</p>
+                  {clienteFantasia(p) && (
+                    <p className="text-xs leading-snug break-words">
+                      <span className="text-muted-foreground">Fantasia: </span>
+                      <span className="font-medium">{clienteFantasia(p)}</span>
+                    </p>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground min-w-0">
                   <span className="flex items-center gap-1 min-w-0">
                     <MapPin className="w-3 h-3 flex-shrink-0" />
