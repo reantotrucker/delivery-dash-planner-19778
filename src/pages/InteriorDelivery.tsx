@@ -251,7 +251,7 @@ export default function InteriorDelivery() {
                   </Badge>
                 </div>
                 {reaberto && (
-                  <p className="text-[11px] text-warning-foreground bg-warning/20 rounded px-2 py-1 break-words">
+                  <p className="text-[11px] text-foreground bg-warning/20 rounded px-2 py-1 break-words">
                     Voltou para conferir{p.reaberto_por ? ` · ${p.reaberto_por}` : ""}
                     {p.reaberto_em ? ` · ${fmtDateTime(p.reaberto_em)}` : ""}
                     {p.reaberto_motivo ? ` · ${p.reaberto_motivo}` : ""}
