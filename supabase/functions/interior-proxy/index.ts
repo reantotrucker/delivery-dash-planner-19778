@@ -117,13 +117,90 @@ Deno.serve(async (req) => {
       }
     }
 
-    const upstream = await callUpstream(body);
+    // Pedidos conferidos (ainda não enviados) que voltaram para conferir de novo
+    const carregarReabertos = async () => {
+      const { data } = await supabase
+        .from("interior_reopened_orders")
+        .select("pedido_id, reopened_by_name, reopened_at, motivo");
+      return new Map((data || []).map((r: any) => [String(r.pedido_id), r]));
+    };
+
+    // Refazer conferência: só para pedido conferido que ainda não foi para a Omie
+    if (acao === "reabrir") {
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+      const { data: isComercial } = await supabase.rpc("has_role", { _user_id: userId, _role: "comercial" });
+      if (isComercial && !isAdmin) return json({ error: "O comercial não pode refazer conferências" }, 403);
+      const pedidoId = typeof body.pedido_id === "string" ? body.pedido_id.trim() : "";
+      if (!/^[0-9a-f-]{36}$/i.test(pedidoId)) return json({ error: "Pedido inválido" }, 400);
+      const det = await callUpstream({ acao: "detalhe", pedido_id: pedidoId });
+      const dj = await det.json().catch(() => null);
+      const p = dj?.pedido;
+      if (!p) return json({ error: "Pedido não encontrado" }, 404);
+      if (p.status !== "conferido") {
+        return json({ error: "Só dá para refazer a conferência de pedido conferido que ainda não foi enviado à Omie" }, 409);
+      }
+      const str = (v: unknown, max: number) => (v == null ? null : String(v).slice(0, max) || null);
+      const { error: insErr } = await supabase.from("interior_reopened_orders").upsert(
+        {
+          pedido_id: pedidoId,
+          numero_pedido: str(p.numero_pedido, 50),
+          motivo: str(body.motivo, 500),
+          reopened_by: userId,
+          reopened_by_name: String(usuario).slice(0, 200),
+          reopened_at: new Date().toISOString(),
+        },
+        { onConflict: "pedido_id" },
+      );
+      if (insErr) return json({ error: insErr.message }, 400);
+      return json({ success: true });
+    }
+
+    // Lista de "Recebidos" também traz os conferidos que voltaram para conferência
+    let upstreamBody: Record<string, unknown> = body;
+    let reabertos: Map<string, any> | null = null;
+    if (acao === "listar" || acao === "detalhe") {
+      reabertos = await carregarReabertos();
+      const st = Array.isArray(body.status) ? body.status.map(String) : [];
+      if (acao === "listar" && st.includes("aguardando_conferencia") && reabertos.size && !st.includes("conferido")) {
+        upstreamBody = { ...body, status: [...st, "conferido"] };
+      }
+    }
+
+    const upstream = await callUpstream(upstreamBody);
     const text = await upstream.text();
+
+    // Conferência salva de novo: sai da lista de refazer
+    if (upstream.ok && acao === "salvar_conferencia" && typeof body.pedido_id === "string") {
+      await supabase.from("interior_reopened_orders").delete().eq("pedido_id", body.pedido_id);
+    }
 
     // Remove pedidos excluídos pelo admin da lista e dos relatórios; acrescenta o código do produto
     if (upstream.ok && (acao === "listar" || acao === "relatorio" || acao === "detalhe")) {
       try {
         const parsed = JSON.parse(text || "{}");
+        if (reabertos && parsed && typeof parsed === "object") {
+          const marcar = (p: any) => {
+            const r = p && p.status === "conferido" ? reabertos!.get(String(p.id)) : null;
+            if (r) {
+              p.reaberto = true;
+              p.reaberto_por = r.reopened_by_name ?? null;
+              p.reaberto_em = r.reopened_at ?? null;
+              p.reaberto_motivo = r.motivo ?? null;
+            }
+            return !!r;
+          };
+          if (parsed.pedido) marcar(parsed.pedido);
+          if (acao === "listar" && Array.isArray(parsed.pedidos)) {
+            const st = Array.isArray(body.status) ? body.status.map(String) : [];
+            const pedeAguardando = st.includes("aguardando_conferencia");
+            parsed.pedidos = parsed.pedidos.filter((p: any) => {
+              const re = marcar(p);
+              if (p?.status !== "conferido") return true;
+              // Recebidos: só os reabertos; Conferidos: tira os reabertos
+              return pedeAguardando ? re || st.includes("conferido") && !reabertos!.size : !re;
+            });
+          }
+        }
         if (acao !== "detalhe") {
           const { data: excl } = await supabase.from("interior_excluded_orders").select("pedido_id");
           const ids = new Set((excl || []).map((e: { pedido_id: string }) => String(e.pedido_id)));
