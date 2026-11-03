@@ -50,6 +50,7 @@ export default function UserManagement() {
   const [editing, setEditing] = useState<Profile | null>(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
   const [deleting, setDeleting] = useState<Profile | null>(null);
 
   const { data: profiles, isLoading } = useQuery({
@@ -137,8 +138,8 @@ export default function UserManagement() {
   });
 
   const editMutation = useMutation({
-    mutationFn: async ({ userId, fullName, email }: { userId: string; fullName: string; email: string }) => {
-      const { data, error } = await supabase.functions.invoke('admin-update-user', { body: { userId, fullName, email } });
+    mutationFn: async ({ userId, fullName, email, password }: { userId: string; fullName: string; email: string; password?: string }) => {
+      const { data, error } = await supabase.functions.invoke('admin-update-user', { body: { userId, fullName, email, password: password || undefined } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
     },
@@ -312,7 +313,7 @@ export default function UserManagement() {
                           <Button
                             variant="outline"
                             size="icon"
-                            onClick={() => { setEditing(profile); setEditName(profile.full_name); setEditEmail(profile.email); }}
+                            onClick={() => { setEditing(profile); setEditName(profile.full_name); setEditEmail(profile.email); setEditPassword(""); }}
                             title="Editar nome"
                           >
                             <Pencil className="h-4 w-4" />
@@ -351,12 +352,25 @@ export default function UserManagement() {
               <Label>Nome completo</Label>
               <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label>Nova senha</Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Deixe em branco para não mudar"
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+              />
+              {editPassword.length > 0 && editPassword.length < 6 && (
+                <p className="text-xs text-destructive">Mínimo de 6 caracteres</p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
             <Button
-              onClick={() => editing && editMutation.mutate({ userId: editing.id, fullName: editName, email: editEmail })}
-              disabled={editMutation.isPending || !editName.trim() || !editEmail.trim()}
+              onClick={() => editing && editMutation.mutate({ userId: editing.id, fullName: editName, email: editEmail, password: editPassword })}
+              disabled={editMutation.isPending || !editName.trim() || !editEmail.trim() || (editPassword.length > 0 && editPassword.length < 6)}
             >
               {editMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Salvar

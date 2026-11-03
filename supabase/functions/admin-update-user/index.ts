@@ -24,8 +24,16 @@ Deno.serve(async (req) => {
     const { data: roleData } = await admin.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
     if (!roleData) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const { userId, email, fullName } = await req.json();
+    const { userId, email, fullName, password } = await req.json();
     if (!userId) return new Response(JSON.stringify({ error: "Missing userId" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    if (typeof password === "string" && password.length > 0) {
+      if (password.length < 6) {
+        return new Response(JSON.stringify({ error: "A senha precisa ter pelo menos 6 caracteres" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { error: pwErr } = await admin.auth.admin.updateUserById(userId, { password });
+      if (pwErr) throw pwErr;
+    }
 
     if (email && typeof email === "string") {
       const trimmed = email.trim().toLowerCase();
