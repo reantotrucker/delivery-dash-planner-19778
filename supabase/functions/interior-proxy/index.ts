@@ -116,11 +116,118 @@ Deno.serve(async (req) => {
         .eq("pedido_id", String(body.pedido_id ?? ""))
         .maybeSingle();
       if (re) return json({ success: false, error: "Este pedido voltou para conferência. Salve a nova conferência antes de enviar." });
+
+      // Correção de pedido já enviado (guardada aqui): altera o mesmo pedido direto na Omie
+      const pedidoId = String(body.pedido_id ?? "");
+      if (/^[0-9a-f-]{36}$/i.test(pedidoId)) {
+        const { data: corr } = await supabase
+          .from("interior_corrections")
+          .select("*")
+          .eq("pedido_id", pedidoId)
+          .maybeSingle();
+        if (corr && !corr.enviado_omie_at) {
+          const det = await callUpstream({ acao: "detalhe", pedido_id: pedidoId });
+          const dj = await det.json().catch(() => null);
+          const p = dj?.pedido;
+          if (!p?.numero_pedido_omie || !ENVIADOS.has(String(p.status))) {
+            return json({ success: false, error: "Não encontrei este pedido na Omie para corrigir." });
+          }
+          try {
+            const codigo = await enviarCorrecaoNaOmie(
+              String(p.numero_pedido_omie),
+              Array.isArray(corr.itens) ? corr.itens : [],
+              Number(corr.qtd_volumes),
+            );
+            const hist = Array.isArray(corr.historico) ? corr.historico : [];
+            const agora = new Date().toISOString();
+            await supabase
+              .from("interior_corrections")
+              .update({
+                enviado_omie_at: agora,
+                erro_omie: null,
+                historico: [...hist, { acao: "alterado_omie", usuario, created_at: agora }],
+              })
+              .eq("pedido_id", pedidoId);
+            await limparCacheFaturamento(String(p.numero_pedido_omie));
+            return json({ success: true, alterado: true, codigo_pedido_omie: codigo });
+          } catch (e) {
+            const msg = (e as Error).message || "Erro ao corrigir o pedido na Omie";
+            await supabase.from("interior_corrections").update({ erro_omie: msg.slice(0, 1000) }).eq("pedido_id", pedidoId);
+            return json({ success: false, error: msg });
+          }
+        }
+      }
+
       try {
         const msg = await removerItensExcluidosNaOmie(callUpstream, String(body.pedido_id ?? ""));
         if (msg) return json({ success: false, error: msg });
       } catch (e) {
         return json({ success: false, error: (e as Error).message || "Erro ao preparar o pedido na Omie" });
+      }
+    }
+
+    // Salvar a nova conferência de um pedido já enviado à Omie (o Stock360 Vendas não aceita):
+    // guarda a correção aqui; depois "Reenviar p/ Omie" altera o mesmo pedido na Omie.
+    if (acao === "salvar_conferencia" && typeof body.pedido_id === "string" && /^[0-9a-f-]{36}$/i.test(body.pedido_id)) {
+      const pedidoId = body.pedido_id;
+      const [{ data: re }, { data: corr }] = await Promise.all([
+        supabase.from("interior_reopened_orders").select("pedido_id").eq("pedido_id", pedidoId).maybeSingle(),
+        supabase.from("interior_corrections").select("*").eq("pedido_id", pedidoId).maybeSingle(),
+      ]);
+      const pendente = !!corr && !corr.enviado_omie_at;
+      if (re || pendente) {
+        const det = await callUpstream({ acao: "detalhe", pedido_id: pedidoId });
+        const dj = await det.json().catch(() => null);
+        const p = dj?.pedido;
+        if (p && ENVIADOS.has(String(p.status))) {
+          const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+          const { data: isComercial } = await supabase.rpc("has_role", { _user_id: userId, _role: "comercial" });
+          if (isComercial && !isAdmin) return json({ error: "O comercial não pode alterar a conferência" }, 403);
+          if (p.numero_pedido_omie) {
+            try {
+              const fat = await consultarFaturamento(String(p.numero_pedido_omie));
+              if (fat.faturado) {
+                return json({ error: "Este pedido já foi faturado na Omie. A correção precisa ser feita direto na Omie." }, 409);
+              }
+            } catch (e) {
+              return json({ error: `Não consegui confirmar na Omie se o pedido foi faturado. Tente de novo. [${(e as Error).message}]` }, 502);
+            }
+          }
+          const base: any[] = corr && Array.isArray(corr.itens) && corr.itens.length ? corr.itens : (p.itens || []);
+          let r: ReturnType<typeof aplicarConferencia>;
+          try {
+            r = aplicarConferencia(base, Array.isArray(body.alteracoes) ? body.alteracoes : []);
+          } catch (e) {
+            return json({ error: (e as Error).message }, 400);
+          }
+          const agora = new Date().toISOString();
+          const volAntes = corr ? Number(corr.qtd_volumes) : (p.qtd_volumes == null ? null : Number(p.qtd_volumes));
+          const vol = Number(body.qtd_volumes);
+          const novos = r.logs.map((l) => ({ ...l, usuario, created_at: agora }));
+          if (volAntes !== vol) {
+            novos.push({ acao: "volumes", descricao: `Volumes: ${volAntes ?? "—"} → ${vol}`, usuario, created_at: agora } as any);
+          }
+          const hist = corr && Array.isArray(corr.historico) ? corr.historico : [];
+          const { error: upErr } = await supabase.from("interior_corrections").upsert(
+            {
+              pedido_id: pedidoId,
+              numero_pedido: p.numero_pedido == null ? null : String(p.numero_pedido).slice(0, 50),
+              itens: r.itens,
+              qtd_volumes: vol,
+              valor_total: r.total,
+              historico: [...hist, { acao: "correcao_pos_envio", usuario, created_at: agora }, ...novos],
+              corrigido_by: userId,
+              corrigido_by_name: String(usuario).slice(0, 200),
+              corrigido_at: agora,
+              enviado_omie_at: null,
+              erro_omie: null,
+            },
+            { onConflict: "pedido_id" },
+          );
+          if (upErr) return json({ error: upErr.message }, 400);
+          await supabase.from("interior_reopened_orders").delete().eq("pedido_id", pedidoId);
+          return json({ success: true, alteracoes: r.logs.length, correcao: true });
+        }
       }
     }
 
