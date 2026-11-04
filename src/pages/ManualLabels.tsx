@@ -117,6 +117,8 @@ export default function ManualLabels() {
   }, [companyId, loadTemplates]);
 
   const seq = useMemo(() => labelSequence(form), [form]);
+  const livre = form.modo === "livre";
+  const numerado = form.numerar && !livre;
 
   const setTotal = (raw: string) => {
     const n = Math.max(1, Math.min(999, parseInt(raw, 10) || 1));
@@ -124,15 +126,16 @@ export default function ManualLabels() {
   };
 
   const handlePrint = () => {
-    if (!form.destinatario.trim()) {
-      toast.error("Informe o destinatário");
+    if (livre ? !form.texto.trim() : !form.destinatario.trim()) {
+      toast.error(livre ? "Escreva o texto da etiqueta" : "Informe o destinatário");
       return;
     }
     printLabels(form, sender);
   };
 
   const handleSave = async (asNew: boolean) => {
-    const name = templateName.trim() || form.destinatario.trim();
+    const name =
+      templateName.trim() || (livre ? form.texto.trim().split("\n")[0].slice(0, 40) : form.destinatario.trim());
     if (!name) {
       toast.error("Dê um nome para salvar a etiqueta");
       return;
