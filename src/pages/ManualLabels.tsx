@@ -371,7 +371,7 @@ export default function ManualLabels() {
               <Input
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
-                placeholder={form.destinatario || "Ex.: Cliente X – Barco"}
+                placeholder={(livre ? form.texto.split("\n")[0] : form.destinatario) || "Ex.: Cliente X – Barco"}
               />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -420,10 +420,12 @@ export default function ManualLabels() {
                   <button type="button" onClick={() => loadTemplate(t)} className="flex-1 min-w-0 text-left">
                     <div className="font-semibold text-sm text-foreground truncate">{t.name}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {[t.data.destinatario, [t.data.cidade, t.data.uf].filter(Boolean).join("/")].filter(Boolean).join(" · ")}
+                      {t.data.modo === "livre"
+                        ? `Em branco · ${(t.data.texto || "").split("\n")[0]}`
+                        : [t.data.destinatario, [t.data.cidade, t.data.uf].filter(Boolean).join("/")].filter(Boolean).join(" · ")}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
-                      {t.data.numerar ? `${t.data.total} vol.` : `${t.data.total} cópia(s)`}
+                      {t.data.numerar && t.data.modo !== "livre" ? `${t.data.total} vol.` : `${t.data.total} cópia(s)`}
                     </div>
                   </button>
                   <Button
