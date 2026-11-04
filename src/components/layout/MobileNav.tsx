@@ -1,4 +1,4 @@
-import { Home, BarChart3, Settings, Shield, LogOut, AlertTriangle, MapPin, MapPinned, PackageCheck, Radio, ClipboardList, Users, GitCompare, Ship } from "lucide-react";
+import { Home, BarChart3, Settings, Shield, LogOut, AlertTriangle, MapPin, MapPinned, PackageCheck, Radio, ClipboardList, Users, GitCompare, Ship, Tag } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,7 @@ const navItems = [
   { title: "Locais", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Resumo", url: "/daily-summary", icon: ClipboardList, adminOnly: false },
   { title: "Interior", url: "/interior", icon: Ship, adminOnly: false, stockOnly: true },
+  { title: "Etiqueta", url: "/labels", icon: Tag, adminOnly: false },
   
   { title: "Lojas", url: "/comparison", icon: GitCompare, adminOnly: true },
   { title: "Relatórios", url: "/reports", icon: BarChart3, adminOnly: false },

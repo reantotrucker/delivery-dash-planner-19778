@@ -19,6 +19,7 @@ import StoreComparison from "./pages/StoreComparison";
 import Expedition from "./pages/Expedition";
 import TvPanel from "./pages/TvPanel";
 import InteriorDelivery from "./pages/InteriorDelivery";
+import ManualLabels from "./pages/ManualLabels";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
 import { useAuth } from "./hooks/useAuth";
@@ -143,6 +144,14 @@ const App = () => (
               element={
                 <ProtectedWithLayout>
                   <InteriorDelivery />
+                </ProtectedWithLayout>
+              }
+            />
+            <Route
+              path="/labels"
+              element={
+                <ProtectedWithLayout>
+                  <ManualLabels />
                 </ProtectedWithLayout>
               }
             />
