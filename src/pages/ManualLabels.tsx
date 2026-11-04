@@ -27,7 +27,6 @@ import {
   EtiquetaManual,
   LABEL_FONTS,
   LABEL_FONTS_URL,
-  labelFontCss,
   ManualLabelData,
   ManualLabelSender,
   emptyManualLabel,
