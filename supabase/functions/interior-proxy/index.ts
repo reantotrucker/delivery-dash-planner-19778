@@ -573,17 +573,21 @@ async function preencherCodigosProduto(pedidos: any[]) {
     .eq("cache_key", CATALOGO_KEY)
     .maybeSingle();
 
-  let mapa: Record<string, string> = (cache?.cache_value as any)?.mapa ?? {};
-  const valido = cache && new Date(cache.expires_at).getTime() > Date.now();
-  const temFalta = faltando.some((i) => !mapa[String(i.codigo_produto_omie)]);
-  const podeRecarregar = !cache || Date.now() - new Date(cache.created_at).getTime() > CATALOGO_REFRESH_MIN_MS;
+  let cat: Catalogo = {
+    mapa: (cache?.cache_value as any)?.mapa ?? {},
+    nomes: (cache?.cache_value as any)?.nomes ?? {},
+  };
+  const semNomes = !(cache?.cache_value as any)?.nomes; // cache antigo, sem a busca por nome
+  const valido = cache && !semNomes && new Date(cache.expires_at).getTime() > Date.now();
+  const temFalta = faltando.some((i) => !codigoDe(i, cat));
+  const podeRecarregar = !cache || semNomes || Date.now() - new Date(cache.created_at).getTime() > CATALOGO_REFRESH_MIN_MS;
 
   if (!valido || (temFalta && podeRecarregar)) {
     try {
-      mapa = await carregarCatalogoOmie();
+      cat = await carregarCatalogoOmie();
       await admin.from("omie_cache").upsert({
         cache_key: CATALOGO_KEY,
-        cache_value: { mapa },
+        cache_value: cat,
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + CATALOGO_TTL_MS).toISOString(),
       });
@@ -593,7 +597,7 @@ async function preencherCodigosProduto(pedidos: any[]) {
   }
 
   for (const i of faltando) {
-    const c = mapa[String(i.codigo_produto_omie)];
+    const c = codigoDe(i, cat);
     if (c) i.codigo_sku = c;
   }
 }
