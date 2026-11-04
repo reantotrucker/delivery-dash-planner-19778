@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +25,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   EtiquetaManual,
+  LABEL_FONTS,
+  LABEL_FONTS_URL,
   ManualLabelData,
   ManualLabelSender,
   emptyManualLabel,
@@ -50,7 +54,7 @@ async function printLabels(d: ManualLabelData, sender: ManualLabelSender | null)
   idoc.open();
   idoc.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <title>Etiquetas</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="${LABEL_FONTS_URL}" rel="stylesheet">
 <style>
   @page { size: 100mm 50mm; margin: 0; }
   html, body { margin: 0; padding: 0; background: #FFFFFF; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -88,6 +92,17 @@ export default function ManualLabels() {
 
   const set = <K extends keyof ManualLabelData>(k: K, v: ManualLabelData[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
+
+  // Carrega as fontes da etiqueta para a prévia
+  useEffect(() => {
+    const id = "label-fonts-link";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = LABEL_FONTS_URL;
+    document.head.appendChild(link);
+  }, []);
 
   const loadTemplates = useCallback(async () => {
     if (!companyId) return;
@@ -248,7 +263,9 @@ export default function ManualLabels() {
                   onChange={(e) => set("texto", e.target.value)}
                   placeholder="Escreva o que quiser. Cada linha sai em uma linha da etiqueta."
                 />
-                <p className="text-xs text-muted-foreground">A letra se ajusta sozinha para caber na etiqueta.</p>
+                <p className="text-xs text-muted-foreground">
+                  {form.tamanho > 0 ? "Tamanho da letra escolhido abaixo." : "A letra se ajusta sozinha para caber na etiqueta."}
+                </p>
               </div>
             ) : (
             <>
@@ -304,6 +321,71 @@ export default function ManualLabels() {
             </div>
             </>
             )}
+            <div className="space-y-4 rounded-md border border-border p-3">
+              <h3 className="font-semibold text-sm text-foreground">Letra</h3>
+              <div className="space-y-1.5">
+                <Label>Fonte</Label>
+                <Select value={form.fonte || "inter"} onValueChange={(v) => set("fonte", v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LABEL_FONTS.map((f) => (
+                      <SelectItem key={f.key} value={f.key}>
+                        <span style={{ fontFamily: f.css }}>{f.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {livre ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="auto-size" className="font-semibold">Tamanho automático</Label>
+                    <Switch
+                      id="auto-size"
+                      checked={!form.tamanho}
+                      onCheckedChange={(v) => set("tamanho", v ? 0 : 28)}
+                    />
+                  </div>
+                  {form.tamanho > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label>Tamanho da letra</Label>
+                        <Input
+                          type="number"
+                          min={6}
+                          max={150}
+                          value={form.tamanho}
+                          onChange={(e) => set("tamanho", Math.max(6, Math.min(150, parseInt(e.target.value, 10) || 6)))}
+                          className="w-20 h-8"
+                        />
+                      </div>
+                      <Slider min={6} max={150} step={1} value={[form.tamanho]} onValueChange={([v]) => set("tamanho", v)} />
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="bold" className="font-semibold">Negrito</Label>
+                    <Switch id="bold" checked={form.negrito !== false} onCheckedChange={(v) => set("negrito", v)} />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Tamanho das letras</Label>
+                    <span className="text-sm font-semibold text-foreground tabular-nums">{form.escala || 100}%</span>
+                  </div>
+                  <Slider
+                    min={60}
+                    max={160}
+                    step={5}
+                    value={[form.escala || 100]}
+                    onValueChange={([v]) => set("escala", v)}
+                  />
+                  <p className="text-xs text-muted-foreground">Letras grandes demais podem cortar textos longos — confira na prévia.</p>
+                </div>
+              )}
+            </div>
           </Card>
 
           <Card className="p-4 md:p-5 space-y-4">
