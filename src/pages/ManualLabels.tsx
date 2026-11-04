@@ -220,6 +220,38 @@ export default function ManualLabels() {
               </Button>
             </div>
 
+            <div className="grid grid-cols-2 gap-2 rounded-md bg-muted p-1">
+              {([
+                ["modelo", "Com campos"],
+                ["livre", "Em branco"],
+              ] as const).map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => set("modo", m)}
+                  className={cn(
+                    "rounded px-3 py-2 text-sm font-semibold transition-colors",
+                    form.modo === m ? "bg-background text-foreground shadow" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {livre ? (
+              <div className="space-y-1.5">
+                <Label>Texto da etiqueta</Label>
+                <Textarea
+                  rows={6}
+                  value={form.texto}
+                  onChange={(e) => set("texto", e.target.value)}
+                  placeholder="Escreva o que quiser. Cada linha sai em uma linha da etiqueta."
+                />
+                <p className="text-xs text-muted-foreground">A letra se ajusta sozinha para caber na etiqueta.</p>
+              </div>
+            ) : (
+            <>
             <div className="flex items-center justify-between rounded-md border border-border p-3">
               <div>
                 <Label htmlFor="show-sender" className="font-semibold">Mostrar remetente</Label>
@@ -270,10 +302,13 @@ export default function ManualLabels() {
                 <Textarea rows={2} value={form.observacao} onChange={(e) => set("observacao", e.target.value)} placeholder="Ex.: Barco Leão do Norte · Frágil" />
               </div>
             </div>
+            </>
+            )}
           </Card>
 
           <Card className="p-4 md:p-5 space-y-4">
             <h2 className="font-bold text-foreground">Quantidade</h2>
+            {!livre && (
             <div className="flex items-center justify-between rounded-md border border-border p-3">
               <div>
                 <Label htmlFor="numerar" className="font-semibold">Numerar volumes (1/N, 2/N…)</Label>
@@ -281,12 +316,13 @@ export default function ManualLabels() {
               </div>
               <Switch id="numerar" checked={form.numerar} onCheckedChange={(v) => set("numerar", v)} />
             </div>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label>{form.numerar ? "Total de volumes" : "Cópias"}</Label>
+                <Label>{numerado ? "Total de volumes" : "Cópias"}</Label>
                 <Input type="number" min={1} max={999} value={form.total} onChange={(e) => setTotal(e.target.value)} />
               </div>
-              {form.numerar && (
+              {numerado && (
                 <>
                   <div className="space-y-1.5">
                     <Label>Imprimir de</Label>
@@ -314,7 +350,7 @@ export default function ManualLabels() {
             <p className="text-sm text-muted-foreground">
               Vai imprimir <strong className="text-foreground">{seq.length}</strong>{" "}
               {seq.length === 1 ? "etiqueta" : "etiquetas"}
-              {form.numerar && seq.length > 0 && (
+              {numerado && seq.length > 0 && (
                 <> — {seq[0]}/{form.total} até {seq[seq.length - 1]}/{form.total}</>
               )}
             </p>
