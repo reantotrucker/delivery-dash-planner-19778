@@ -117,6 +117,8 @@ export default function ManualLabels() {
   }, [companyId, loadTemplates]);
 
   const seq = useMemo(() => labelSequence(form), [form]);
+  const livre = form.modo === "livre";
+  const numerado = form.numerar && !livre;
 
   const setTotal = (raw: string) => {
     const n = Math.max(1, Math.min(999, parseInt(raw, 10) || 1));
@@ -124,15 +126,16 @@ export default function ManualLabels() {
   };
 
   const handlePrint = () => {
-    if (!form.destinatario.trim()) {
-      toast.error("Informe o destinatário");
+    if (livre ? !form.texto.trim() : !form.destinatario.trim()) {
+      toast.error(livre ? "Escreva o texto da etiqueta" : "Informe o destinatário");
       return;
     }
     printLabels(form, sender);
   };
 
   const handleSave = async (asNew: boolean) => {
-    const name = templateName.trim() || form.destinatario.trim();
+    const name =
+      templateName.trim() || (livre ? form.texto.trim().split("\n")[0].slice(0, 40) : form.destinatario.trim());
     if (!name) {
       toast.error("Dê um nome para salvar a etiqueta");
       return;
@@ -217,6 +220,38 @@ export default function ManualLabels() {
               </Button>
             </div>
 
+            <div className="grid grid-cols-2 gap-2 rounded-md bg-muted p-1">
+              {([
+                ["modelo", "Com campos"],
+                ["livre", "Em branco"],
+              ] as const).map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => set("modo", m)}
+                  className={cn(
+                    "rounded px-3 py-2 text-sm font-semibold transition-colors",
+                    form.modo === m ? "bg-background text-foreground shadow" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {livre ? (
+              <div className="space-y-1.5">
+                <Label>Texto da etiqueta</Label>
+                <Textarea
+                  rows={6}
+                  value={form.texto}
+                  onChange={(e) => set("texto", e.target.value)}
+                  placeholder="Escreva o que quiser. Cada linha sai em uma linha da etiqueta."
+                />
+                <p className="text-xs text-muted-foreground">A letra se ajusta sozinha para caber na etiqueta.</p>
+              </div>
+            ) : (
+            <>
             <div className="flex items-center justify-between rounded-md border border-border p-3">
               <div>
                 <Label htmlFor="show-sender" className="font-semibold">Mostrar remetente</Label>
@@ -267,10 +302,13 @@ export default function ManualLabels() {
                 <Textarea rows={2} value={form.observacao} onChange={(e) => set("observacao", e.target.value)} placeholder="Ex.: Barco Leão do Norte · Frágil" />
               </div>
             </div>
+            </>
+            )}
           </Card>
 
           <Card className="p-4 md:p-5 space-y-4">
             <h2 className="font-bold text-foreground">Quantidade</h2>
+            {!livre && (
             <div className="flex items-center justify-between rounded-md border border-border p-3">
               <div>
                 <Label htmlFor="numerar" className="font-semibold">Numerar volumes (1/N, 2/N…)</Label>
@@ -278,12 +316,13 @@ export default function ManualLabels() {
               </div>
               <Switch id="numerar" checked={form.numerar} onCheckedChange={(v) => set("numerar", v)} />
             </div>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label>{form.numerar ? "Total de volumes" : "Cópias"}</Label>
+                <Label>{numerado ? "Total de volumes" : "Cópias"}</Label>
                 <Input type="number" min={1} max={999} value={form.total} onChange={(e) => setTotal(e.target.value)} />
               </div>
-              {form.numerar && (
+              {numerado && (
                 <>
                   <div className="space-y-1.5">
                     <Label>Imprimir de</Label>
@@ -311,7 +350,7 @@ export default function ManualLabels() {
             <p className="text-sm text-muted-foreground">
               Vai imprimir <strong className="text-foreground">{seq.length}</strong>{" "}
               {seq.length === 1 ? "etiqueta" : "etiquetas"}
-              {form.numerar && seq.length > 0 && (
+              {numerado && seq.length > 0 && (
                 <> — {seq[0]}/{form.total} até {seq[seq.length - 1]}/{form.total}</>
               )}
             </p>
@@ -332,7 +371,7 @@ export default function ManualLabels() {
               <Input
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
-                placeholder={form.destinatario || "Ex.: Cliente X – Barco"}
+                placeholder={(livre ? form.texto.split("\n")[0] : form.destinatario) || "Ex.: Cliente X – Barco"}
               />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -381,10 +420,12 @@ export default function ManualLabels() {
                   <button type="button" onClick={() => loadTemplate(t)} className="flex-1 min-w-0 text-left">
                     <div className="font-semibold text-sm text-foreground truncate">{t.name}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {[t.data.destinatario, [t.data.cidade, t.data.uf].filter(Boolean).join("/")].filter(Boolean).join(" · ")}
+                      {t.data.modo === "livre"
+                        ? `Em branco · ${(t.data.texto || "").split("\n")[0]}`
+                        : [t.data.destinatario, [t.data.cidade, t.data.uf].filter(Boolean).join("/")].filter(Boolean).join(" · ")}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
-                      {t.data.numerar ? `${t.data.total} vol.` : `${t.data.total} cópia(s)`}
+                      {t.data.numerar && t.data.modo !== "livre" ? `${t.data.total} vol.` : `${t.data.total} cópia(s)`}
                     </div>
                   </button>
                   <Button
