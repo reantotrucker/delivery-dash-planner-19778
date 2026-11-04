@@ -504,11 +504,23 @@ const CATALOGO_KEY = "stock360_interior_codigos_produto";
 const CATALOGO_TTL_MS = 24 * 60 * 60 * 1000;
 const CATALOGO_REFRESH_MIN_MS = 30 * 60 * 1000; // em caso de produto novo, recarrega no máx. a cada 30 min
 
-async function carregarCatalogoOmie(): Promise<Record<string, string>> {
+/** Nome do produto normalizado para comparar (sem acento, espaço extra e caixa). */
+const normNome = (s: unknown) =>
+  String(s ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+type Catalogo = { mapa: Record<string, string>; nomes: Record<string, string> };
+
+async function carregarCatalogoOmie(): Promise<Catalogo> {
   const app_key = Deno.env.get("OMIE_APP_KEY");
   const app_secret = Deno.env.get("OMIE_APP_SECRET");
   if (!app_key || !app_secret) throw new Error("Chave da Omie da Stock 360 não configurada");
   const mapa: Record<string, string> = {};
+  const nomes: Record<string, string> = {};
   let pagina = 1;
   let total = 1;
   do {
@@ -532,16 +544,26 @@ async function carregarCatalogoOmie(): Promise<Record<string, string>> {
     }
     for (const p of j?.produto_servico_resumido ?? []) {
       if (p?.codigo_produto != null && p?.codigo) mapa[String(p.codigo_produto)] = String(p.codigo);
+      const n = normNome(p?.descricao);
+      if (n && p?.codigo && !nomes[n]) nomes[n] = String(p.codigo);
     }
     total = num(j?.total_de_paginas) || 1;
     pagina++;
   } while (pagina <= total && pagina <= 40);
-  return mapa;
+  return { mapa, nomes };
 }
 
 async function preencherCodigosProduto(pedidos: any[]) {
   const itens = pedidos.flatMap((p) => (Array.isArray(p?.itens) ? p.itens : []));
-  const faltando = itens.filter((i) => !i?.codigo_sku && i?.codigo_produto_omie != null);
+  // Alguns pedidos chegam do Stock360 Vendas só com "nome" (sem descrição e sem código Omie)
+  for (const i of itens) {
+    if (i && !i.descricao) i.descricao = i.nome || i.produto_nome || null;
+  }
+  const codigoDe = (i: any, cat: Catalogo) =>
+    (i?.codigo_produto_omie != null && cat.mapa[String(i.codigo_produto_omie)]) ||
+    cat.nomes[normNome(i?.descricao || i?.nome)] ||
+    null;
+  const faltando = itens.filter((i) => i && !i.codigo_sku && (i.codigo_produto_omie != null || i.descricao || i.nome));
   if (!faltando.length) return;
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -551,17 +573,21 @@ async function preencherCodigosProduto(pedidos: any[]) {
     .eq("cache_key", CATALOGO_KEY)
     .maybeSingle();
 
-  let mapa: Record<string, string> = (cache?.cache_value as any)?.mapa ?? {};
-  const valido = cache && new Date(cache.expires_at).getTime() > Date.now();
-  const temFalta = faltando.some((i) => !mapa[String(i.codigo_produto_omie)]);
-  const podeRecarregar = !cache || Date.now() - new Date(cache.created_at).getTime() > CATALOGO_REFRESH_MIN_MS;
+  let cat: Catalogo = {
+    mapa: (cache?.cache_value as any)?.mapa ?? {},
+    nomes: (cache?.cache_value as any)?.nomes ?? {},
+  };
+  const semNomes = !(cache?.cache_value as any)?.nomes; // cache antigo, sem a busca por nome
+  const valido = cache && !semNomes && new Date(cache.expires_at).getTime() > Date.now();
+  const temFalta = faltando.some((i) => !codigoDe(i, cat));
+  const podeRecarregar = !cache || semNomes || Date.now() - new Date(cache.created_at).getTime() > CATALOGO_REFRESH_MIN_MS;
 
   if (!valido || (temFalta && podeRecarregar)) {
     try {
-      mapa = await carregarCatalogoOmie();
+      cat = await carregarCatalogoOmie();
       await admin.from("omie_cache").upsert({
         cache_key: CATALOGO_KEY,
-        cache_value: { mapa },
+        cache_value: cat,
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + CATALOGO_TTL_MS).toISOString(),
       });
@@ -571,7 +597,7 @@ async function preencherCodigosProduto(pedidos: any[]) {
   }
 
   for (const i of faltando) {
-    const c = mapa[String(i.codigo_produto_omie)];
+    const c = codigoDe(i, cat);
     if (c) i.codigo_sku = c;
   }
 }

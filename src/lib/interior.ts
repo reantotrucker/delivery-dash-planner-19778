@@ -9,6 +9,7 @@ export interface InteriorItem {
   preco_unitario: number | null;
   codigo_sku: string | null;
   imagem_url?: string | null;
+  nome?: string | null;
 }
 
 export interface InteriorCliente {

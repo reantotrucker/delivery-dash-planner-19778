@@ -347,7 +347,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                                 <p
                                   className={`font-medium text-xs sm:text-sm leading-snug break-words ${isRemoved ? "line-through" : ""}`}
                                 >
-                                  {decodeHtml(i.descricao)}
+                                  {decodeHtml(i.descricao || i.nome || "")}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground break-words">
                                   {i.codigo_sku && (
