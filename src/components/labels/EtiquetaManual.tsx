@@ -82,8 +82,6 @@ export function labelSequence(
   d: Pick<ManualLabelData, "total" | "inicio" | "fim" | "numerar"> & { modo?: ManualLabelData["modo"] }
 ): number[] {
   const total = Math.max(1, Math.floor(d.total || 1));
-  const fontFamily = labelFontCss(d.fonte);
-  const k = Math.min(1.6, Math.max(0.6, (d.escala || 100) / 100));
   if (!d.numerar || d.modo === "livre") return Array.from({ length: total }, (_, i) => i + 1);
   const ini = Math.min(Math.max(1, Math.floor(d.inicio || 1)), total);
   const fim = Math.min(Math.max(ini, Math.floor(d.fim || total)), total);
@@ -114,6 +112,8 @@ export const EtiquetaManual = ({
   const senderName = sender?.legal_name || sender?.name || "";
   const senderCity = [sender?.city, sender?.state].filter(Boolean).join(" - ");
   const destCity = [d.cidade, d.uf].filter(Boolean).join(" - ");
+  const fontFamily = labelFontCss(d.fonte);
+  const k = Math.min(1.6, Math.max(0.6, (d.escala || 100) / 100));
   const total = Math.max(1, Math.floor(d.total || 1));
 
   if (d.modo === "livre") {
