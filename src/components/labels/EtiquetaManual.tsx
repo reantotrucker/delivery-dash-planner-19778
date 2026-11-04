@@ -11,6 +11,9 @@ export interface ManualLabelSender {
 }
 
 export interface ManualLabelData {
+  /** "modelo" = campos prontos; "livre" = etiqueta em branco, só texto livre */
+  modo: "modelo" | "livre";
+  texto: string;
   showSender: boolean;
   destinatario: string;
   endereco: string;
@@ -28,6 +31,8 @@ export interface ManualLabelData {
 }
 
 export const emptyManualLabel = (): ManualLabelData => ({
+  modo: "modelo",
+  texto: "",
   showSender: true,
   destinatario: "",
   endereco: "",
@@ -45,9 +50,11 @@ export const emptyManualLabel = (): ManualLabelData => ({
 });
 
 /** Lista de números a imprimir (ex.: 1..5 → [1,2,3,4,5]); sem numeração repete cópias. */
-export function labelSequence(d: Pick<ManualLabelData, "total" | "inicio" | "fim" | "numerar">): number[] {
+export function labelSequence(
+  d: Pick<ManualLabelData, "total" | "inicio" | "fim" | "numerar"> & { modo?: ManualLabelData["modo"] }
+): number[] {
   const total = Math.max(1, Math.floor(d.total || 1));
-  if (!d.numerar) return Array.from({ length: total }, (_, i) => i + 1);
+  if (!d.numerar || d.modo === "livre") return Array.from({ length: total }, (_, i) => i + 1);
   const ini = Math.min(Math.max(1, Math.floor(d.inicio || 1)), total);
   const fim = Math.min(Math.max(ini, Math.floor(d.fim || total)), total);
   return Array.from({ length: fim - ini + 1 }, (_, i) => ini + i);
@@ -78,6 +85,40 @@ export const EtiquetaManual = ({
   const senderCity = [sender?.city, sender?.state].filter(Boolean).join(" - ");
   const destCity = [d.cidade, d.uf].filter(Boolean).join(" - ");
   const total = Math.max(1, Math.floor(d.total || 1));
+
+  if (d.modo === "livre") {
+    const text = d.texto || "";
+    const lines = Math.max(1, text.split("\n").length);
+    const longest = Math.max(1, ...text.split("\n").map((l) => l.length));
+    // Ajusta a fonte para caber em 94x44 mm (pt aproximado)
+    const byWidth = 300 / longest;
+    const byHeight = 110 / lines;
+    const fontSize = Math.max(7, Math.min(40, byWidth, byHeight));
+    return (
+      <div
+        style={{
+          width: "100mm",
+          height: "50mm",
+          padding: "3mm",
+          background: C.bg,
+          color: C.ink,
+          fontFamily: "Inter, Arial, Helvetica, sans-serif",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          overflow: "hidden",
+          boxSizing: "border-box",
+          ...(print ? { pageBreakAfter: "always" as const, breakAfter: "page" as const } : {}),
+        }}
+      >
+        <div style={{ fontSize, fontWeight: 700, lineHeight: 1.15, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+          {text}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
