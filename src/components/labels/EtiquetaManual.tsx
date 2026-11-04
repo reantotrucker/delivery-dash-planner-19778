@@ -91,9 +91,9 @@ export const EtiquetaManual = ({
     const lines = Math.max(1, text.split("\n").length);
     const longest = Math.max(1, ...text.split("\n").map((l) => l.length));
     // Ajusta a fonte para caber em 94x44 mm (pt aproximado)
-    const byWidth = 300 / longest;
-    const byHeight = 110 / lines;
-    const fontSize = Math.max(7, Math.min(40, byWidth, byHeight));
+    const byWidth = 500 / longest;
+    const byHeight = 140 / lines;
+    const fontSize = Math.max(7, Math.min(64, byWidth, byHeight));
     return (
       <div
         style={{
