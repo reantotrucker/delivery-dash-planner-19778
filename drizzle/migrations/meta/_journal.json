@@ -36,6 +36,13 @@
       "when": 1793733886934,
       "tag": "0004_interior_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793828111707,
+      "tag": "0005_manual_label_templates",
+      "breakpoints": true
     }
   ]
 }

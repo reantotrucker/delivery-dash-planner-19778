@@ -1,4 +1,4 @@
-import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, MapPinned, PackageCheck, Radio, ClipboardList, Users, GitCompare, Ship } from "lucide-react";
+import { Home, Settings, BarChart3, Shield, LogOut, ChevronLeft, ChevronRight, Truck, AlertTriangle, FileDown, MapPin, MapPinned, PackageCheck, Radio, ClipboardList, Users, GitCompare, Ship, Tag } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Resumo do dia", url: "/daily-summary", icon: ClipboardList, adminOnly: false },
   { title: "Entrega para interior", url: "/interior", icon: Ship, adminOnly: false, stockOnly: true },
+  { title: "Etiqueta manual", url: "/labels", icon: Tag, adminOnly: false },
   
   { title: "Comparativo", url: "/comparison", icon: GitCompare, adminOnly: true },
   { title: "Importar Omie", url: "/omie-import", icon: FileDown, adminOnly: true, hideWhenExpedition: true },
