@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2, Package, Printer, RotateCcw } from "lucide-react";
 import { printInteriorLabel } from "@/lib/printInteriorLabel";
+import { SwipeConferenceRow } from "./SwipeConferenceRow";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -323,6 +324,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 <table className="w-full text-sm table-fixed sm:table-auto">
                   <thead className="bg-muted/50 text-[10px] sm:text-xs uppercase text-muted-foreground">
                     <tr>
+                      <th className="w-9" aria-label="Conferência" />
                       <th className="text-left p-2">Produto ({itens.length})</th>
                       <th className="text-right p-2 w-[76px] sm:w-28">Qtd.</th>
                       <th className="text-right p-2 hidden sm:table-cell">Unit.</th>
@@ -336,8 +338,10 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                       const n = Number(String(qty[i.produto_id] ?? "").replace(",", ".")) || 0;
                       const changed = !isRemoved && n !== Number(i.quantidade);
                       return (
-                        <tr
-                          key={i.produto_id}
+                        <SwipeConferenceRow
+                          key={`${pedido.id}:${i.produto_id}:${i.quantidade}:${pedido.reaberto_em || ""}`}
+                          storageKey={`interior-check:${user?.id}:${pedido.id}:${i.produto_id}:${i.quantidade}:${pedido.reaberto_em || ""}`}
+                          disabled={!editavel || isRemoved || saving || sending}
                           className={`border-t border-border ${idx % 2 ? "bg-muted/30" : ""} ${isRemoved ? "opacity-50" : ""}`}
                         >
                           <td className="p-2 align-middle min-w-0">
@@ -408,7 +412,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                               </Button>
                             )}
                           </td>
-                        </tr>
+                        </SwipeConferenceRow>
                       );
                     })}
                   </tbody>
