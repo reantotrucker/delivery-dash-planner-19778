@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode, type PointerEvent } from "react";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isConferenceSwipe } from "@/lib/interiorSwipe";
+import { conferenceSwipeValue } from "@/lib/interiorSwipe";
 
 interface Props {
   storageKey: string;
@@ -30,8 +30,9 @@ export function SwipeConferenceRow({ storageKey, disabled, className, children }
   const finish = (event: PointerEvent<HTMLTableRowElement>) => {
     const origin = start.current;
     if (!origin || origin.id !== event.pointerId) return;
-    if (isConferenceSwipe(event.clientX - origin.x, event.clientY - origin.y)) {
-      mark(true);
+    const value = conferenceSwipeValue(event.clientX - origin.x, event.clientY - origin.y);
+    if (value !== null) {
+      mark(value);
       dragged.current = true;
     }
     start.current = null;
