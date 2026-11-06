@@ -48,7 +48,7 @@ export function useInteriorDraft(companyId: string, userId: string | undefined, 
       .eq("company_id", companyId).eq("user_id", userId).eq("pedido_id", pedidoId).eq("base_version", version);
     // A changed base version also prevents restoring a stale draft after confirmation.
     try { localStorage.removeItem(key); } catch { /* cloud is authoritative */ }
-    setLoaded(null);
+    setLoaded({ key, draft: null });
     setStatus(error ? "Conferência salva; não foi possível limpar o progresso anterior" : "");
   };
 
