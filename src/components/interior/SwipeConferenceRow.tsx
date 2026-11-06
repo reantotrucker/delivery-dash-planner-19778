@@ -8,9 +8,10 @@ interface Props {
   disabled: boolean;
   className: string;
   children: ReactNode;
+  onCheckedChange?: () => void;
 }
 
-export function SwipeConferenceRow({ storageKey, disabled, className, children }: Props) {
+export function SwipeConferenceRow({ storageKey, disabled, className, children, onCheckedChange }: Props) {
   const [checked, setChecked] = useState(() => {
     try { return localStorage.getItem(storageKey) === "1"; } catch { return false; }
   });
@@ -25,6 +26,7 @@ export function SwipeConferenceRow({ storageKey, disabled, className, children }
       if (value) localStorage.setItem(storageKey, "1");
       else localStorage.removeItem(storageKey);
     } catch { /* Visual checking remains available without browser storage. */ }
+    onCheckedChange?.();
   };
 
   const finish = (event: PointerEvent<HTMLTableRowElement>) => {
