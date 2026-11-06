@@ -335,6 +335,48 @@ export type Database = {
           },
         ]
       }
+      interior_conference_drafts: {
+        Row: {
+          base_version: string
+          company_id: string
+          data: Json
+          pedido_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_version: string
+          company_id: string
+          data?: Json
+          pedido_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_version?: string
+          company_id?: string
+          data?: Json
+          pedido_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interior_conference_drafts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interior_conference_drafts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interior_corrections: {
         Row: {
           corrigido_at: string
