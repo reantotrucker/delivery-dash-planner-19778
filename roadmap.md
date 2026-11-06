@@ -1,0 +1,2 @@
+- [ ] Persist interior conference edits and deletions automatically, including checks and reopening.
+- [ ] Verify draft restoration and existing conference rules.
