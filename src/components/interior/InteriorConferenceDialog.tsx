@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -18,6 +18,9 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Trash2, Save, Send, AlertTriangle, Undo2, Package, Printer, RotateCcw } from "lucide-react";
 import { printInteriorLabel } from "@/lib/printInteriorLabel";
 import { SwipeConferenceRow } from "./SwipeConferenceRow";
+import { useCompany } from "@/hooks/useCompany";
+import { useInteriorDraft } from "@/hooks/useInteriorDraft";
+import { interiorDraftVersion, restoreInteriorDraft } from "@/lib/interiorDraft";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +51,8 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   const [sending, setSending] = useState(false);
   const [omieError, setOmieError] = useState<string | null>(null);
   const { isAdmin, isComercial, user } = useAuth();
+  const { companyId } = useCompany();
+  const initialized = useRef("");
   const [confirmReabrir, setConfirmReabrir] = useState(false);
   const [motivoReabrir, setMotivoReabrir] = useState("");
   const [reabrindo, setReabrindo] = useState(false);
@@ -55,7 +60,8 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
     queryKey: ["meu-nome", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("full_name, email").eq("id", user!.id).maybeSingle();
+      if (!user) return "";
+      const { data } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
       return (data?.full_name && data.full_name.trim()) || data?.email || user?.email || "";
     },
   });
@@ -77,7 +83,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   // Enviado à Omie só volta a ser editável depois de "Refazer conferência" (e se ainda não foi faturado)
   const jaEnviado = !!pedido && ["enviado", "enviado_omie"].includes(pedido.status);
   const editavel =
-    !!pedido && (["aguardando_conferencia", "conferido"].includes(pedido.status) || (jaEnviado && !!pedido.reaberto));
+    !!pedido && (!isComercial || isAdmin) && (["aguardando_conferencia", "conferido"].includes(pedido.status) || (jaEnviado && !!pedido.reaberto));
   const podeRefazer =
     !!pedido &&
     ["conferido", "enviado", "enviado_omie"].includes(pedido.status) &&
@@ -85,16 +91,39 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
     (!isComercial || isAdmin);
   const reenvio = !!pedido?.interior_enviado_omie_em;
   const historico = data?.historico || [];
+  const version = pedido ? interiorDraftVersion(pedido) : "";
+  const draftKey = `${companyId}:${user?.id}:${pedido?.id}:${version}`;
+  const draft = useInteriorDraft(companyId, user?.id, pedido?.id, version, editavel);
 
   useEffect(() => {
-    if (!pedido) return;
-    const q: Record<string, string> = {};
-    (pedido.itens || []).forEach((i) => (q[i.produto_id] = String(i.quantidade ?? "")));
-    setQty(q);
-    setRemoved(new Set());
-    setVolumes(pedido.qtd_volumes != null ? String(pedido.qtd_volumes) : "");
+    if (!pedido || !draft.ready || initialized.current === draftKey) return;
+    const restored = restoreInteriorDraft(pedido, draft.draft);
+    setQty(restored.qty);
+    setRemoved(restored.removed);
+    setVolumes(restored.volumes);
+    initialized.current = draftKey;
     setOmieError(pedido.erro_omie_mensagem || null);
-  }, [pedido]);
+  }, [pedido, draft.ready, draft.draft, draftKey]);
+
+  const saveProgress = (nextQty = qty, nextRemoved = removed, nextVolumes = volumes) => {
+    if (!draft.ready || initialized.current !== draftKey || saving || sending) return;
+    draft.persist({ qty: nextQty, removed: [...nextRemoved], volumes: nextVolumes, updatedAt: new Date().toISOString() });
+  };
+  const changeQty = (id: string, value: string) => {
+    const next = { ...qty, [id]: value };
+    setQty(next);
+    saveProgress(next);
+  };
+  const changeRemoved = (id: string, remove: boolean) => {
+    const next = new Set(removed);
+    if (remove) next.add(id); else next.delete(id);
+    setRemoved(next);
+    saveProgress(qty, next);
+  };
+  const changeVolumes = (value: string) => {
+    setVolumes(value);
+    saveProgress(qty, removed, value);
+  };
 
   const alteracoes = useMemo(() => {
     if (!pedido) return [];
@@ -148,6 +177,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
         qtd_volumes: v,
         alteracoes,
       });
+      await draft.clear();
       toast.success("Conferência salva");
       await refetch();
       qc.invalidateQueries({ queryKey: ["interior-lista"] });
@@ -230,7 +260,12 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   }, 0);
 
   return (
-    <Dialog open={!!pedidoId} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={!!pedidoId} onOpenChange={(o) => {
+      if (!o) {
+        if (dirty) saveProgress();
+        onClose();
+      }
+    }}>
       <DialogContent className="flex flex-col gap-0 p-0 w-full max-w-4xl h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[92vh] rounded-none sm:rounded-lg border-0 sm:border overflow-hidden">
         <DialogHeader className="px-4 pt-4 pb-3 pr-12 sm:px-6 sm:pt-6 border-b border-border text-left space-y-1 flex-shrink-0">
           <DialogTitle className="text-base sm:text-lg leading-tight">
@@ -283,7 +318,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-6 sm:py-4">
-          {isLoading && (
+          {(isLoading || (editavel && !draft.ready)) && (
             <div className="flex justify-center py-10">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
@@ -341,7 +376,8 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                         <SwipeConferenceRow
                           key={`${pedido.id}:${i.produto_id}:${i.quantidade}:${pedido.reaberto_em || ""}`}
                           storageKey={`interior-check:${user?.id}:${pedido.id}:${i.produto_id}:${i.quantidade}:${pedido.reaberto_em || ""}`}
-                          disabled={!editavel || isRemoved || saving || sending}
+                          disabled={!editavel || !draft.ready || isRemoved || saving || sending}
+                          onCheckedChange={() => saveProgress()}
                           className={`border-t border-border ${idx % 2 ? "bg-muted/30" : ""} ${isRemoved ? "opacity-50" : ""}`}
                         >
                           <td className="p-2 align-middle min-w-0">
@@ -373,9 +409,9 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                               type="number"
                               inputMode="decimal"
                               min={0}
-                              disabled={isRemoved || !editavel}
+                              disabled={isRemoved || !editavel || !draft.ready || saving || sending}
                               value={qty[i.produto_id] ?? ""}
-                              onChange={(e) => setQty((q) => ({ ...q, [i.produto_id]: e.target.value }))}
+                              onChange={(e) => changeQty(i.produto_id, e.target.value)}
                               className={`h-10 sm:h-9 w-full sm:w-24 ml-auto px-2 text-right tabular-nums text-base sm:text-sm ${changed ? "border-primary" : ""}`}
                             />
                           </td>
@@ -390,13 +426,8 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                                 variant="ghost"
                                 className="h-9 w-9"
                                 title="Desfazer exclusão"
-                                onClick={() =>
-                                  setRemoved((s) => {
-                                    const n2 = new Set(s);
-                                    n2.delete(i.produto_id);
-                                    return n2;
-                                  })
-                                }
+                                disabled={!draft.ready || saving || sending}
+                                onClick={() => changeRemoved(i.produto_id, false)}
                               >
                                 <Undo2 className="w-4 h-4" />
                               </Button>
@@ -406,6 +437,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                                 variant="ghost"
                                 className="h-9 w-9 text-destructive hover:text-destructive"
                                 title="Excluir item"
+                                disabled={!draft.ready || saving || sending}
                                 onClick={() => setConfirmDel(i.produto_id)}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -498,7 +530,8 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                   required
                   inputMode="numeric"
                   value={volumes}
-                  onChange={(e) => setVolumes(e.target.value)}
+                  onChange={(e) => changeVolumes(e.target.value)}
+                  disabled={!draft.ready || saving || sending}
                   aria-invalid={!volumesOk}
                   className={`h-10 w-24 sm:w-32 text-base sm:text-sm ${!volumesOk ? "border-destructive" : ""}`}
                 />
@@ -513,13 +546,13 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 Conferente: <b className="text-foreground">{meuNome}</b> (a conferência fica salva no seu nome)
               </p>
             )}
-            {dirty && (
+            {draft.status && (
               <p className="text-[11px] text-muted-foreground">
-                Há alterações não salvas. Salve a conferência para liberar o envio para a Omie.
+                {draft.status}
               </p>
             )}
             <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
-              <Button onClick={salvar} disabled={saving || sending} className="h-11 sm:h-10">
+              <Button onClick={salvar} disabled={!draft.ready || saving || sending} className="h-11 sm:h-10">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
                 <span className="sm:hidden">Salvar</span>
                 <span className="hidden sm:inline">Salvar conferência</span>
@@ -527,7 +560,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
               <Button
                 variant="secondary"
                 onClick={enviar}
-                disabled={!canSend || sending || saving}
+                disabled={!draft.ready || !canSend || sending || saving}
                 title={!volumesOk ? "Informe a quantidade de volumes" : !canSend ? "Salve a conferência primeiro" : undefined}
                 className="h-11 sm:h-10"
               >
@@ -628,7 +661,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 onClick={() => {
-                  if (confirmDel) setRemoved((s) => new Set(s).add(confirmDel));
+                  if (confirmDel) changeRemoved(confirmDel, true);
                   setConfirmDel(null);
                 }}
               >
@@ -659,7 +692,7 @@ function ProdutoFoto({ url }: { url?: string | null }) {
   const temFoto = !!url && !falhou;
   return (
     <a
-      href={temFoto ? url! : undefined}
+      href={temFoto ? url ?? undefined : undefined}
       target="_blank"
       rel="noreferrer"
       title={temFoto ? "Ver foto maior" : "Sem foto"}
@@ -668,7 +701,7 @@ function ProdutoFoto({ url }: { url?: string | null }) {
     >
       {temFoto ? (
         <img
-          src={url!}
+          src={url ?? undefined}
           alt=""
           width={40}
           height={40}
