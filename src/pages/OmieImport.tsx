@@ -165,6 +165,8 @@ export default function OmieImport() {
     return linked || current;
   };
 
+  const [panelMode, setPanelMode] = useState<'compacto' | 'detalhado' | 'oculto'>(() => (localStorage.getItem('omie-driver-panel') as any) || 'compacto');
+  const changePanelMode = (m: 'compacto' | 'detalhado' | 'oculto') => { setPanelMode(m); localStorage.setItem('omie-driver-panel', m); };
   // Rotas de hoje por motorista e turno
   const { data: driverTodayStats = [] } = useQuery({
     queryKey: ['routes', 'driver-today-stats', getActiveCompanyId()],
@@ -760,16 +762,37 @@ export default function OmieImport() {
 
       {/* Painel: rotas de hoje por motorista */}
       <Card className="sticky top-0 z-30 shadow-lg">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <User className="w-4 h-4 text-primary" /> Rotas de hoje por motorista
-          </CardTitle>
-          <CardDescription>{format(new Date(), "dd/MM/yyyy")} · atualiza sozinho</CardDescription>
+        <CardHeader className="py-2 flex flex-row items-center justify-between gap-2 space-y-0">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <User className="w-4 h-4 text-primary" /> Rotas de hoje por motorista
+            </CardTitle>
+            <CardDescription className="text-xs">{format(new Date(), "dd/MM/yyyy")} · atualiza sozinho</CardDescription>
+          </div>
+          <div className="flex gap-1">
+            {(['compacto', 'detalhado', 'oculto'] as const).map((m) => (
+              <Button key={m} size="sm" variant={panelMode === m ? 'default' : 'outline'} className="h-7 px-2 text-xs capitalize" onClick={() => changePanelMode(m)}>{m === 'oculto' ? 'Ocultar' : m}</Button>
+            ))}
+          </div>
         </CardHeader>
-        <CardContent>
+        {panelMode !== 'oculto' && (
+        <CardContent className={cn("pb-3", panelMode === 'detalhado' && "max-h-[45vh] overflow-y-auto")}>
           {driverTodayStats.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma rota criada hoje ainda.</p>
           ) : (
+            panelMode === 'compacto' ? (
+            <div className="flex flex-wrap gap-2">
+              {driverTodayStats.map((d) => (
+                <div key={d.id} className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1 text-xs" style={{ borderLeft: `4px solid ${d.color}` }}
+                  title={d.turnos.map((t) => `${t.label}: ${t.bairros.map((b) => b.name).join(', ')}`).join('\n')}>
+                  <span className="font-semibold max-w-[110px] truncate">{d.name}</span>
+                  <span className="flex items-center gap-0.5 tabular-nums"><Sun className="w-3 h-3 text-primary" />{d.manha}</span>
+                  <span className="flex items-center gap-0.5 tabular-nums"><Moon className="w-3 h-3 text-primary" />{d.tarde}</span>
+                  <span className="font-bold text-primary tabular-nums">{d.manha + d.tarde}</span>
+                </div>
+              ))}
+            </div>
+            ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {driverTodayStats.map((d) => (
                 <div key={d.id} className="rounded-lg border border-border bg-muted/30 p-3" style={{ borderLeft: `4px solid ${d.color}` }}>
@@ -822,8 +845,10 @@ export default function OmieImport() {
                 </div>
               ))}
             </div>
+            )
           )}
         </CardContent>
+        )}
       </Card>
 
       {/* Filtros */}
