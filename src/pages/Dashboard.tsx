@@ -523,7 +523,7 @@ const Dashboard = () => {
 
           <TabsContent value="MANHA" className="mt-4">
             <div className="space-y-4">
-              {canManageRoutes && (
+              {(canManageRoutes || isMotorista) && (
                 <RouteForm 
                   period="MANHA" 
                   date={selectedDate} 
@@ -543,7 +543,7 @@ const Dashboard = () => {
 
           <TabsContent value="TARDE" className="mt-4">
             <div className="space-y-4">
-              {canManageRoutes && (
+              {(canManageRoutes || isMotorista) && (
                 <RouteForm 
                   period="TARDE" 
                   date={selectedDate} 
