@@ -56,6 +56,9 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
   const [confirmReabrir, setConfirmReabrir] = useState(false);
   const [motivoReabrir, setMotivoReabrir] = useState("");
   const [reabrindo, setReabrindo] = useState(false);
+  const [confirmReturn, setConfirmReturn] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
+  const [returning, setReturning] = useState(false);
   const { data: meuNome } = useQuery({
     queryKey: ["meu-nome", user?.id],
     enabled: !!user?.id,
@@ -90,6 +93,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
     !pedido.reaberto &&
     (!isComercial || isAdmin);
   const reenvio = !!pedido?.interior_enviado_omie_em;
+  const podeRetornar = !!pedido && ["aguardando_conferencia", "conferido"].includes(pedido.status) && (!isComercial || isAdmin);
   const historico = data?.historico || [];
   const version = pedido ? interiorDraftVersion(pedido) : "";
   const draftKey = `${companyId}:${user?.id}:${pedido?.id}:${version}`;
@@ -228,6 +232,26 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
     }
   };
 
+  const retornarAutorizacao = async () => {
+    if (!pedido || returning) return;
+    setReturning(true);
+    try {
+      await interiorCall({ acao: "retornar_autorizacao", pedido_id: pedido.id, motivo: returnReason.trim() || null });
+      await draft.clear();
+      setConfirmReturn(false);
+      setReturnReason("");
+      qc.invalidateQueries({ queryKey: ["interior-lista"] });
+      qc.invalidateQueries({ queryKey: ["interior-relatorio"] });
+      qc.removeQueries({ queryKey: ["interior-detalhe", pedido.id] });
+      toast.success("Pedido retornado para autorização no Stock360 Vendas");
+      onClose();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setReturning(false);
+    }
+  };
+
   const excluirPedido = async () => {
     if (!pedido) return;
     setDeleting(true);
@@ -301,6 +325,11 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                   onClick={() => setConfirmReabrir(true)}
                 >
                   <RotateCcw className="w-3.5 h-3.5 mr-1" /> Refazer conferência
+                </Button>
+              )}
+              {podeRetornar && (
+                <Button size="sm" variant="outline" className="h-auto min-h-7 px-2 py-1 whitespace-normal text-left" disabled={saving || sending || returning} onClick={() => setConfirmReturn(true)}>
+                  <Undo2 className="w-3.5 h-3.5 mr-1 shrink-0" /> Retornar para autorização
                 </Button>
               )}
               {isAdmin && (
@@ -645,6 +674,29 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
               <Button onClick={refazerConferencia} disabled={reabrindo}>
                 {reabrindo ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RotateCcw className="w-4 h-4 mr-1" />}
                 Refazer
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={confirmReturn} onOpenChange={(o) => {
+          if (!returning) { setConfirmReturn(o); if (!o) setReturnReason(""); }
+        }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Retornar para autorização</AlertDialogTitle>
+              <AlertDialogDescription>
+                O pedido {pedido?.numero_pedido ? `#${pedido.numero_pedido}` : ""} voltará para aprovação no Stock360 Vendas e sairá da conferência do interior. Nenhum pedido será enviado ou alterado na Omie. Alterações ainda não confirmadas nesta tela não serão enviadas ao Stock360 Vendas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-1">
+              <Label htmlFor="return-reason">Motivo (opcional)</Label>
+              <Input id="return-reason" maxLength={500} value={returnReason} onChange={(e) => setReturnReason(e.target.value)} disabled={returning} />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={returning}>Cancelar</AlertDialogCancel>
+              <Button onClick={retornarAutorizacao} disabled={returning}>
+                {returning ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Undo2 className="w-4 h-4 mr-1" />} Retornar
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>

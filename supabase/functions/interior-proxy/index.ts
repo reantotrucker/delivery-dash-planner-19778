@@ -1,10 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { canReturnToAuthorization } from "./authorization.ts";
 
 const UPSTREAM = "https://lrdiymbaladmmoczifnd.supabase.co/functions/v1/interior-pedidos";
 const REABRIVEIS = new Set(["conferido", "enviado", "enviado_omie"]);
 const ENVIADOS = new Set(["enviado", "enviado_omie"]);
-const ACOES = new Set(["listar", "detalhe", "salvar_conferencia", "enviar_omie", "relatorio", "excluir", "reabrir"]);
+const ACOES = new Set(["listar", "detalhe", "salvar_conferencia", "enviar_omie", "relatorio", "excluir", "reabrir", "retornar_autorizacao"]);
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -106,6 +107,32 @@ Deno.serve(async (req) => {
         headers: { "Content-Type": "application/json", "x-interior-key": apiKey },
         body: JSON.stringify({ ...b, usuario }),
       });
+
+    if (acao === "retornar_autorizacao") {
+      const pedidoId = typeof body.pedido_id === "string" ? body.pedido_id.trim() : "";
+      if (!/^[0-9a-f-]{36}$/i.test(pedidoId)) return json({ error: "Pedido inválido" }, 400);
+      if (body.motivo != null && (typeof body.motivo !== "string" || body.motivo.length > 500)) {
+        return json({ error: "Motivo inválido (máximo 500 caracteres)" }, 400);
+      }
+      const [{ data: isAdmin }, { data: isComercial }] = await Promise.all([
+        supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+        supabase.rpc("has_role", { _user_id: userId, _role: "comercial" }),
+      ]);
+      if (isComercial && !isAdmin) return json({ error: "O comercial não pode retornar pedidos para autorização" }, 403);
+      const det = await callUpstream({ acao: "detalhe", pedido_id: pedidoId });
+      const dj = await det.json().catch(() => null);
+      if (!det.ok || !dj?.pedido) return json({ error: dj?.error || "Pedido não encontrado" }, det.ok ? 404 : det.status);
+      if (!canReturnToAuthorization(String(dj.pedido.status), !!isAdmin, !!isComercial)) {
+        return json({ error: "Somente pedidos recebidos ou conferidos, ainda não enviados, podem retornar para autorização" }, 409);
+      }
+      const retorno = await callUpstream({ acao, pedido_id: pedidoId, motivo: typeof body.motivo === "string" ? body.motivo.trim() || null : null });
+      const result = await retorno.json().catch(() => null);
+      if (!retorno.ok || result?.success !== true) {
+        return json({ success: false, error: result?.error || "Não foi possível retornar o pedido para autorização" }, retorno.ok ? 502 : retorno.status);
+      }
+      await supabase.from("interior_reopened_orders").delete().eq("pedido_id", pedidoId);
+      return json({ success: true });
+    }
 
     // Antes de enviar: a Omie recusa itens excluídos sem quantidade quando o Stock360 Vendas
     // altera o pedido. Aqui apagamos na Omie os itens retirados na conferência; depois o
