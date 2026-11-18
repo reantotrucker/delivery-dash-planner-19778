@@ -7,3 +7,4 @@
 - Interior product swipe checks are browser-local progress scoped by user, order, product quantity and reopening timestamp; they never modify quantities or automatically save/send orders to Omie.
 - Interior quantity/deletion/volume edits autosave as per-user, company-scoped drafts with an upstream base version and browser fallback; only explicit conference save/send actions confirm or transmit orders.
 - Returning interior orders for authorization uses the authenticated partner action; never emulate approval locally, because Stock360 Vendas owns the approval workflow.
+- Interior "who is conferring" indicators use Realtime Presence per company (no table); presence is ephemeral and never blocks editing.

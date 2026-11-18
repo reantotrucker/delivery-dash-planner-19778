@@ -39,9 +39,10 @@ import {
 interface Props {
   pedidoId: string | null;
   onClose: () => void;
+  outrosConferindo?: string[];
 }
 
-export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
+export function InteriorConferenceDialog({ pedidoId, onClose, outrosConferindo = [] }: Props) {
   const qc = useQueryClient();
   const [qty, setQty] = useState<Record<string, string>>({});
   const [removed, setRemoved] = useState<Set<string>>(new Set());
@@ -517,6 +518,11 @@ export function InteriorConferenceDialog({ pedidoId, onClose }: Props) {
                 </div>
               )}
 
+              {outrosConferindo.length > 0 && (
+                <div className="rounded-lg border border-primary/60 bg-primary/10 p-3 text-xs text-foreground">
+                  <b>Atenção:</b> {outrosConferindo.join(", ")} também está conferindo este pedido agora.
+                </div>
+              )}
               {omieError && (
                 <div className="flex gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
                   <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />

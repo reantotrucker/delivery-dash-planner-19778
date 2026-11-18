@@ -12,6 +12,11 @@ import { cn } from "@/lib/utils";
 import { interiorCall, InteriorPedido, STATUS_LABEL, brl, clienteFantasia, clienteRazao, fmtDateTime, recebidoDia } from "@/lib/interior";
 import { InteriorConferenceDialog } from "@/components/interior/InteriorConferenceDialog";
 import { InteriorReports } from "@/components/interior/InteriorReports";
+import { useInteriorPresence } from "@/hooks/useInteriorPresence";
+import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
+import { supabase } from "@/integrations/supabase/client";
+import { Eye } from "lucide-react";
 
 const ALL = "__all__";
 
@@ -29,6 +34,17 @@ export default function InteriorDelivery() {
   const [open, setOpen] = useState<string | null>(null);
 
   const [tab, setTab] = useState("recebidos");
+  const { user } = useAuth();
+  const { companyId } = useCompany();
+  const { data: meuNome = "" } = useQuery({
+    queryKey: ["meu-nome", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("full_name, email").eq("id", user!.id).maybeSingle();
+      return (data?.full_name && data.full_name.trim()) || data?.email || user?.email || "";
+    },
+  });
+  const emConferencia = useInteriorPresence(companyId, user?.id, meuNome, open);
 
   const { data: lista, isLoading: l1, error: e1, refetch: r1, isFetching: f1 } = useQuery({
     queryKey: ["interior-lista"],
@@ -219,6 +235,7 @@ export default function InteriorDelivery() {
             {filtrados.map((p) => {
               const reaberto = !!p.reaberto;
               const conferido = !reaberto && (!!p.interior_conferido_em || p.status !== "aguardando_conferencia");
+              const conferindo = emConferencia[p.id] || [];
               return (
               <div
                 key={p.id}
@@ -234,7 +251,9 @@ export default function InteriorDelivery() {
                 className={cn(
                   "cursor-pointer",
                   "w-full min-w-0 text-left border rounded-xl p-3 sm:p-4 space-y-2 hover:shadow-md active:scale-[0.99] transition-all",
-                  reaberto
+                  conferindo.length
+                    ? "bg-primary/10 border-primary/60 border-l-4 border-l-primary ring-2 ring-primary/30"
+                    : reaberto
                     ? "bg-warning/10 border-warning/60 border-l-4 border-l-warning hover:border-warning"
                     : conferido
                       ? "bg-success/10 border-success/60 border-l-4 border-l-success hover:border-success"
@@ -250,6 +269,12 @@ export default function InteriorDelivery() {
                     {reaberto ? "Refazer conferência" : STATUS_LABEL[p.status] || p.status}
                   </Badge>
                 </div>
+                {conferindo.length > 0 && (
+                  <p className="flex items-center gap-1 text-[11px] font-medium text-primary bg-primary/15 rounded px-2 py-1 break-words animate-pulse">
+                    <Eye className="w-3 h-3 flex-shrink-0" />
+                    Em conferência por {conferindo.map((c) => c.nome).join(", ")}
+                  </p>
+                )}
                 {reaberto && (
                   <p className="text-[11px] text-foreground bg-warning/20 rounded px-2 py-1 break-words">
                     Voltou para conferir{p.reaberto_por ? ` · ${p.reaberto_por}` : ""}
@@ -340,7 +365,7 @@ export default function InteriorDelivery() {
         </TabsContent>
       </Tabs>
 
-      <InteriorConferenceDialog pedidoId={open} onClose={() => setOpen(null)} />
+      <InteriorConferenceDialog pedidoId={open} onClose={() => setOpen(null)} outrosConferindo={open ? (emConferencia[open] || []).map((c) => c.nome) : []} />
     </div>
   );
 }
