@@ -408,14 +408,14 @@ export function InteriorConferenceDialog({ pedidoId, onClose, outrosConferindo =
                           storageKey={`interior-check:${user?.id}:${pedido.id}:${i.produto_id}:${i.quantidade}:${pedido.reaberto_em || ""}`}
                           disabled={!editavel || !draft.ready || isRemoved || saving || sending}
                           onCheckedChange={() => saveProgress()}
-                          className={`border-t border-border ${idx % 2 ? "bg-muted/30" : ""} ${isRemoved ? "opacity-50" : ""}`}
+                          className={`border-t border-border ${idx % 2 ? "bg-muted/30" : ""} ${isRemoved ? "!bg-destructive/15 border-l-4 border-l-destructive" : ""}`}
                         >
                           <td className="p-2 align-middle min-w-0">
                             <div className="flex items-center gap-2 min-w-0">
                               <ProdutoFoto url={i.imagem_url} />
                               <div className="min-w-0">
                                 <p
-                                  className={`font-medium text-xs sm:text-sm leading-snug break-words ${isRemoved ? "line-through" : ""}`}
+                                  className={`font-medium text-xs sm:text-sm leading-snug break-words ${isRemoved ? "line-through text-destructive" : ""}`}
                                 >
                                   {decodeHtml(i.descricao || i.nome || "")}
                                 </p>
@@ -430,7 +430,7 @@ export function InteriorConferenceDialog({ pedidoId, onClose, outrosConferindo =
                                   </span>
                                 </p>
                                 {changed && <p className="text-[11px] text-primary">Original: {i.quantidade}</p>}
-                                {isRemoved && <p className="text-[11px] text-destructive">Excluído</p>}
+                                {isRemoved && <p className="text-[11px] font-semibold text-destructive">Excluído</p>}
                               </div>
                             </div>
                           </td>
@@ -533,12 +533,36 @@ export function InteriorConferenceDialog({ pedidoId, onClose, outrosConferindo =
                 </div>
               )}
 
+              {(() => {
+                const ids = new Set(itens.map((i) => String(i.produto_id)));
+                const excl = historico.filter((h: any) => h?.acao === "excluido" && !ids.has(String(h.produto_id)));
+                if (!excl.length) return null;
+                return (
+                  <div className="rounded-lg border border-destructive/60 bg-destructive/10 p-3 space-y-1">
+                    <p className="text-xs uppercase font-semibold text-destructive">Itens excluídos ({excl.length})</p>
+                    <ul className="text-xs space-y-1">
+                      {excl.map((h: any, k: number) => (
+                        <li key={k} className="text-destructive break-words">
+                          <span className="line-through font-medium">{decodeHtml(h.descricao || "Produto")}</span>
+                          {h.quantidade_antes != null ? ` · qtd. ${h.quantidade_antes}` : ""}
+                          {h.usuario ? ` · ${h.usuario}` : ""}
+                          {h.created_at ? ` · ${fmtDateTime(h.created_at)}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
+
               {historico.length > 0 && (
                 <div className="space-y-1">
                   <p className="text-xs uppercase text-muted-foreground">Histórico</p>
                   <ul className="text-xs space-y-1 max-h-40 overflow-y-auto">
                     {historico.map((h: any, k: number) => (
-                      <li key={h.id || k} className="border-l-2 border-border pl-2 break-words">
+                      <li
+                        key={h.id || k}
+                        className={`border-l-2 pl-2 break-words ${h.acao === "excluido" ? "border-destructive text-destructive font-medium" : "border-border"}`}
+                      >
                         <span className="text-muted-foreground">{fmtDateTime(h.created_at || h.quando)}</span>{" "}
                         {h.usuario || h.quem ? <b>{h.usuario || h.quem}</b> : null}{" "}
                         {h.descricao || h.acao || h.evento || h.mensagem || ""}
