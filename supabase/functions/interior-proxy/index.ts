@@ -236,6 +236,11 @@ Deno.serve(async (req) => {
             novos.push({ acao: "volumes", descricao: `Volumes: ${volAntes ?? "—"} → ${vol}`, usuario, created_at: agora } as any);
           }
           const hist = corr && Array.isArray(corr.historico) ? corr.historico : [];
+          try {
+            await preencherCodigosProduto([{ itens: r.itens }]);
+          } catch (e) {
+            console.error("Código do produto na correção:", (e as Error).message);
+          }
           const { error: upErr } = await supabase.from("interior_corrections").upsert(
             {
               pedido_id: pedidoId,
@@ -836,11 +841,27 @@ async function enviarCorrecaoNaOmie(numeroOmie: string, itens: any[], volumes: n
   }
 
   const conferidos = new Map<string, any>();
+  const usados = new Set<string>();
   for (const it of itens) {
-    if (it?.omie_codigo_item == null) {
-      throw new Error("Este pedido veio sem a identificação dos itens da Omie. Ajuste direto na Omie.");
+    if (it?.omie_codigo_item != null) {
+      conferidos.set(String(it.omie_codigo_item), it);
+      usados.add(String(it.omie_codigo_item));
     }
-    conferidos.set(String(it.omie_codigo_item), it);
+  }
+  // Itens sem codigo_item: associa pelo código do produto (SKU), cada item da Omie uma única vez
+  for (const it of itens) {
+    if (it?.omie_codigo_item != null) continue;
+    const sku = String(it?.codigo_sku ?? "").trim().toUpperCase();
+    const d = sku
+      ? detOmie.find((x) => {
+          const ci = String(x?.ide?.codigo_item ?? "");
+          return ci && !usados.has(ci) && String(x?.produto?.codigo ?? "").trim().toUpperCase() === sku;
+        })
+      : null;
+    if (!d) throw new Error("Este pedido veio sem a identificação dos itens da Omie. Ajuste direto na Omie.");
+    const ci = String(d.ide.codigo_item);
+    usados.add(ci);
+    conferidos.set(ci, it);
   }
   const codigosOmie = new Set(detOmie.map((d) => String(d?.ide?.codigo_item ?? "")));
   if (![...conferidos.keys()].every((c) => codigosOmie.has(c))) {
