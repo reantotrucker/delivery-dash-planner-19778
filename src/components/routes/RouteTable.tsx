@@ -39,6 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, parseISO } from "date-fns";
 
 const getPaymentBadgeStyle = (name: string | undefined) => {
   if (!name) return { className: "bg-muted text-muted-foreground border-muted", label: "-" };
@@ -387,6 +388,9 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                       <h2 className="text-2xl font-black text-foreground leading-none tracking-tight font-mono">
                         #{index + 1}
                       </h2>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {format(parseISO(route.date), "dd/MM/yyyy")} · {route.period === "MANHA" ? "MANHÃ" : "TARDE"}
+                      </p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <button
