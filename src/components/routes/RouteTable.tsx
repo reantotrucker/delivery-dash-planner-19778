@@ -388,7 +388,7 @@ export const RouteTable = ({ routes, onUpdate, isAdmin, isMotorista = false, isC
                       <h2 className="text-2xl font-black text-foreground leading-none tracking-tight font-mono">
                         #{index + 1}
                       </h2>
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 rounded bg-primary/10 px-2 py-1 text-sm font-bold text-primary">
                         {format(parseISO(route.date), "dd/MM/yyyy")} · {route.period === "MANHA" ? "MANHÃ" : "TARDE"}
                       </p>
                     </div>
