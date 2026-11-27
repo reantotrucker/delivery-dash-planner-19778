@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -51,6 +51,8 @@ interface RouteMapProps {
   vehicles?: LiveVehicleMarker[];
   /** Liga a linha da base até os pontos (padrão: true) */
   connectOrigin?: boolean;
+  /** Foca um ponto de rota (id) e abre o popup; `nonce` permite repetir o mesmo foco */
+  focus?: { id: string; nonce: number } | null;
 }
 
 function createVehicleIcon(label: string, color: string, kind: "carro" | "moto" = "carro") {
@@ -131,7 +133,20 @@ function FitBounds({
   return null;
 }
 
-export function RouteMap({ driverGroups, trail, vehicles, connectOrigin = true }: RouteMapProps) {
+function FocusPoint({ focus, markers }: { focus?: { id: string; nonce: number } | null; markers: React.MutableRefObject<Record<string, L.Marker | null>> }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!focus) return;
+    const m = markers.current[focus.id];
+    if (!m) return;
+    map.setView(m.getLatLng(), Math.max(map.getZoom(), 16));
+    m.openPopup();
+  }, [focus, map, markers]);
+  return null;
+}
+
+export function RouteMap({ driverGroups, trail, vehicles, connectOrigin = true, focus }: RouteMapProps) {
+  const markerRefs = useRef<Record<string, L.Marker | null>>({});
   const { company } = useCompany();
   const ORIGIN = company?.slug === "uniprint_bv" ? ORIGIN_BOA_VISTA : ORIGIN_MANAUS;
 
@@ -152,6 +167,8 @@ export function RouteMap({ driverGroups, trail, vehicles, connectOrigin = true }
         origin={ORIGIN}
         extra={[...(trail ?? []), ...(vehicles ?? []).map((v) => [v.lat, v.lng] as [number, number])]}
       />
+
+      <FocusPoint focus={focus} markers={markerRefs} />
 
       {trail && trail.length > 1 && (
         <Polyline positions={trail} pathOptions={{ color: "#2563eb", weight: 5, opacity: 0.85 }} />
@@ -198,6 +215,7 @@ export function RouteMap({ driverGroups, trail, vehicles, connectOrigin = true }
             {group.coordinates.map((coord) => (
               <Marker
                 key={coord.id}
+                ref={(m) => { markerRefs.current[coord.id] = m; }}
                 position={[coord.lat, coord.lng]}
                 icon={createNumberedIcon(coord.order, group.color)}
               >

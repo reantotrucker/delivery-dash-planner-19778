@@ -84,6 +84,7 @@ export default function LiveRoute() {
   });
 
   const queryClient = useQueryClient();
+  const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(null);
   // Geocodifica (em segundo plano) rotas sem coordenadas; falhas são silenciosas
   useEffect(() => {
     const dayAgo = Date.now() - 24 * 3600_000;
@@ -182,7 +183,7 @@ export default function LiveRoute() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
         <Card className="h-[60vh] min-h-[400px] overflow-hidden p-0">
-          <RouteMap driverGroups={driverGroups} trail={selected ? trail : undefined} vehicles={markers} connectOrigin={false} />
+          <RouteMap driverGroups={driverGroups} trail={selected ? trail : undefined} vehicles={markers} connectOrigin={false} focus={focus} />
         </Card>
 
         <Card className="max-h-[60vh] overflow-y-auto p-3">
@@ -204,7 +205,13 @@ export default function LiveRoute() {
               {history.isFetching && <p className="text-xs text-muted-foreground">Carregando trajeto…</p>}
               {routes.data?.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma rota neste período.</p>}
               {routes.data?.map((r, i) => (
-                <div key={r.id} className="rounded border p-2 text-sm">
+                <div
+                  key={r.id}
+                  className="cursor-pointer rounded border p-2 text-sm hover:bg-muted"
+                  onClick={() => {
+                    if (coordsFromLink(r.location_link) || (r.latitude != null && r.longitude != null)) setFocus({ id: r.id, nonce: Date.now() });
+                  }}
+                >
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-semibold">#{i + 1} {r.client_trade_name || r.client}</span>
                     {statusBadge(r.status)}
