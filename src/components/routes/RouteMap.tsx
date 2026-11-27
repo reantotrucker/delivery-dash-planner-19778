@@ -5,8 +5,8 @@ import "leaflet/dist/leaflet.css";
 import { useCompany } from "@/hooks/useCompany";
 
 const ORIGIN_MANAUS = {
-  lat: -3.0889,
-  lng: -59.9856,
+  lat: -3.0235401,
+  lng: -59.9430326,
   label: "Base / Depósito",
   address: "R. Santa Rosa I B Mendes, 168 - Cidade de Deus, Manaus - AM",
 };
