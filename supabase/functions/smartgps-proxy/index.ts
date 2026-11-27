@@ -4,7 +4,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 export const normalizePlate = (p: string) => (p || '').toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/O/g, '0').replace(/I/g, '1')
 
-const BASE = (Deno.env.get('SMARTGPS_BASE_URL') || '').replace(/\/+$/, '')
+const RAW_BASE = (Deno.env.get('SMARTGPS_BASE_URL') || '').trim().replace(/\/+$/, '')
+const BASE = RAW_BASE && !/^https?:\/\//i.test(RAW_BASE) ? `https://${RAW_BASE}` : RAW_BASE
 const HASH = Deno.env.get('SMARTGPS_API_HASH') || ''
 
 async function sg(path: string, params: Record<string, string>) {
@@ -17,7 +18,9 @@ async function sg(path: string, params: Record<string, string>) {
 }
 
 function flatDevices(data: any): any[] {
-  const arr = Array.isArray(data) ? data : (data?.items ?? data?.data ?? [])
+  let arr: any = Array.isArray(data) ? data : (data?.items ?? data?.data ?? data?.devices ?? [])
+  if (!Array.isArray(arr)) arr = arr && typeof arr === 'object' ? Object.values(arr) : []
+  if (!arr.length && data && typeof data === 'object' && !Array.isArray(data)) console.log('SmartGPS shape:', JSON.stringify(data).slice(0, 300))
   return arr.flatMap((d: any) => Array.isArray(d?.items) ? d.items : [d])
 }
 
@@ -25,7 +28,9 @@ async function findDevice(plate: string) {
   const target = normalizePlate(plate)
   const variants = [...new Set([plate, plate.replace(/-/g, ''), target])]
   for (const v of variants) {
-    const list = flatDevices(await sg('/api/get_devices', { plate: v, ungrouped: '1' }))
+    const raw = await sg('/api/get_devices', { plate: v, ungrouped: '1' })
+    const list = flatDevices(raw)
+    console.log('SmartGPS busca', v, 'itens', list.length, JSON.stringify(list[0] ?? raw).slice(0, 400))
     const hit = list.find((d: any) => [d?.plate_number, d?.device_data?.plate_number, d?.name].some((x) => x && normalizePlate(String(x)).includes(target)))
     if (hit) return hit
   }
@@ -56,6 +61,14 @@ Deno.serve(async (req) => {
         result.push({ plate: v.plate, device_id: d?.id ?? null })
       }
       return json({ result })
+    }
+    if (action === 'diagnostico') {
+      const { data: isAdmin } = await admin.rpc('has_role', { _user_id: u.user.id, _role: 'admin' })
+      if (!isAdmin) return json({ error: 'Apenas admin' }, 403)
+      const raw = await sg('/api/get_devices', { ungrouped: '1' })
+      const list = flatDevices(raw)
+      return json({ tipo: Array.isArray(raw) ? 'array' : typeof raw, chaves: raw && !Array.isArray(raw) ? Object.keys(raw) : null, total: list.length,
+        amostra: list.slice(0, 40).map((d: any) => ({ id: d?.id, name: d?.name, plate: d?.plate_number ?? d?.device_data?.plate_number })) })
     }
 
     const vehicleId = String(body.vehicle_id || '')
