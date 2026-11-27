@@ -18,7 +18,7 @@ async function sg(path: string, params: Record<string, string>) {
 }
 
 function flatDevices(data: any): any[] {
-  let arr: any = Array.isArray(data) ? data : (data?.items ?? data?.data ?? data?.devices ?? [])
+  let arr: any = Array.isArray(data) ? data : (Array.isArray(data?.items?.data) ? data.items.data : (data?.items ?? data?.data ?? data?.devices ?? []))
   if (!Array.isArray(arr)) arr = arr && typeof arr === 'object' ? Object.values(arr) : []
   if (!arr.length && data && typeof data === 'object' && !Array.isArray(data)) console.log('SmartGPS shape:', JSON.stringify(data).slice(0, 300))
   return arr.flatMap((d: any) => Array.isArray(d?.items) ? d.items : [d])
@@ -30,9 +30,17 @@ async function findDevice(plate: string) {
   for (const v of variants) {
     const raw = await sg('/api/get_devices', { plate: v, ungrouped: '1' })
     const list = flatDevices(raw)
-    console.log('SmartGPS busca', v, 'itens', list.length, JSON.stringify(list[0] ?? raw).slice(0, 400))
-    const hit = list.find((d: any) => [d?.plate_number, d?.device_data?.plate_number, d?.name].some((x) => x && normalizePlate(String(x)).includes(target)))
+    const hit = list.find((d: any) => [d?.plate_number, d?.registration_number, d?.device_data?.plate_number, d?.name].some((x) => x && normalizePlate(String(x)).includes(target)))
     if (hit) return hit
+  }
+  // Fallback: percorre todas as páginas sem filtro
+  for (let page = 1; page <= 20; page++) {
+    const raw = await sg('/api/get_devices', { ungrouped: '1', page: String(page) })
+    const list = flatDevices(raw)
+    const hit = list.find((d: any) => [d?.plate_number, d?.registration_number, d?.device_data?.plate_number, d?.name].some((x) => x && normalizePlate(String(x)).includes(target)))
+    if (hit) return hit
+    const last = Number(raw?.items?.last_page ?? 1)
+    if (!list.length || page >= last) break
   }
   return null
 }
@@ -61,14 +69,6 @@ Deno.serve(async (req) => {
         result.push({ plate: v.plate, device_id: d?.id ?? null })
       }
       return json({ result })
-    }
-    if (action === 'diagnostico') {
-      const { data: isAdmin } = await admin.rpc('has_role', { _user_id: u.user.id, _role: 'admin' })
-      if (!isAdmin) return json({ error: 'Apenas admin' }, 403)
-      const raw = await sg('/api/get_devices', { ungrouped: '1' })
-      const list = flatDevices(raw)
-      return json({ tipo: Array.isArray(raw) ? 'array' : typeof raw, chaves: raw && !Array.isArray(raw) ? Object.keys(raw) : null, total: list.length,
-        amostra: list.slice(0, 40).map((d: any) => ({ id: d?.id, name: d?.name, plate: d?.plate_number ?? d?.device_data?.plate_number })) })
     }
 
     const vehicleId = String(body.vehicle_id || '')
