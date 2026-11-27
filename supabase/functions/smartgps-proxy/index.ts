@@ -17,6 +17,30 @@ async function sg(path: string, params: Record<string, string>) {
   return JSON.parse(t)
 }
 
+// Cache em memória para limitar chamadas à SmartGPS
+const cache = new Map<string, { at: number; data: unknown }>()
+async function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  const c = cache.get(key)
+  if (c && Date.now() - c.at < ttlMs) return c.data as T
+  const data = await fn()
+  cache.set(key, { at: Date.now(), data })
+  if (cache.size > 200) cache.delete(cache.keys().next().value!)
+  return data
+}
+
+function collectPoints(node: any, out: [number, number, string?][] = []): [number, number, string?][] {
+  if (Array.isArray(node)) { for (const n of node) collectPoints(n, out); return out }
+  if (node && typeof node === 'object') {
+    const lat = Number(node.lat ?? node.latitude), lng = Number(node.lng ?? node.longitude)
+    if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0 && (node.time || node.raw_time || node.t || node.speed !== undefined)) {
+      out.push([lat, lng, node.time ?? node.raw_time])
+      return out
+    }
+    for (const k of ['items', 'data', 'positions']) if (node[k]) collectPoints(node[k], out)
+  }
+  return out
+}
+
 function flatDevices(data: any): any[] {
   let arr: any = Array.isArray(data) ? data : (Array.isArray(data?.items?.data) ? data.items.data : (data?.items ?? data?.data ?? data?.devices ?? []))
   if (!Array.isArray(arr)) arr = arr && typeof arr === 'object' ? Object.values(arr) : []
@@ -71,6 +95,27 @@ Deno.serve(async (req) => {
       return json({ result })
     }
 
+    if (action === 'ao_vivo') {
+      // RLS do usuário limita aos veículos da empresa dele
+      const companyId = String(body.company_id || '')
+      if (!/^[0-9a-f-]{36}$/i.test(companyId)) return json({ error: 'company_id inválido' }, 400)
+      const { data: vs } = await userClient.from('vehicles').select('id, plate, smartgps_device_id')
+        .eq('company_id', companyId).eq('smartgps_tracked', true).not('smartgps_device_id', 'is', null)
+      const list = await cached('latest', 25_000, async () => {
+        const l = flatDevices(await sg('/api/get_devices_latest', { ungrouped: '1' })).filter((d: any) => d?.id != null && d?.lat != null)
+        // Algumas instalações devolvem outra estrutura; usa a lista completa numa única chamada
+        return l.length ? l : flatDevices(await sg('/api/get_devices', { ungrouped: '1' }))
+      })
+      const byId = new Map(list.map((d: any) => [String(d?.id), d]))
+      const result = (vs ?? []).map((v: any) => {
+        const d: any = byId.get(String(v.smartgps_device_id))
+        return { vehicle_id: v.id, plate: v.plate, device_id: v.smartgps_device_id,
+          lat: d?.lat ?? null, lng: d?.lng ?? null, speed: d?.speed ?? null, time: d?.time ?? null,
+          online: d?.online ?? null, ignition: d?.ignition ?? null, course: d?.course ?? null }
+      })
+      return json({ vehicles: result })
+    }
+
     const vehicleId = String(body.vehicle_id || '')
     if (!/^[0-9a-f-]{36}$/i.test(vehicleId)) return json({ error: 'vehicle_id inválido' }, 400)
     // RLS do usuário garante acesso à empresa do veículo
@@ -94,8 +139,10 @@ Deno.serve(async (req) => {
       const re = /^\d{4}-\d{2}-\d{2}$/, rt = /^\d{2}:\d{2}(:\d{2})?$/
       const { from_date, to_date, from_time = '00:00', to_time = '23:59' } = body
       if (!re.test(from_date) || !re.test(to_date) || !rt.test(from_time) || !rt.test(to_time)) return json({ error: 'Período inválido' }, 400)
-      const h = await sg('/api/get_history', { device_id: deviceId, from_date, to_date, from_time, to_time })
-      return json({ device_id: deviceId, history: h })
+      const key = `h:${deviceId}:${from_date}:${to_date}:${from_time}:${to_time}`
+      const points = await cached(key, 5 * 60_000, async () =>
+        collectPoints(await sg('/api/get_history', { device_id: deviceId, from_date, to_date, from_time, to_time })))
+      return json({ device_id: deviceId, points })
     }
     return json({ error: 'Ação inválida' }, 400)
   } catch (e) {

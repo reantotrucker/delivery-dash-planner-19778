@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { title: "Localizações", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Resumo do dia", url: "/daily-summary", icon: ClipboardList, adminOnly: false },
   { title: "Entrega para interior", url: "/interior", icon: Ship, adminOnly: false, stockOnly: true },
+  { title: "Rota ao vivo", url: "/live-route", icon: Radio, adminOnly: false, stockOnly: true },
   { title: "Etiqueta manual", url: "/labels", icon: Tag, adminOnly: false },
   
   { title: "Comparativo", url: "/comparison", icon: GitCompare, adminOnly: true },

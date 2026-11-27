@@ -33,8 +33,35 @@ interface DriverGroup {
   coordinates: RouteCoordinate[];
 }
 
+export interface LiveVehicleMarker {
+  id: string;
+  lat: number;
+  lng: number;
+  label: string;
+  detail?: string;
+  color?: string;
+}
+
 interface RouteMapProps {
   driverGroups: DriverGroup[];
+  /** Trajeto real (histórico) a desenhar */
+  trail?: [number, number][];
+  /** Veículos ao vivo */
+  vehicles?: LiveVehicleMarker[];
+  /** Liga a linha da base até os pontos (padrão: true) */
+  connectOrigin?: boolean;
+}
+
+function createVehicleIcon(label: string, color: string) {
+  return L.divIcon({
+    className: "custom-marker",
+    html: `<div style="display:flex;flex-direction:column;align-items:center;transform:translateY(-6px)">
+      <div style="background:${color};color:#fff;border:2px solid #fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 6px rgba(0,0,0,.45)">🚚</div>
+      <div style="margin-top:2px;background:#fff;color:#111;font:700 10px/1.2 sans-serif;padding:1px 4px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.35)">${label}</div>
+    </div>`,
+    iconSize: [30, 46],
+    iconAnchor: [15, 23],
+  });
 }
 
 function createNumberedIcon(number: number, color: string) {
@@ -81,24 +108,28 @@ const originIcon = L.divIcon({
 function FitBounds({
   driverGroups,
   origin,
+  extra = [],
 }: {
   driverGroups: DriverGroup[];
   origin: { lat: number; lng: number };
+  extra?: [number, number][];
 }) {
   const map = useMap();
+  const key = `${driverGroups.map((g) => g.coordinates.length).join(",")}|${extra.length}`;
   useEffect(() => {
-    const allPoints: [number, number][] = [[origin.lat, origin.lng]];
+    const allPoints: [number, number][] = [[origin.lat, origin.lng], ...extra];
     driverGroups.forEach((g) =>
       g.coordinates.forEach((c) => allPoints.push([c.lat, c.lng]))
     );
     if (allPoints.length > 1) {
       map.fitBounds(allPoints as L.LatLngBoundsExpression, { padding: [40, 40] });
     }
-  }, [driverGroups, map, origin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, map, origin]);
   return null;
 }
 
-export function RouteMap({ driverGroups }: RouteMapProps) {
+export function RouteMap({ driverGroups, trail, vehicles, connectOrigin = true }: RouteMapProps) {
   const { company } = useCompany();
   const ORIGIN = company?.slug === "uniprint_bv" ? ORIGIN_BOA_VISTA : ORIGIN_MANAUS;
 
@@ -114,7 +145,24 @@ export function RouteMap({ driverGroups }: RouteMapProps) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <FitBounds driverGroups={driverGroups} origin={ORIGIN} />
+      <FitBounds
+        driverGroups={driverGroups}
+        origin={ORIGIN}
+        extra={[...(trail ?? []), ...(vehicles ?? []).map((v) => [v.lat, v.lng] as [number, number])]}
+      />
+
+      {trail && trail.length > 1 && (
+        <Polyline positions={trail} pathOptions={{ color: "#2563eb", weight: 5, opacity: 0.85 }} />
+      )}
+
+      {vehicles?.map((v) => (
+        <Marker key={v.id} position={[v.lat, v.lng]} icon={createVehicleIcon(v.label, v.color ?? "#16a34a")}>
+          <Popup>
+            <strong>{v.label}</strong>
+            {v.detail && (<><br />{v.detail}</>)}
+          </Popup>
+        </Marker>
+      ))}
 
       {/* Origin marker */}
       <Marker position={[ORIGIN.lat, ORIGIN.lng]} icon={originIcon}>
@@ -127,7 +175,7 @@ export function RouteMap({ driverGroups }: RouteMapProps) {
 
       {driverGroups.map((group) => {
         const positions: [number, number][] = [
-          [ORIGIN.lat, ORIGIN.lng],
+          ...(connectOrigin ? [[ORIGIN.lat, ORIGIN.lng] as [number, number]] : []),
           ...group.coordinates.map((c) => [c.lat, c.lng] as [number, number]),
         ];
 

@@ -11,6 +11,7 @@ const navItems = [
   { title: "Locais", url: "/locations", icon: MapPin, adminOnly: false },
   { title: "Resumo", url: "/daily-summary", icon: ClipboardList, adminOnly: false },
   { title: "Interior", url: "/interior", icon: Ship, adminOnly: false, stockOnly: true },
+  { title: "Ao vivo", url: "/live-route", icon: Radio, adminOnly: false, stockOnly: true },
   { title: "Etiqueta", url: "/labels", icon: Tag, adminOnly: false },
   
   { title: "Lojas", url: "/comparison", icon: GitCompare, adminOnly: true },
