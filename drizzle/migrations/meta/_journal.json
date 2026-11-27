@@ -64,6 +64,13 @@
       "when": 1795804857356,
       "tag": "0008_vehicle_type",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795804982560,
+      "tag": "0009_route_coordinates",
+      "breakpoints": true
     }
   ]
 }

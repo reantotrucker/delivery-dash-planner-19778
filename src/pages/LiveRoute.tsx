@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,7 +72,7 @@ export default function LiveRoute() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("routes")
-        .select("id, client, client_trade_name, address, neighborhood, status, location_link, order_number")
+        .select("id, client, client_trade_name, address, neighborhood, status, location_link, order_number, latitude, longitude, geocode_attempted_at")
         .eq("company_id", companyId!)
         .eq("vehicle_id", vehicleId)
         .eq("date", date)
@@ -81,6 +82,25 @@ export default function LiveRoute() {
       return data ?? [];
     },
   });
+
+  const queryClient = useQueryClient();
+  // Geocodifica (em segundo plano) rotas sem coordenadas; falhas são silenciosas
+  useEffect(() => {
+    const dayAgo = Date.now() - 24 * 3600_000;
+    const pend = (routes.data ?? [])
+      .filter((r) => r.latitude == null && !coordsFromLink(r.location_link) && (r.address || r.neighborhood))
+      .filter((r) => !r.geocode_attempted_at || new Date(r.geocode_attempted_at).getTime() < dayAgo)
+      .map((r) => r.id);
+    if (!pend.length) return;
+    let cancel = false;
+    supabase.functions
+      .invoke("smartgps-proxy", { body: { action: "geocodificar", route_ids: pend.slice(0, 15) } })
+      .then(({ data }) => {
+        if (!cancel && data?.updated) queryClient.invalidateQueries({ queryKey: ["live-routes", companyId, vehicleId, date, period] });
+      })
+      .catch(() => {});
+    return () => { cancel = true; };
+  }, [routes.data, companyId, vehicleId, date, period, queryClient]);
 
   const markers: LiveVehicleMarker[] = useMemo(
     () =>
@@ -106,7 +126,7 @@ export default function LiveRoute() {
   const driverGroups = useMemo(() => {
     const coords = (routes.data ?? [])
       .map((r, i) => {
-        const c = coordsFromLink(r.location_link);
+        const c = coordsFromLink(r.location_link) ?? (r.latitude != null && r.longitude != null ? [r.latitude, r.longitude] as [number, number] : null);
         return c ? { id: r.id, lat: c[0], lng: c[1], client: r.client_trade_name || r.client, address: r.address ?? r.neighborhood, order: i + 1 } : null;
       })
       .filter(Boolean) as any[];
@@ -190,7 +210,7 @@ export default function LiveRoute() {
                     {statusBadge(r.status)}
                   </div>
                   <p className="text-xs text-muted-foreground">{[r.address, r.neighborhood].filter(Boolean).join(" · ")}</p>
-                  {coordsFromLink(r.location_link) && (
+                  {(coordsFromLink(r.location_link) || r.latitude != null) && (
                     <p className="mt-1 flex items-center gap-1 text-xs text-primary"><MapPin className="h-3 w-3" /> no mapa</p>
                   )}
                 </div>

@@ -116,6 +116,32 @@ Deno.serve(async (req) => {
       return json({ vehicles: result })
     }
 
+    if (action === 'geocodificar') {
+      // Geocodifica rotas sem coordenadas via Nominatim (1 consulta/s), no máximo 15 por chamada
+      const ids: string[] = Array.isArray(body.route_ids) ? body.route_ids.filter((x: unknown) => typeof x === 'string' && /^[0-9a-f-]{36}$/i.test(x)).slice(0, 15) : []
+      if (!ids.length) return json({ updated: [] })
+      const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString()
+      // RLS do usuário garante acesso às rotas
+      const { data: rs } = await userClient.from('routes').select('id, address, neighborhood, city, cep, latitude, geocode_attempted_at').in('id', ids)
+      const pend = (rs ?? []).filter((r: any) => r.latitude == null && (!r.geocode_attempted_at || r.geocode_attempted_at < dayAgo))
+      const updated: { id: string; lat: number; lng: number }[] = []
+      for (let i = 0; i < pend.length; i++) {
+        const r: any = pend[i]
+        if (i > 0) await new Promise((res) => setTimeout(res, 1100))
+        const q = [r.address, r.neighborhood, r.city || 'Manaus', 'AM', 'Brasil'].filter(Boolean).join(', ')
+        let lat: number | null = null, lng: number | null = null
+        try {
+          const u = new URL('https://nominatim.openstreetmap.org/search')
+          u.searchParams.set('q', q); u.searchParams.set('format', 'json'); u.searchParams.set('limit', '1'); u.searchParams.set('countrycodes', 'br')
+          const resp = await fetch(u, { headers: { 'User-Agent': 'Stock360-Logistica/1.0', 'Accept-Language': 'pt-BR' } })
+          if (resp.ok) { const j = await resp.json(); if (j?.[0]) { lat = Number(j[0].lat); lng = Number(j[0].lon) } }
+        } catch (_) { /* endereço não encontrado: segue sem coordenadas */ }
+        await admin.from('routes').update({ latitude: lat, longitude: lng, geocode_attempted_at: new Date().toISOString() }).eq('id', r.id)
+        if (lat != null && lng != null) updated.push({ id: r.id, lat, lng })
+      }
+      return json({ updated })
+    }
+
     const vehicleId = String(body.vehicle_id || '')
     if (!/^[0-9a-f-]{36}$/i.test(vehicleId)) return json({ error: 'vehicle_id inválido' }, 400)
     // RLS do usuário garante acesso à empresa do veículo

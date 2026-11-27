@@ -844,9 +844,12 @@ export type Database = {
           created_at: string | null
           date: string
           driver_id: string | null
+          geocode_attempted_at: string | null
           id: string
           is_boat: boolean
+          latitude: number | null
           location_link: string | null
+          longitude: number | null
           neighborhood: string
           nfe_number: string | null
           observation: string | null
@@ -871,9 +874,12 @@ export type Database = {
           created_at?: string | null
           date?: string
           driver_id?: string | null
+          geocode_attempted_at?: string | null
           id?: string
           is_boat?: boolean
+          latitude?: number | null
           location_link?: string | null
+          longitude?: number | null
           neighborhood: string
           nfe_number?: string | null
           observation?: string | null
@@ -898,9 +904,12 @@ export type Database = {
           created_at?: string | null
           date?: string
           driver_id?: string | null
+          geocode_attempted_at?: string | null
           id?: string
           is_boat?: boolean
+          latitude?: number | null
           location_link?: string | null
+          longitude?: number | null
           neighborhood?: string
           nfe_number?: string | null
           observation?: string | null
