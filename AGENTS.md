@@ -8,3 +8,4 @@
 - Interior quantity/deletion/volume edits autosave as per-user, company-scoped drafts with an upstream base version and browser fallback; only explicit conference save/send actions confirm or transmit orders.
 - Returning interior orders for authorization uses the authenticated partner action; never emulate approval locally, because Stock360 Vendas owns the approval workflow.
 - Interior "who is conferring" indicators use Realtime Presence per company (no table); presence is ephemeral and never blocks editing.
+- SmartGPS tracking links vehicles by normalized plate (`vehicles.plate_normalized`, no IMEI) through the `smartgps-proxy` edge function, which resolves and stores `smartgps_device_id` and keeps the API hash server-side.

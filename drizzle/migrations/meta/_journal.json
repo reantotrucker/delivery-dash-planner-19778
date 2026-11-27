@@ -50,6 +50,13 @@
       "when": 1793928900475,
       "tag": "0006_interior_conference_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795803118740,
+      "tag": "0007_migration",
+      "breakpoints": true
     }
   ]
 }
