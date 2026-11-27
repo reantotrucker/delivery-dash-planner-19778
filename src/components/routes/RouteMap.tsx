@@ -40,6 +40,7 @@ export interface LiveVehicleMarker {
   label: string;
   detail?: string;
   color?: string;
+  kind?: "carro" | "moto";
 }
 
 interface RouteMapProps {
@@ -52,11 +53,12 @@ interface RouteMapProps {
   connectOrigin?: boolean;
 }
 
-function createVehicleIcon(label: string, color: string) {
+function createVehicleIcon(label: string, color: string, kind: "carro" | "moto" = "carro") {
+  const emoji = kind === "moto" ? "🏍️" : "🚗";
   return L.divIcon({
     className: "custom-marker",
     html: `<div style="display:flex;flex-direction:column;align-items:center;transform:translateY(-6px)">
-      <div style="background:${color};color:#fff;border:2px solid #fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 6px rgba(0,0,0,.45)">🚚</div>
+      <div style="background:${color};color:#fff;border:2px solid #fff;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 6px rgba(0,0,0,.45)">${emoji}</div>
       <div style="margin-top:2px;background:#fff;color:#111;font:700 10px/1.2 sans-serif;padding:1px 4px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.35)">${label}</div>
     </div>`,
     iconSize: [30, 46],
@@ -156,7 +158,7 @@ export function RouteMap({ driverGroups, trail, vehicles, connectOrigin = true }
       )}
 
       {vehicles?.map((v) => (
-        <Marker key={v.id} position={[v.lat, v.lng]} icon={createVehicleIcon(v.label, v.color ?? "#16a34a")}>
+        <Marker key={v.id} position={[v.lat, v.lng]} icon={createVehicleIcon(v.label, v.color ?? "#16a34a", v.kind)}>
           <Popup>
             <strong>{v.label}</strong>
             {v.detail && (<><br />{v.detail}</>)}

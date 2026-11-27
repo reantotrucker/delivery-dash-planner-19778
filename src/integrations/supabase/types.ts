@@ -1019,6 +1019,7 @@ export type Database = {
           smartgps_device_id: string | null
           smartgps_tracked: boolean
           updated_at: string | null
+          vehicle_type: string
         }
         Insert: {
           company_id?: string
@@ -1029,6 +1030,7 @@ export type Database = {
           smartgps_device_id?: string | null
           smartgps_tracked?: boolean
           updated_at?: string | null
+          vehicle_type?: string
         }
         Update: {
           company_id?: string
@@ -1039,6 +1041,7 @@ export type Database = {
           smartgps_device_id?: string | null
           smartgps_tracked?: boolean
           updated_at?: string | null
+          vehicle_type?: string
         }
         Relationships: [
           {

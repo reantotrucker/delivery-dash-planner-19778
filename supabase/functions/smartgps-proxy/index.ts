@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       // RLS do usuário limita aos veículos da empresa dele
       const companyId = String(body.company_id || '')
       if (!/^[0-9a-f-]{36}$/i.test(companyId)) return json({ error: 'company_id inválido' }, 400)
-      const { data: vs } = await userClient.from('vehicles').select('id, plate, smartgps_device_id')
+      const { data: vs } = await userClient.from('vehicles').select('id, plate, vehicle_type, smartgps_device_id')
         .eq('company_id', companyId).eq('smartgps_tracked', true).not('smartgps_device_id', 'is', null)
       const list = await cached('latest', 25_000, async () => {
         const l = flatDevices(await sg('/api/get_devices_latest', { ungrouped: '1' })).filter((d: any) => d?.id != null && d?.lat != null)
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
       const byId = new Map(list.map((d: any) => [String(d?.id), d]))
       const result = (vs ?? []).map((v: any) => {
         const d: any = byId.get(String(v.smartgps_device_id))
-        return { vehicle_id: v.id, plate: v.plate, device_id: v.smartgps_device_id,
+        return { vehicle_id: v.id, plate: v.plate, vehicle_type: v.vehicle_type ?? 'carro', device_id: v.smartgps_device_id,
           lat: d?.lat ?? null, lng: d?.lng ?? null, speed: d?.speed ?? null, time: d?.time ?? null,
           online: d?.online ?? null, ignition: d?.ignition ?? null, course: d?.course ?? null }
       })

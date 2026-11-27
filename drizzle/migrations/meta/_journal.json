@@ -57,6 +57,13 @@
       "when": 1795803118740,
       "tag": "0007_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795804857356,
+      "tag": "0008_vehicle_type",
+      "breakpoints": true
     }
   ]
 }

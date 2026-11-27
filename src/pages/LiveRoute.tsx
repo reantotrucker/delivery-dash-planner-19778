@@ -91,6 +91,7 @@ export default function LiveRoute() {
           lat: Number(v.lat),
           lng: Number(v.lng),
           label: v.plate,
+          kind: v.vehicle_type === "moto" ? "moto" : "carro",
           color: Number(v.speed) > 0 ? "#16a34a" : "#64748b",
           detail: `${Number(v.speed) || 0} km/h${v.time ? ` · ${v.time}` : ""}`,
         })),
@@ -170,7 +171,7 @@ export default function LiveRoute() {
               <p className="text-sm font-semibold">Veículos ({vehicles.length})</p>
               {vehicles.map((v) => (
                 <button key={v.vehicle_id} onClick={() => setVehicleId(v.vehicle_id)} className="flex w-full items-center justify-between rounded border p-2 text-left text-sm hover:bg-muted">
-                  <span className="font-mono font-bold">{v.plate}</span>
+                  <span className="font-mono font-bold">{v.vehicle_type === "moto" ? "🏍️" : "🚗"} {v.plate}</span>
                   <span className="text-xs text-muted-foreground">{v.lat == null ? "sem posição" : `${Number(v.speed) || 0} km/h`}</span>
                 </button>
               ))}
